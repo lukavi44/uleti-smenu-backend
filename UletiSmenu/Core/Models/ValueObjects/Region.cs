@@ -11,6 +11,8 @@ namespace Core.Models.ValueObjects
             Name = name;
         }
 
+        public Region() { }
+
         public static Result<Region> Create(string name)
         {
             if (string.IsNullOrWhiteSpace(name))

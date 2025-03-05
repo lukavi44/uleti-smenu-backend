@@ -6,11 +6,14 @@ namespace Core.Models.ValueObjects
     {
         public string Name { get; }
         public string Number { get; }
+
         private Street(string name, string number)
         {
             Name = name;
             Number = number;    
         }
+
+        public Street() { }
 
         public static Result<Street> Create(string name, string number)
         {

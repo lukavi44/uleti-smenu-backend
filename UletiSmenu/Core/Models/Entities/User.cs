@@ -1,5 +1,4 @@
-﻿using Core.Models.Enums;
-using Core.Models.ValueObjects;
+﻿using Core.Models.ValueObjects;
 using CSharpFunctionalExtensions;
 using Microsoft.AspNetCore.Identity;
 
@@ -7,43 +6,23 @@ namespace Core.Models.Entities
 {
     public class User : IdentityUser<Guid>
     {
-        public string FirstName { get; }
-        public string LastName { get; }
-        public PhoneNumber PhoneNumber { get; private set; }
-        public string ProfilePhoto { get; }
-        public UserRolesEnum Role { get; }
-        public Guid? CompanyId { get; }
-        public Guid? JobPostId { get; }
-        public Guid? SubscriptionId { get; }
-        public DateTime? SubscriptionStart { get; }
-        public DateTime? SubscriptionStop {  get; }
+        public string ProfilePhoto { get; set; }
 
-        private User(Guid id, string firstName, string lastName, string email, string username, PhoneNumber phoneNumber,
-            Guid jobPostId, Guid subscriptionId, UserRolesEnum role, DateTime subscriptionStart, DateTime subscriptionStop)
+        protected User(Guid id, string email, string username, string phoneNumber, string profilePhoto)
         {
             Id = id;
-            FirstName = firstName;
-            LastName = lastName;
             Email = email;
-            UserName = username;
+            UserName = email;
             PhoneNumber = phoneNumber;
-            JobPostId = jobPostId;
-            SubscriptionId = subscriptionId;
-            Role = role;
+            ProfilePhoto = profilePhoto;
         }
 
         public User()
         {
         }
 
-        public static Result<User> Create(Guid id, string firstName, string lastName, string email, string username, PhoneNumber phoneNumber,
-            Guid jobPostId, Guid subscriptionId, UserRolesEnum role, DateTime subscriptionStart, DateTime subscriptionStop)
+        public static Result<User> Create(Guid id, string email, string username, string phoneNumber, string profilePhoto)
         {
-            if (string.IsNullOrWhiteSpace(firstName))
-                return Result.Failure<User>("First name cannot be empty.");
-
-            if (string.IsNullOrWhiteSpace(lastName))
-                return Result.Failure<User>("Last name cannot be empty.");
 
             if (string.IsNullOrWhiteSpace(email))
                 return Result.Failure<User>("Email cannot be empty.");
@@ -51,19 +30,10 @@ namespace Core.Models.Entities
             if (string.IsNullOrWhiteSpace(username))
                 return Result.Failure<User>("Username cannot be empty.");
 
-            if (string.IsNullOrWhiteSpace(phoneNumber.Value))
+            if (string.IsNullOrWhiteSpace(phoneNumber))
                 return Result.Failure<User>("Phone number cannot be empty.");
 
-            if (role == default)
-                return Result.Failure<User>("Role cannot be empty.");
-
-            if (subscriptionStop > subscriptionStart)
-                return Result.Failure<User>("Stop datum of subscription cannot be bigger than start datum.");
-
-            if (subscriptionStart < DateTime.Now)
-                return Result.Failure<User>("Start datum of subscription cannot be in the past.");
-
-            var user = new User(id, firstName, lastName, email, username, phoneNumber, jobPostId, subscriptionId, role, subscriptionStart, subscriptionStop);
+            var user = new User(id, email, username, phoneNumber, profilePhoto);
             return Result.Success(user);
         }
     }

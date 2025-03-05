@@ -7,6 +7,8 @@ namespace Core.Models.ValueObjects
         public Street Street { get; }
         public City City { get; }
 
+        public Address() { }
+
         private Address(Street street, City city)
         {
             Street = street;
@@ -21,6 +23,7 @@ namespace Core.Models.ValueObjects
         protected override IEnumerable<object> GetEqualityComponents()
         {
             yield return Street;
+            yield return City;
         }
     }
 

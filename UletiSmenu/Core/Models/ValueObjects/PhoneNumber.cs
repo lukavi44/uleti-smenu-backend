@@ -11,6 +11,8 @@ namespace Core.Models.ValueObjects
             Value = phoneNumber;
         }
 
+        public PhoneNumber() {}
+
         public static Result<PhoneNumber> Create(string phoneNumber)
         {
             if (string.IsNullOrEmpty(phoneNumber))

@@ -4,12 +4,14 @@ namespace Core.Models.Entities
 {
     public class Subscription
     {
-        public Guid Id { get; }
-        public string Title { get; }
-        public string Description { get; }
-        public decimal Cost { get; }
-        public int DurationInDays { get; }
-        public int NumberOfPosts { get; }
+        public Guid Id { get; private set; }
+        public string Title { get; private set; }
+        public string Description { get; private set; }
+        public decimal Cost { get; private set; }
+        public int DurationInDays { get; private set; }
+        public int NumberOfPosts { get; private set; }
+
+        private Subscription() { }
 
         private Subscription(Guid id, string title, string description, decimal cost, int durationInDays, int numberOfPosts)
         {
@@ -21,8 +23,6 @@ namespace Core.Models.Entities
             NumberOfPosts = numberOfPosts;
         }
 
-        public Subscription() { }
-
         public static Result<Subscription> Create(Guid id, string title, string description, decimal cost, int durationInDays, int numberOfPosts)
         {
             if (id == Guid.Empty) return Result.Failure<Subscription>("ID cannot be empty.");
@@ -31,11 +31,11 @@ namespace Core.Models.Entities
 
             if (string.IsNullOrWhiteSpace(description)) return Result.Failure<Subscription>("Description cannot be empty.");
 
-            if (cost == default) return Result.Failure<Subscription>("Cost cannot be empty.");
+            if (cost <= 0) return Result.Failure<Subscription>("Cost must be greater than zero.");
 
-            if (durationInDays == default) return Result.Failure<Subscription>("Duration in days cannot be empty.");
+            if (durationInDays <= 0) return Result.Failure<Subscription>("Duration in days must be greater than zero.");
 
-            if (numberOfPosts == default) return Result.Failure<Subscription>("Number of posts cannot be empty.");
+            if (numberOfPosts < 0) return Result.Failure<Subscription>("Number of posts cannot be negative.");
 
             return Result.Success<Subscription>(new Subscription(id, title, description, cost, durationInDays, numberOfPosts));
         }

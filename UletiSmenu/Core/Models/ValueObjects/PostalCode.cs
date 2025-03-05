@@ -11,6 +11,8 @@ public class PostalCode : ValueObject
         Value = value;
     }
 
+    public PostalCode() { }
+
     public static Result<PostalCode> Create(string value)
     {
         if (string.IsNullOrWhiteSpace(value))

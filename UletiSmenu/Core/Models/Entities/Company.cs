@@ -1,29 +1,37 @@
 ﻿using Core.Models.ValueObjects;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using CSharpFunctionalExtensions;
 
 namespace Core.Models.Entities
 {
     public class Company
     {
-        public Guid Id { get; }
-        public Guid SubscriptionId { get; }
-        public string Name { get; }
-        public Address Address { get; }
-        
+        public Guid Id { get; private set; }
+        public string Name { get; private set; }
+        public Address Address { get; private set; }
+        public ICollection<JobPost> Posts { get; private set; } = new List<JobPost>();
+
         private Company()
         {
         }
 
-        private Company(Guid id, Guid subscriptionId, string name, Address address)
+        private Company(Guid id, string name, Address address)
         {
             Id = id;
-            SubscriptionId = subscriptionId;
             Name = name;
             Address = address;
+        }
+
+        public static Result<Company> Create(Guid id, string name, Address address)
+        {
+            if (id == Guid.Empty)
+            {
+                return Result.Failure<Company>("ID cannot be empty.");
+            }
+
+            if (string.IsNullOrWhiteSpace(name))
+                return Result.Failure<Company>("Name cannot be empty.");
+
+            return Result.Success(new Company(id, name, address));
         }
     }
 }
