@@ -137,5 +137,15 @@ namespace Infrastructure.Persistence.Services
             var result = await _userManager.ConfirmEmailAsync(user, token);
             return result.Succeeded;
         }
+
+        public Task<Result> UpdateEmployeeAsync(Guid employeeId, Employee employee)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<Result> UpdateEmployerAsync(Guid employerId, Employer employer)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
