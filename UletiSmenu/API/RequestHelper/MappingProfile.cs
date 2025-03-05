@@ -14,6 +14,7 @@ namespace API.RequestHelper
                 .ForMember(dest => dest.SubscriptionId, opt => opt.Ignore())
                 .ForMember(dest => dest.SubscriptionStart, opt => opt.Ignore())
                 .ForMember(dest => dest.SubscriptionStop, opt => opt.Ignore())
+                .ForMember(dest => dest.ProfilePhoto, opt => opt.Ignore())
                 .ConstructUsing((dto, context) =>
                     Employer.Create(
                         Guid.NewGuid(),
@@ -21,7 +22,7 @@ namespace API.RequestHelper
                         dto.Email,
                         dto.Email,
                         dto.PhoneNumber,
-                        dto.ProfilePhoto,
+                        null,
                         PIB.Create(dto.PIB).Value,
                         MB.Create(dto.MB).Value,
                         context.Items["CompanyId"] as Guid? ?? Guid.NewGuid(), 
@@ -35,7 +36,7 @@ namespace API.RequestHelper
                 context.Items["CompanyId"] as Guid? ?? Guid.NewGuid(),
                 dto.CompanyName,
                 Address.Create(
-                    Street.Create(dto.StreetName, dto.SteetNumber).Value, // Street (Assume empty house number)
+                    Street.Create(dto.StreetName, dto.StreetNumber).Value, // Street (Assume empty house number)
                     City.Create(dto.City, PostalCode.Create(dto.PostalCode).Value, Country.Create(dto.Country).Value, Region.Create(dto.Region).Value).Value
                 ).Value
             ).Value);

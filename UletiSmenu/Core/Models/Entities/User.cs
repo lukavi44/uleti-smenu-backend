@@ -6,9 +6,9 @@ namespace Core.Models.Entities
 {
     public class User : IdentityUser<Guid>
     {
-        public string ProfilePhoto { get; set; }
+        public string? ProfilePhoto { get; set; }
 
-        protected User(Guid id, string email, string username, string phoneNumber, string profilePhoto)
+        protected User(Guid id, string email, string username, string phoneNumber, string? profilePhoto)
         {
             Id = id;
             Email = email;
@@ -21,9 +21,8 @@ namespace Core.Models.Entities
         {
         }
 
-        public static Result<User> Create(Guid id, string email, string username, string phoneNumber, string profilePhoto)
+        public static Result<User> Create(Guid id, string email, string username, string phoneNumber, string? profilePhoto)
         {
-
             if (string.IsNullOrWhiteSpace(email))
                 return Result.Failure<User>("Email cannot be empty.");
 

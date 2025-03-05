@@ -40,7 +40,7 @@ namespace Infrastructure.Persistence.Services
                 if (existingUser.Any()) return Result.Failure("Email already exists");
 
                 var newUser = Employer.Create(
-                    employer.Id, employer.Name, employer.Email, employer.Email, employer.PhoneNumber, employer.ProfilePhoto,
+                    employer.Id, employer.Name, employer.Email, employer.Email, employer.PhoneNumber, "",
                     employer.PIB, employer.MB, employer.CompanyId, employer.SubscriptionId, employer.SubscriptionStart, employer.SubscriptionStop
                 ).Value;
 

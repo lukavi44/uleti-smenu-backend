@@ -15,7 +15,7 @@ namespace Core.Models.Entities
 
         public Employer() : base() {}
 
-        private Employer(Guid id, string name, string email, string username, string phoneNumber, string profilePhoto,
+        private Employer(Guid id, string name, string email, string username, string phoneNumber, string? profilePhoto,
                          PIB pib, MB mb, Guid companyId, Guid? subscriptionId, DateTime? subscriptionStart, DateTime? subscriptionStop)
             : base(id, email, username, phoneNumber, profilePhoto) {
             Name = name;
@@ -27,7 +27,7 @@ namespace Core.Models.Entities
             SubscriptionStop = subscriptionStop;
         }
 
-        public static Result<Employer> Create(Guid id, string name, string email, string username, string phoneNumber, string profilePhoto,
+        public static Result<Employer> Create(Guid id, string name, string email, string username, string phoneNumber, string? profilePhoto,
                                               PIB pib, MB mb, Guid companyId, Guid? subscriptionId, DateTime? subscriptionStart, DateTime? subscriptionStop)
         {
 
