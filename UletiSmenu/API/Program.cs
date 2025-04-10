@@ -23,12 +23,13 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddTransient<IUserRepository, UserRepository>();
 builder.Services.AddTransient<ICompanyRepository, CompanyRepository>();
 
-builder.Services.AddScoped<UserManager<User>>();
+//builder.Services.AddScoped<UserManager<User>>();
+//builder.Services.AddScoped<SignInManager<User>>();
 builder.Services.AddScoped<RoleManager<IdentityRole<Guid>>>();
-builder.Services.AddScoped<SignInManager<User>>();
 builder.Services.AddScoped<IApplicationUnitOfWork, ApplicationUnitOfWork>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
+builder.Services.AddScoped<IFileService, FileService>();
 
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"))
     .AddTransient(serviceProvider =>
@@ -50,6 +51,7 @@ builder.Services.AddTransient<IEmailService, EmailService>(provider =>
     return new EmailService(smtpClient, (smtpClient.Credentials as NetworkCredential)!.UserName);
 });
 
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddControllers();
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 builder.Services.AddEndpointsApiExplorer();
@@ -73,7 +75,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(
 
 builder.Services.AddIdentity<User, IdentityRole<Guid>>(options =>
 {
-    options.SignIn.RequireConfirmedEmail = true;
+    options.SignIn.RequireConfirmedEmail = false;
     options.User.RequireUniqueEmail = true;     
     options.Password.RequireDigit = true;
     options.Password.RequireUppercase = true;
@@ -82,21 +84,21 @@ builder.Services.AddIdentity<User, IdentityRole<Guid>>(options =>
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
+    .AddCookie(options =>
     {
-        options.TokenValidationParameters = new TokenValidationParameters
+        options.Events.OnRedirectToAccessDenied = context =>
         {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-            RequireExpirationTime = true,
-            ValidateLifetime = true
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
         };
-    });
+        options.Events.OnRedirectToLogin = context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        };
+    })
+    .AddBearerToken(IdentityConstants.BearerScheme);
 
 builder.Services.AddAuthorization();
 
@@ -124,16 +126,18 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseCors("AllowSpecificOrigin");
-
-app.MapIdentityApi<User>();
 app.UseRouting();
-app.UseHttpsRedirection();
+app.UseCors("AllowSpecificOrigin");
+app.UseStaticFiles();
 
-app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+app.MapIdentityApi<User>();
 
 app.MapControllers();
 

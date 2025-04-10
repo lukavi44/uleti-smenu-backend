@@ -16,12 +16,16 @@ namespace API.Controllers
         private readonly IUserService _userService;
         private readonly ICompanyService _companyService;
         private readonly IMapper _mapper;
+        private readonly IFileService _fileService;
+        private readonly UserManager<User> _userManager;
 
-        public UserController(IUserService userService, ICompanyService companyService, IMapper mapper)
+        public UserController(IUserService userService, ICompanyService companyService, IMapper mapper, IFileService fileService, UserManager<User> userManager)
         {
             _userService = userService;
             _mapper = mapper;
             _companyService = companyService;
+            _fileService = fileService;
+            _userManager = userManager;
         }
 
         [HttpPost("register/employer")]
@@ -35,7 +39,7 @@ namespace API.Controllers
             var employerResult = await _userService.RegisterEmployerAsync(employer, registerDto.Password);
             if (employerResult.IsFailure) return BadRequest(employerResult.Error);
 
-            var companyResult = await _companyService.CreateCompanyAsync(companyId, registerDto.Name, company.Address);
+            var companyResult = await _companyService.CreateCompanyAsync(companyId, registerDto.CompanyName, company.Address);
             if (companyResult.IsFailure)
             {
                 return BadRequest($"Employer created but company creation failed: {companyResult.Error}");
@@ -61,6 +65,21 @@ namespace API.Controllers
             }
         }
 
+        //[Authorize]
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout()
+        {
+            var result = await _userService.LogoutUserAsync();
+
+            if (result.IsFailure)
+            {
+                return BadRequest(result.Error);
+            }
+
+            return Ok(result.IsSuccess);
+        }
+
+
         //[HttpPost("login")]
         //public async Task<IActionResult> LoginUser([FromBody] LoginUserDTO loginDto)
         //{
@@ -85,6 +104,29 @@ namespace API.Controllers
         {
             var users = await _userService.GetUsersByRoleAsync(roleName);
             return Ok(users);
+        }
+
+        [Authorize]
+        [HttpPost("upload-profile-photo")]
+        public async Task<IActionResult> UploadProfilePhoto([FromForm] ProfilePhotoUploadDTO dto)
+        {
+            var loggedInUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(loggedInUserId))
+                return Unauthorized("User is not logged in.");
+
+            if (loggedInUserId != dto.UserId.ToString())
+                return Forbid("You can only update your own profile photo.");
+
+            var user = await _userService.GetUserByIdAsync(dto.UserId);
+            if (user == null) return NotFound("User not found");
+
+            var imagePath = await _fileService.UploadImageAsync(dto.File);
+            if (string.IsNullOrWhiteSpace(imagePath)) return BadRequest("Image upload failed.");
+
+            user.UpdateProfilePhoto(imagePath);
+            await _userManager.UpdateAsync(user);
+
+            return Ok(new { message = "Profile photo updated successfully!", imagePath });
         }
     }
 }

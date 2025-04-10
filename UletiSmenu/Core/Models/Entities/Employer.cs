@@ -1,5 +1,6 @@
 ﻿using Core.Models.ValueObjects;
 using CSharpFunctionalExtensions;
+using System.Net;
 
 namespace Core.Models.Entities
 {
@@ -12,6 +13,8 @@ namespace Core.Models.Entities
         public Guid? SubscriptionId { get; private set; }
         public DateTime? SubscriptionStart { get; private set; }
         public DateTime? SubscriptionStop { get; private set; }
+        //public Address Address { get; private set; }
+        //public ICollection<JobPost> Posts { get; private set; } = new List<JobPost>();
 
         public Employer() : base() {}
 
@@ -25,6 +28,7 @@ namespace Core.Models.Entities
             SubscriptionId = subscriptionId;
             SubscriptionStart = subscriptionStart;
             SubscriptionStop = subscriptionStop;
+            //Address = address;
         }
 
         public static Result<Employer> Create(Guid id, string name, string email, string username, string phoneNumber, string? profilePhoto,

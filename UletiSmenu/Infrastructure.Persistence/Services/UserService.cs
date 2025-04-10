@@ -4,6 +4,7 @@ using Core.Models.Enums;
 using Core.Repositories;
 using Core.Services;
 using CSharpFunctionalExtensions;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using System.Net;
@@ -18,9 +19,10 @@ namespace Infrastructure.Persistence.Services
         private readonly IApplicationUnitOfWork _applicationUnitOfWork;
         private readonly IEmailService _emailService;
         private readonly IConfiguration _configuration;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         public UserService(IUserRepository userRepository, UserManager<User> userManager, SignInManager<User> signInManager,
-            IApplicationUnitOfWork applicationUnitOfWork, IEmailService emailService, IConfiguration configuration)
+            IApplicationUnitOfWork applicationUnitOfWork, IEmailService emailService, IConfiguration configuration, IHttpContextAccessor httpContextAccessor)
         {
             _userRepository = userRepository;
             _userManager = userManager;
@@ -28,6 +30,7 @@ namespace Infrastructure.Persistence.Services
             _applicationUnitOfWork = applicationUnitOfWork;
             _emailService = emailService;
             _configuration = configuration;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<Result> RegisterEmployerAsync(Employer employer, string password)
@@ -101,23 +104,29 @@ namespace Infrastructure.Persistence.Services
             throw new NotImplementedException();
         }
 
-        public async Task<Result> LoginUserAsync(string email, string password)
+        //public async Task<Result> LoginUserAsync(string email, string password)
+        //{
+        //    var user = await _userManager.FindByEmailAsync(email);
+        //    if (user == null)
+        //        return Result.Failure("Invalid email or password.");
+
+        //    var result = await _signInManager.PasswordSignInAsync(user, password, isPersistent: false, lockoutOnFailure: false);
+
+        //    if (!result.Succeeded)
+        //        return Result.Failure("Invalid email or password.");
+
+        //    return Result.Success("User logged in successfully.");
+        //}
+
+        public async Task<Result> LogoutUserAsync()
         {
-            var user = await _userManager.FindByEmailAsync(email);
-            if (user == null)
-                return Result.Failure("Invalid email or password.");
+            var httpContext = _httpContextAccessor.HttpContext;
+            if (httpContext == null) return Result.Failure("HttpContext not available.");
 
-            var result = await _signInManager.PasswordSignInAsync(user, password, isPersistent: false, lockoutOnFailure: false);
+            await _signInManager.SignOutAsync();
+            httpContext.Response.Cookies.Delete(".AspNetCore.Identity.Application");
 
-            if (!result.Succeeded)
-                return Result.Failure("Invalid email or password.");
-
-            return Result.Success("User logged in successfully.");
-        }
-
-        public Task<Result> LogoutUserAsync(string email, string password)
-        {
-            throw new NotImplementedException();
+            return Result.Success("User logged out successfully.");
         }
 
         public async Task<IEnumerable<User>> GetUsersByRoleAsync(string userRole)
