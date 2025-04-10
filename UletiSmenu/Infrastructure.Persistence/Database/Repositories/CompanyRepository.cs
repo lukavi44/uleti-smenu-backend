@@ -12,6 +12,12 @@ namespace Infrastructure.Persistence.Database.Repositories
             _context = context;
         }
 
+        public async Task<IEnumerable<Company>> GetAllCompanies()
+        {
+            return await _context.Companies
+                .Include(c => c.Address).ToListAsync();
+        }
+
         public async Task<IEnumerable<Company>> GetCompaniesByCity(string city)
         {
              return await _context.Companies

@@ -1,5 +1,4 @@
-﻿using Core.Models.ValueObjects;
-using CSharpFunctionalExtensions;
+﻿using CSharpFunctionalExtensions;
 
 namespace Core.Models.Entities
 {
@@ -8,6 +7,9 @@ namespace Core.Models.Entities
         public string FirstName { get; private set; }
         public string LastName { get; private set; }
         public ICollection<Application>? Applications { get; private set; } = new List<Application>();
+        //CV
+        //Rating
+        //numberOfAngazmans
 
         public Employee() : base () {}
 

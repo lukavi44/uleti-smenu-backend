@@ -18,11 +18,11 @@ namespace API.RequestHelper
                 .ConstructUsing((dto, context) =>
                     Employer.Create(
                         Guid.NewGuid(),
-                        dto.Name,
+                        dto.CompanyName,
                         dto.Email,
                         dto.Email,
                         dto.PhoneNumber,
-                        null,
+                        "",
                         PIB.Create(dto.PIB).Value,
                         MB.Create(dto.MB).Value,
                         context.Items["CompanyId"] as Guid? ?? Guid.NewGuid(), 
@@ -54,6 +54,18 @@ namespace API.RequestHelper
             //            City.Create(src.City, PostalCode.Create(src.PostalCode).Value, Country.Create(src.Country).Value, Region.Create(src.Region).Value).Value
             //        ).Value
             //    ));
+
+            CreateMap<Company, CompanyDTO>()
+            .ForMember(dest => dest.CompanyId, opt => opt.MapFrom(src => src.Id));
+
+            CreateMap<Address, AddressDTO>()
+                .ForMember(dest => dest.Street, opt => opt.MapFrom(src => src.Street.Name))
+                .ForMember(dest => dest.City, opt => opt.MapFrom(src => src.City.Name))
+                .ForMember(dest => dest.PostalCode, opt => opt.MapFrom(src => src.City.PostalCode.Value))
+                .ForMember(dest => dest.Country, opt => opt.MapFrom(src => src.City.Country.Name))
+                .ForMember(dest => dest.Region, opt => opt.MapFrom(src => src.City.Region.Name));
+
+
 
         }
     }

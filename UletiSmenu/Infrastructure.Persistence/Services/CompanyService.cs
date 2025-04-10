@@ -3,6 +3,7 @@ using Core.Models.ValueObjects;
 using Core.Repositories;
 using Core.Services;
 using CSharpFunctionalExtensions;
+using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.Design;
 
 namespace Infrastructure.Persistence.Services
@@ -18,9 +19,9 @@ namespace Infrastructure.Persistence.Services
             _userRepository = userRepository;
         }
 
-        public Task<IEnumerable<Company>> GetAllCompaniesAsync()
+        public async Task<IEnumerable<Company>> GetAllCompaniesAsync()
         {
-            throw new NotImplementedException();
+            return await _companyRepository.GetAllCompanies();
         }
 
         public Task<Company?> GetCompanyByIdAsync(Guid id)

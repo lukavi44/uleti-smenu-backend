@@ -21,11 +21,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Infrastructure.Email\Infrastructure.Email.csproj" />
+    <ProjectReference Include="..\Infrastructure.FileService\Infrastructure.FileService.csproj" />
     <ProjectReference Include="..\Infrastructure.Persistence\Infrastructure.Persistence.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Controllers\" />
   </ItemGroup>
 
 </Project>

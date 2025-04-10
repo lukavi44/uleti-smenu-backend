@@ -8,7 +8,8 @@ namespace Core.Services
         Task<IEnumerable<User>> GetAllUsersAsync();
         Task<User?> GetUserByIdAsync(Guid id);
         Task<bool> DeleteUserAsync(Guid id);
-     
+        //Task<Result> LoginUserAsync(string email, string password);
+        Task<Result> LogoutUserAsync();
         Task<IEnumerable<User>> GetUsersByRoleAsync(string userRole);
         Task<bool> ConfirmEmailAsync(Guid userId, string token);
 
