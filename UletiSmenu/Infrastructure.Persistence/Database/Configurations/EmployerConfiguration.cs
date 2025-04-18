@@ -27,9 +27,6 @@ namespace Infrastructure.Persistence.Database.Configurations
                    .IsRequired()
                    .HasMaxLength(8);
 
-            builder.Property(e => e.CompanyId)
-                   .IsRequired();
-
             builder.Property(e => e.SubscriptionId)
                    .IsRequired(false);
 
@@ -38,6 +35,49 @@ namespace Infrastructure.Persistence.Database.Configurations
 
             builder.Property(e => e.SubscriptionStop)
                    .IsRequired(false);
+
+            builder.OwnsOne(c => c.Address, address =>
+            {
+                // Configure Street
+                address.OwnsOne(a => a.Street, street =>
+                {
+                    street.Property(s => s.Name)
+                        .IsRequired()
+                        .HasMaxLength(255);
+
+                    street.Property(s => s.Number)
+                        .IsRequired()
+                        .HasMaxLength(20);
+                });
+
+                address.OwnsOne(a => a.City, city =>
+                {
+                    city.Property(c => c.Name)
+                        .IsRequired()
+                        .HasMaxLength(100);
+
+                    city.OwnsOne(c => c.PostalCode, postalCode =>
+                    {
+                        postalCode.Property(p => p.Value)
+                            .IsRequired()
+                            .HasMaxLength(20);
+                    });
+
+                    city.OwnsOne(c => c.Country, country =>
+                    {
+                        country.Property(ct => ct.Name)
+                            .IsRequired()
+                            .HasMaxLength(100);
+                    });
+
+                    city.OwnsOne(c => c.Region, region =>
+                    {
+                        region.Property(r => r.Name)
+                            .IsRequired()
+                            .HasMaxLength(100);
+                    });
+                });
+            });
         }
     }
 }

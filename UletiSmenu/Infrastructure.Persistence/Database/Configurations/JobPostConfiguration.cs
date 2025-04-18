@@ -8,51 +8,42 @@ namespace Infrastructure.Persistence.Database.Configurations
     {
         public void Configure(EntityTypeBuilder<JobPost> builder)
         {
-            // Primary Key
             builder.HasKey(j => j.Id);
 
-            // Title - Required, Max Length
             builder.Property(j => j.Title)
                 .IsRequired()
                 .HasMaxLength(200);
 
-            // Description - Required, Max Length
             builder.Property(j => j.Description)
                 .IsRequired()
                 .HasMaxLength(1000);
 
-            // Position - Required, Max Length
             builder.Property(j => j.Position)
                 .IsRequired()
                 .HasMaxLength(150);
 
-            // Status - Enum stored as string
             builder.Property(j => j.Status)
                 .HasConversion<string>()
                 .IsRequired();
 
-            // Salary - Required
             builder.Property(j => j.Salary)
                 .IsRequired();
 
-            // Starting Date - Required
             builder.Property(j => j.StartingDate)
                 .IsRequired();
 
-            // CompanyId - Required Foreign Key
-            builder.Property(j => j.CompanyId)
+            builder.Property(j => j.EmployerId)
                 .IsRequired();
 
-            builder.HasOne<Company>()
-                .WithMany() // No navigation properties
-                .HasForeignKey(j => j.CompanyId)
-                .OnDelete(DeleteBehavior.Cascade); // If Company is deleted, JobPosts are deleted
+            builder.HasOne(j => j.Employer)
+                .WithMany(e => e.Posts)     
+                .HasForeignKey(j => j.EmployerId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasIndex(j => j.Position);
             builder.HasIndex(j => j.Salary);
             builder.HasIndex(j => j.StartingDate);
 
-            // Table name (optional)
             builder.ToTable("JobPosts");
         }
     }

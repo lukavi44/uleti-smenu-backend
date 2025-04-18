@@ -14,16 +14,14 @@ namespace API.Controllers
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
-        private readonly ICompanyService _companyService;
         private readonly IMapper _mapper;
         private readonly IFileService _fileService;
         private readonly UserManager<User> _userManager;
 
-        public UserController(IUserService userService, ICompanyService companyService, IMapper mapper, IFileService fileService, UserManager<User> userManager)
+        public UserController(IUserService userService, IMapper mapper, IFileService fileService, UserManager<User> userManager)
         {
             _userService = userService;
             _mapper = mapper;
-            _companyService = companyService;
             _fileService = fileService;
             _userManager = userManager;
         }
@@ -31,19 +29,10 @@ namespace API.Controllers
         [HttpPost("register/employer")]
         public async Task<IActionResult> RegisterEmployer([FromBody] RegisterEmployerDTO registerDto)
         {
-            var companyId = Guid.NewGuid();
-
-            var employer = _mapper.Map<Employer>(registerDto, opt => opt.Items["CompanyId"] = companyId);
-            var company = _mapper.Map<Company>(registerDto, opt => opt.Items["CompanyId"] = companyId);
+            var employer = _mapper.Map<Employer>(registerDto);
 
             var employerResult = await _userService.RegisterEmployerAsync(employer, registerDto.Password);
             if (employerResult.IsFailure) return BadRequest(employerResult.Error);
-
-            var companyResult = await _companyService.CreateCompanyAsync(companyId, registerDto.CompanyName, company.Address);
-            if (companyResult.IsFailure)
-            {
-                return BadRequest($"Employer created but company creation failed: {companyResult.Error}");
-            }
 
             return Ok("Employer registered successfully!");
         }

@@ -17,18 +17,17 @@ using System.Net;
 using System.Text;
 using Infrastructure.Email;
 using Core.Interfaces;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddTransient<IUserRepository, UserRepository>();
-builder.Services.AddTransient<ICompanyRepository, CompanyRepository>();
 
 //builder.Services.AddScoped<UserManager<User>>();
 //builder.Services.AddScoped<SignInManager<User>>();
 builder.Services.AddScoped<RoleManager<IdentityRole<Guid>>>();
 builder.Services.AddScoped<IApplicationUnitOfWork, ApplicationUnitOfWork>();
 builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<ICompanyService, CompanyService>();
 builder.Services.AddScoped<IFileService, FileService>();
 
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"))
@@ -118,6 +117,12 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(@"D:\uploads"),
+    RequestPath = "/uploads"
+});
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

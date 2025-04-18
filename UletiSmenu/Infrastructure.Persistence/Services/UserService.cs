@@ -4,6 +4,7 @@ using Core.Models.Enums;
 using Core.Repositories;
 using Core.Services;
 using CSharpFunctionalExtensions;
+using Infrastructure.Persistence.Database.Repositories;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
@@ -44,7 +45,7 @@ namespace Infrastructure.Persistence.Services
 
                 var newUser = Employer.Create(
                     employer.Id, employer.Name, employer.Email, employer.Email, employer.PhoneNumber, "",
-                    employer.PIB, employer.MB, employer.CompanyId, employer.SubscriptionId, employer.SubscriptionStart, employer.SubscriptionStop
+                    employer.PIB, employer.MB, employer.SubscriptionId, employer.SubscriptionStart, employer.SubscriptionStop, employer.Address
                 ).Value;
 
                 var identityResult = await _userManager.CreateAsync(newUser, password);
@@ -153,6 +154,21 @@ namespace Infrastructure.Persistence.Services
         }
 
         public Task<Result> UpdateEmployerAsync(Guid employerId, Employer employer)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<IEnumerable<Employer>> GetAllEmployersAsync()
+        {
+            return await _userRepository.GetAllEmployers();
+        }
+
+        public Task<Employer> GetEmployerByCityAsync(string city)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<Employer> GetEmployerByNameAsync(string name)
         {
             throw new NotImplementedException();
         }

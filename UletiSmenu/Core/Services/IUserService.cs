@@ -1,5 +1,6 @@
 ﻿using Core.Models.Entities;
 using CSharpFunctionalExtensions;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace Core.Services
 {
@@ -18,6 +19,10 @@ namespace Core.Services
         Task<Result> UpdateEmployeeAsync(Guid employeeId, Employee employee);
 
         // Employer
+        Task<IEnumerable<Employer>> GetAllEmployersAsync();
+        Task<Employer> GetEmployerByCityAsync(string city);
+        Task<Employer> GetEmployerByNameAsync(string name);
+
         Task<Result> UpdateEmployerAsync(Guid employerId, Employer employer);
         Task<Result> RegisterEmployerAsync(Employer employer, string password);
     }

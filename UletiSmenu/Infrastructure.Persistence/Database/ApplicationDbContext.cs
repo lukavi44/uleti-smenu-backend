@@ -12,7 +12,6 @@ namespace Infrastructure.Persistence.Database
         }
 
         public DbSet<User> Users { get; set; }
-        public DbSet<Company> Companies { get; set; }
         public DbSet<JobPost> JobPosts { get; set; }
         public DbSet<Application> Applications { get; set; }
         public DbSet<Subscription> Subscriptions { get; set; }
