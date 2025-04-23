@@ -52,10 +52,24 @@ namespace API.RequestHelper
               .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
 
             CreateMap<JobPostDTO, JobPost>()
-                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => Enum.Parse<JobStatusEnum>(src.Status)))
-                .ForMember(dest => dest.Id, opt => opt.Ignore()) // If you generate it elsewhere
-                .ForMember(dest => dest.Employer, opt => opt.Ignore()); // To avoid circular references or context issues
-
+                .ForMember(dest => dest.Id, opt => opt.Ignore()) 
+                .ForMember(dest => dest.Employer, opt => opt.Ignore())
+                .ForMember(dest => dest.EmployerId, opt => opt.Ignore())
+                .ConstructUsing((dto, context) =>
+                {
+                    var employerId = (Guid)context.Items["EmployerId"];
+                    
+                    return JobPost.Create(
+                        Guid.NewGuid(),
+                        dto.Title,
+                        dto.Description,
+                        Enum.Parse<JobStatusEnum>(dto.Status),
+                        dto.StartingDate,
+                        employerId,
+                        dto.Salary,
+                        dto.Position
+                    ).Value;
+                });
         }
     }
 }
