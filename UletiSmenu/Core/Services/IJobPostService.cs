@@ -1,15 +1,11 @@
 ﻿using Core.Models.Entities;
 using CSharpFunctionalExtensions;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Core.Services
 {
     public interface IJobPostService
     {
         Task<Result> CreateJobPostAsync(JobPost jobPost);
+        Task<IEnumerable<JobPost>> GetAllJobPostsAsync();
     }
 }

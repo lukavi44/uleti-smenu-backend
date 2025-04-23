@@ -39,9 +39,6 @@ namespace Core.Models.Entities
             if (string.IsNullOrWhiteSpace(description))
                 return Result.Failure<JobPost>("Description cannot be empty.");
 
-            if (status == default)
-                return Result.Failure<JobPost>("Status cannot be empty.");
-
             if (startingDate == default || startingDate <= DateTime.UtcNow)
                 return Result.Failure<JobPost>("Starting date must be set and cannot be in the past.");
 
