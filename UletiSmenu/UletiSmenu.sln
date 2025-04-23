@@ -9,9 +9,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Infrastructure.Persistence"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "API", "API\API.csproj", "{3748CFD8-DC2D-4452-A038-7B1F25DC8D79}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Infrastructure.Email", "Infrastructure.Email\Infrastructure.Email.csproj", "{68ABAB17-C726-4191-8B76-3C19E03BCEF7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Infrastructure.Email", "Infrastructure.Email\Infrastructure.Email.csproj", "{68ABAB17-C726-4191-8B76-3C19E03BCEF7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Infrastructure.FileService", "Infrastructure.FileService\Infrastructure.FileService.csproj", "{0E9F75E8-BF50-4B0B-B467-68B7A8112FC7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Infrastructure.FileService", "Infrastructure.FileService\Infrastructure.FileService.csproj", "{0E9F75E8-BF50-4B0B-B467-68B7A8112FC7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UletiSmenu.Tests", "UletiSmenu.Tests\UletiSmenu.Tests.csproj", "{C77D4C26-A977-4B29-822D-A10AAB13978D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -39,6 +41,10 @@ Global
 		{0E9F75E8-BF50-4B0B-B467-68B7A8112FC7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0E9F75E8-BF50-4B0B-B467-68B7A8112FC7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0E9F75E8-BF50-4B0B-B467-68B7A8112FC7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C77D4C26-A977-4B29-822D-A10AAB13978D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C77D4C26-A977-4B29-822D-A10AAB13978D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C77D4C26-A977-4B29-822D-A10AAB13978D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C77D4C26-A977-4B29-822D-A10AAB13978D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
