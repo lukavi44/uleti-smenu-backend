@@ -1,5 +1,6 @@
 ﻿using Core.Models.Entities;
 using Core.Models.Enums;
+using CSharpFunctionalExtensions;
 
 namespace Core.Repositories
 {
@@ -7,6 +8,7 @@ namespace Core.Repositories
     {
         Task<IEnumerable<User>> GetUsersByRoleAsync(UserRolesEnum role);
         Task<IEnumerable<Employer>> GetEmployerByCity(string city);
-        Task<IEnumerable<Employer>> GetAllEmployers();
+        Task<IEnumerable<Employer>> GetAllEmployersAsync();
+        Task<Result<Employer>> GetEmployerByIdAsync(Guid id);
     }
 }

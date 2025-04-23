@@ -4,11 +4,10 @@ using Core.Models.Enums;
 using Core.Repositories;
 using Core.Services;
 using CSharpFunctionalExtensions;
-using Infrastructure.Persistence.Database.Repositories;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
-using System.Net;
+using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Persistence.Services
 {
@@ -21,9 +20,10 @@ namespace Infrastructure.Persistence.Services
         private readonly IEmailService _emailService;
         private readonly IConfiguration _configuration;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ILogger<UserService> _logger;
 
         public UserService(IUserRepository userRepository, UserManager<User> userManager, SignInManager<User> signInManager,
-            IApplicationUnitOfWork applicationUnitOfWork, IEmailService emailService, IConfiguration configuration, IHttpContextAccessor httpContextAccessor)
+            IApplicationUnitOfWork applicationUnitOfWork, IEmailService emailService, IConfiguration configuration, IHttpContextAccessor httpContextAccessor, ILogger<UserService> logger)
         {
             _userRepository = userRepository;
             _userManager = userManager;
@@ -32,6 +32,7 @@ namespace Infrastructure.Persistence.Services
             _emailService = emailService;
             _configuration = configuration;
             _httpContextAccessor = httpContextAccessor;
+            _logger = logger;
         }
 
         public async Task<Result> RegisterEmployerAsync(Employer employer, string password)
@@ -41,18 +42,17 @@ namespace Infrastructure.Persistence.Services
             try
             {
                 var existingUser = await _userRepository.FindAsync(e => e.Email == employer.Email);
-                if (existingUser.Any()) return Result.Failure("Email already exists");
+                if (existingUser.Any())
+                {
+                    _logger.LogWarning($"Attempted to register user with existing email: {employer.Email}");
+                    return Result.Failure("Email already exists");
+                }
 
-                var newUser = Employer.Create(
-                    employer.Id, employer.Name, employer.Email, employer.Email, employer.PhoneNumber, "",
-                    employer.PIB, employer.MB, employer.SubscriptionId, employer.SubscriptionStart, employer.SubscriptionStop, employer.Address
-                ).Value;
-
-                var identityResult = await _userManager.CreateAsync(newUser, password);
+                var identityResult = await _userManager.CreateAsync(employer, password);
                 if (!identityResult.Succeeded)
                     return Result.Failure(string.Join(", ", identityResult.Errors.Select(e => e.Description)));
 
-                var roleResult = await _userManager.AddToRoleAsync(newUser, UserRolesEnum.Employer.ToString());
+                var roleResult = await _userManager.AddToRoleAsync(employer, UserRolesEnum.Employer.ToString());
                 if (!roleResult.Succeeded)
                     return Result.Failure("User created but failed to assign role: " + string.Join(", ", roleResult.Errors.Select(e => e.Description)));
 
@@ -160,7 +160,7 @@ namespace Infrastructure.Persistence.Services
 
         public async Task<IEnumerable<Employer>> GetAllEmployersAsync()
         {
-            return await _userRepository.GetAllEmployers();
+            return await _userRepository.GetAllEmployersAsync();
         }
 
         public Task<Employer> GetEmployerByCityAsync(string city)

@@ -22,10 +22,20 @@ namespace Infrastructure.Persistence.Database.Repositories
                 .ToListAsync();
         }
 
+        public Task<IEnumerable<Employer>> GetAllEmployersAsync()
+        {
+            throw new NotImplementedException();
+        }
+
         public async Task<IEnumerable<Employer>> GetEmployerByCity(string city)
         {
             return await _context.Users.OfType<Employer>()
                 .Where(c => c.Address.City.Name == city).ToListAsync();
+        }
+
+        public Task<CSharpFunctionalExtensions.Result<Employer>> GetEmployerByIdAsync(Guid id)
+        {
+            throw new NotImplementedException();
         }
 
         public async Task<IEnumerable<User>> GetUsersByRoleAsync(UserRolesEnum role)
