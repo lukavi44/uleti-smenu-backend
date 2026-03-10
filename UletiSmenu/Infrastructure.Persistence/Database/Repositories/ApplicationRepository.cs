@@ -59,6 +59,8 @@ namespace Infrastructure.Persistence.Database.Repositories
             return await (from application in _context.Applications
                           join jobPost in _context.JobPosts on application.JobPostId equals jobPost.Id
                           join employer in _context.Users.OfType<Employer>() on jobPost.EmployerId equals employer.Id
+                          join location in _context.RestaurantLocations on jobPost.RestaurantLocationId equals location.Id into locationGroup
+                          from location in locationGroup.DefaultIfEmpty()
                           where application.UserId == employeeId
                           orderby application.DateTime descending
                           select new EmployeeApplicationDTO
@@ -66,7 +68,12 @@ namespace Infrastructure.Persistence.Database.Repositories
                               ApplicationId = application.Id,
                               JobPostId = jobPost.Id,
                               JobPostTitle = jobPost.Title,
+                              Position = jobPost.Position,
                               EmployerName = employer.Name,
+                              RestaurantLocationName = location != null ? location.Name : null,
+                              RestaurantLocationCity = location != null ? location.City : null,
+                              StartingDate = jobPost.StartingDate,
+                              Salary = jobPost.Salary,
                               Status = application.Status.ToString(),
                               AppliedAt = application.DateTime
                           }).ToListAsync();
