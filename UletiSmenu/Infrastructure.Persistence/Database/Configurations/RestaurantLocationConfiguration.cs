@@ -11,6 +11,7 @@ namespace Infrastructure.Persistence.Database.Configurations
             builder.HasKey(x => x.Id);
 
             builder.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            builder.Property(x => x.PhoneNumber).IsRequired().HasMaxLength(30);
             builder.Property(x => x.StreetName).IsRequired().HasMaxLength(255);
             builder.Property(x => x.StreetNumber).IsRequired().HasMaxLength(20);
             builder.Property(x => x.City).IsRequired().HasMaxLength(100);

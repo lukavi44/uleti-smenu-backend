@@ -221,6 +221,9 @@ namespace API.Controllers
             var result = await _userService.CreateEmployerLocationAsync(
                 employerId,
                 request.Name,
+                request.PhoneNumber,
+                request.PIB,
+                request.MB,
                 request.StreetName,
                 request.StreetNumber,
                 request.City,

@@ -8,6 +8,7 @@ namespace Core.Models.Entities
         public Guid EmployerId { get; private set; }
         public Employer Employer { get; private set; }
         public string Name { get; private set; }
+        public string PhoneNumber { get; private set; }
         public string StreetName { get; private set; }
         public string StreetNumber { get; private set; }
         public string City { get; private set; }
@@ -21,6 +22,7 @@ namespace Core.Models.Entities
             Guid id,
             Guid employerId,
             string name,
+            string phoneNumber,
             string streetName,
             string streetNumber,
             string city,
@@ -31,6 +33,7 @@ namespace Core.Models.Entities
             Id = id;
             EmployerId = employerId;
             Name = name;
+            PhoneNumber = phoneNumber;
             StreetName = streetName;
             StreetNumber = streetNumber;
             City = city;
@@ -43,6 +46,7 @@ namespace Core.Models.Entities
             Guid id,
             Guid employerId,
             string name,
+            string phoneNumber,
             string streetName,
             string streetNumber,
             string city,
@@ -58,6 +62,9 @@ namespace Core.Models.Entities
 
             if (string.IsNullOrWhiteSpace(name))
                 return Result.Failure<RestaurantLocation>("Location name cannot be empty.");
+
+            if (string.IsNullOrWhiteSpace(phoneNumber))
+                return Result.Failure<RestaurantLocation>("Phone number cannot be empty.");
 
             if (string.IsNullOrWhiteSpace(streetName))
                 return Result.Failure<RestaurantLocation>("Street name cannot be empty.");
@@ -78,7 +85,7 @@ namespace Core.Models.Entities
                 return Result.Failure<RestaurantLocation>("Region cannot be empty.");
 
             return Result.Success(new RestaurantLocation(
-                id, employerId, name, streetName, streetNumber, city, postalCode, country, region));
+                id, employerId, name, phoneNumber, streetName, streetNumber, city, postalCode, country, region));
         }
     }
 }

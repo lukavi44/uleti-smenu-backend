@@ -65,6 +65,7 @@ namespace Infrastructure.Persistence.Services
                     Guid.NewGuid(),
                     employer.Id,
                     $"{employer.Name} - Main location",
+                    employer.PhoneNumber ?? "N/A",
                     employer.Address.Street.Name,
                     employer.Address.Street.Number,
                     employer.Address.City.Name,
@@ -298,6 +299,9 @@ namespace Infrastructure.Persistence.Services
         public async Task<Result<RestaurantLocation>> CreateEmployerLocationAsync(
             Guid employerId,
             string name,
+            string phoneNumber,
+            string pib,
+            string mb,
             string streetName,
             string streetNumber,
             string city,
@@ -309,10 +313,17 @@ namespace Infrastructure.Persistence.Services
             if (employer == null)
                 return Result.Failure<RestaurantLocation>("Employer not found.");
 
+            if (!string.Equals(employer.PIB.Value, pib, StringComparison.Ordinal))
+                return Result.Failure<RestaurantLocation>("PIB must match your employer account.");
+
+            if (!string.Equals(employer.MB.Value, mb, StringComparison.Ordinal))
+                return Result.Failure<RestaurantLocation>("MB must match your employer account.");
+
             var createLocationResult = RestaurantLocation.Create(
                 Guid.NewGuid(),
                 employerId,
                 name,
+                phoneNumber,
                 streetName,
                 streetNumber,
                 city,

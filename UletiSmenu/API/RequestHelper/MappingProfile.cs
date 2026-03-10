@@ -40,6 +40,8 @@ namespace API.RequestHelper
             //CreateMap<Employer, RegisterEmployerDTO>();
 
             CreateMap<Employer, EmployerDTO>()
+             .ForMember(dest => dest.PIB, opt => opt.MapFrom(src => src.PIB.Value))
+             .ForMember(dest => dest.MB, opt => opt.MapFrom(src => src.MB.Value))
              .IncludeBase<User, EmployerDTO>();
 
             CreateMap<User, EmployerDTO>();

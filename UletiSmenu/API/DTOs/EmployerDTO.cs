@@ -3,10 +3,12 @@ namespace API.DTOs
     public class EmployerDTO
     {
         public Guid Id { get; set; }
-        public string Name { get; set; }
-        public string Email { get; set; }
-        public string PhoneNumber { get; set; }
-        public string ProfilePhoto { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
+        public string ProfilePhoto { get; set; } = string.Empty;
+        public string PIB { get; set; } = string.Empty;
+        public string MB { get; set; } = string.Empty;
         public bool IsFavourite { get; set; }
     }
 }

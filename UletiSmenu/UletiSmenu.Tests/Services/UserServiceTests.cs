@@ -72,5 +72,67 @@ namespace UletiSmenu.Tests.Services
 
             _userRepositoryMock.Verify(repo => repo.GetAllEmployersAsync(), Times.Once);
         }
+
+        [Fact]
+        public async Task CreateEmployerLocationAsync_ShouldFail_WhenPibDoesNotMatchEmployer()
+        {
+            // Arrange
+            var employerId = Guid.NewGuid();
+            var employer = TestDataFactory.CreateFakeRegisterEmployer();
+
+            _userRepositoryMock
+                .Setup(repo => repo.GetByIdAsync<Employer>(employerId))
+                .ReturnsAsync(employer);
+
+            // Act
+            var result = await _userService.CreateEmployerLocationAsync(
+                employerId,
+                "Branch 2",
+                "0609990000",
+                "000000000",
+                employer.MB.Value,
+                "Street",
+                "1",
+                "City",
+                "21000",
+                "Country",
+                "Region");
+
+            // Assert
+            Assert.True(result.IsFailure);
+            Assert.Equal("PIB must match your employer account.", result.Error);
+            _restaurantLocationRepositoryMock.Verify(repo => repo.AddAsync(It.IsAny<RestaurantLocation>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task CreateEmployerLocationAsync_ShouldFail_WhenMbDoesNotMatchEmployer()
+        {
+            // Arrange
+            var employerId = Guid.NewGuid();
+            var employer = TestDataFactory.CreateFakeRegisterEmployer();
+
+            _userRepositoryMock
+                .Setup(repo => repo.GetByIdAsync<Employer>(employerId))
+                .ReturnsAsync(employer);
+
+            // Act
+            var result = await _userService.CreateEmployerLocationAsync(
+                employerId,
+                "Branch 2",
+                "0609990000",
+                employer.PIB.Value,
+                "00000000",
+                "Street",
+                "1",
+                "City",
+                "21000",
+                "Country",
+                "Region");
+
+            // Assert
+            Assert.True(result.IsFailure);
+            Assert.Equal("MB must match your employer account.", result.Error);
+            _restaurantLocationRepositoryMock.Verify(repo => repo.AddAsync(It.IsAny<RestaurantLocation>()), Times.Never);
+        }
     }
 }
