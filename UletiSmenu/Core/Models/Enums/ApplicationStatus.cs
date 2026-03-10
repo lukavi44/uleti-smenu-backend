@@ -1,10 +1,10 @@
-﻿namespace Core.Models.Enums
+namespace Core.Models.Enums
 {
     public enum ApplicationStatusEnum
     {
         Applied,
+        Accepted,
         Denied,
-        Cancelled,
-        Waiting
+        Cancelled
     }
 }

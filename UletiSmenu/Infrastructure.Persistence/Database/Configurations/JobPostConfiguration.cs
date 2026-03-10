@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Core.Models.Entities;
 
@@ -32,17 +32,30 @@ namespace Infrastructure.Persistence.Database.Configurations
             builder.Property(j => j.StartingDate)
                 .IsRequired();
 
+            builder.Property(j => j.VisibleUntil)
+                .IsRequired();
+
             builder.Property(j => j.EmployerId)
                 .IsRequired();
+
+            builder.Property(j => j.RestaurantLocationId)
+                .IsRequired(false);
 
             builder.HasOne(j => j.Employer)
                 .WithMany(e => e.Posts)     
                 .HasForeignKey(j => j.EmployerId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            builder.HasOne(j => j.RestaurantLocation)
+                .WithMany()
+                .HasForeignKey(j => j.RestaurantLocationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             builder.HasIndex(j => j.Position);
             builder.HasIndex(j => j.Salary);
             builder.HasIndex(j => j.StartingDate);
+            builder.HasIndex(j => j.VisibleUntil);
+            builder.HasIndex(j => j.RestaurantLocationId);
 
             builder.ToTable("JobPosts");
         }

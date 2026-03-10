@@ -1,4 +1,6 @@
-﻿using Core.Services;
+﻿using Core.Repositories;
+using Core.Services;
+using Infrastructure.Persistence.Database.Repositories;
 
 namespace Infrastructure.Persistence.Database;
 public class ApplicationUnitOfWork : IApplicationUnitOfWork
@@ -8,7 +10,10 @@ public class ApplicationUnitOfWork : IApplicationUnitOfWork
     public ApplicationUnitOfWork(ApplicationDbContext context)
     {
         _context = context;
+        Favourites = new FavouriteRepository(context);
     }
+
+    public IFavouriteRepository Favourites { get; }
 
     public async Task CommitTransactionAsync() =>
         await _context.Database.CommitTransactionAsync();

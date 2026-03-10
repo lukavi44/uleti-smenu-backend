@@ -1,8 +1,9 @@
-﻿using API.DTOs;
+using API.DTOs;
 using AutoMapper;
 using Core.Models.Entities;
 using Core.Services;
 using Infrastructure.Persistence.Database;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -29,18 +30,18 @@ namespace API.Controllers
             _userManager = userManager;
         }
 
+        [Authorize(Roles = "Employer")]
         [HttpPost("createJobPost")]
-        public async Task<IActionResult> CreateJobPost([FromBody] JobPostDTO jobPostDTO)
+        public async Task<IActionResult> CreateJobPost([FromBody] JobPostCreateDTO jobPostCreateDTO)
         {
-            var employerIdClaim = User.FindFirstValue("userId");
-            var employerIdClaim2 = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var employerIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             if (string.IsNullOrEmpty(employerIdClaim))
                 return Unauthorized("Employer ID claim not found");
 
             var employerId = Guid.Parse(employerIdClaim);
 
-            var jobPost = _mapper.Map<JobPost>(jobPostDTO, opt =>
+            var jobPost = _mapper.Map<JobPost>(jobPostCreateDTO, opt =>
             {
                 opt.Items["EmployerId"] = employerId;
             });
@@ -56,8 +57,25 @@ namespace API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAllJobPosts()
         {
-            var jobPosts = await _jobPostService.GetAllJobPostsAsync();
-            return Ok(jobPosts);
+            var jobPosts = await _jobPostService.GetVisibleJobPostsAsync();
+
+            var jobPostDtos = _mapper.Map<List<JobPostDTO>>(jobPosts);
+
+            return Ok(jobPostDtos);
+        }
+
+        [Authorize(Roles = "Employer")]
+        [HttpGet("my")]
+        public async Task<IActionResult> GetMyJobPosts()
+        {
+            var employerIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(employerIdClaim, out var employerId))
+                return Unauthorized("Invalid user claim.");
+
+            var jobPosts = await _jobPostService.GetMyJobPostsAsync(employerId);
+            var jobPostDtos = _mapper.Map<List<JobPostDTO>>(jobPosts);
+
+            return Ok(jobPostDtos);
         }
     }
 }

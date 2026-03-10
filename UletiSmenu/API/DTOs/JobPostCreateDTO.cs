@@ -1,9 +1,8 @@
 namespace API.DTOs
 {
-    public class JobPostDTO
+    public class JobPostCreateDTO
     {
         public Guid Id { get; set; }
-        public Guid EmployerId { get; set; }
         public string Title { get; set; }
         public string Description { get; set; }
         public string Position { get; set; }
@@ -11,10 +10,6 @@ namespace API.DTOs
         public int Salary { get; set; }
         public DateTime StartingDate { get; set; }
         public DateTime VisibleUntil { get; set; }
-        public Guid? RestaurantLocationId { get; set; }
-        public string? RestaurantLocationName { get; set; }
-        public string? RestaurantLocationCity { get; set; }
-        public bool IsArchived { get; set; }
-        public EmployerDTO Employer { get; set; }
+        public Guid RestaurantLocationId { get; set; }
     }
 }

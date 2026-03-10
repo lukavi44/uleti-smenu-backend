@@ -10,5 +10,7 @@ namespace Core.Repositories
         Task<IEnumerable<Employer>> GetEmployerByCity(string city);
         Task<IEnumerable<Employer>> GetAllEmployersAsync();
         Task<Result<Employer>> GetEmployerByIdAsync(Guid id);
+        Task<Employee?> GetEmployeeWithFavouritesAsync(Guid employeeId);
+        Task<T> GetByIdAsync<T>(Guid id) where T : class;
     }
 }

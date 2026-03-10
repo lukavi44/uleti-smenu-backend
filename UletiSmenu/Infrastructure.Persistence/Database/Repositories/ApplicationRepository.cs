@@ -1,0 +1,75 @@
+using Core.DTOs;
+using Core.Models.Entities;
+using Core.Repositories;
+using Microsoft.EntityFrameworkCore;
+
+namespace Infrastructure.Persistence.Database.Repositories
+{
+    public class ApplicationRepository : IApplicationRepository
+    {
+        private readonly ApplicationDbContext _context;
+
+        public ApplicationRepository(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<bool> HasEmployeeAppliedAsync(Guid employeeId, Guid jobPostId)
+        {
+            return await _context.Applications
+                .AnyAsync(x => x.UserId == employeeId && x.JobPostId == jobPostId);
+        }
+
+        public async Task<int> GetApplicantCountByJobPostAsync(Guid jobPostId)
+        {
+            return await _context.Applications.CountAsync(x => x.JobPostId == jobPostId);
+        }
+
+        public async Task AddAsync(Application application)
+        {
+            await _context.Applications.AddAsync(application);
+        }
+
+        public async Task<Application?> GetByIdAsync(Guid applicationId)
+        {
+            return await _context.Applications.FirstOrDefaultAsync(x => x.Id == applicationId);
+        }
+
+        public async Task<List<ApplicationApplicantDTO>> GetApplicantsForJobPostAsync(Guid jobPostId)
+        {
+            return await (from application in _context.Applications
+                          join user in _context.Users.OfType<Employee>() on application.UserId equals user.Id
+                          where application.JobPostId == jobPostId
+                          select new ApplicationApplicantDTO
+                          {
+                              ApplicationId = application.Id,
+                              UserId = user.Id,
+                              FirstName = user.FirstName,
+                              LastName = user.LastName,
+                              Email = user.Email!,
+                              PhoneNumber = user.PhoneNumber!,
+                              ProfilePhoto = user.ProfilePhoto,
+                              Status = application.Status.ToString(),
+                              AppliedAt = application.DateTime
+                          }).ToListAsync();
+        }
+
+        public async Task<List<EmployeeApplicationDTO>> GetEmployeeApplicationsAsync(Guid employeeId)
+        {
+            return await (from application in _context.Applications
+                          join jobPost in _context.JobPosts on application.JobPostId equals jobPost.Id
+                          join employer in _context.Users.OfType<Employer>() on jobPost.EmployerId equals employer.Id
+                          where application.UserId == employeeId
+                          orderby application.DateTime descending
+                          select new EmployeeApplicationDTO
+                          {
+                              ApplicationId = application.Id,
+                              JobPostId = jobPost.Id,
+                              JobPostTitle = jobPost.Title,
+                              EmployerName = employer.Name,
+                              Status = application.Status.ToString(),
+                              AppliedAt = application.DateTime
+                          }).ToListAsync();
+        }
+    }
+}

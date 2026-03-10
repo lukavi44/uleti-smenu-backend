@@ -1,4 +1,4 @@
-﻿using Core.Models.Enums;
+using Core.Models.Enums;
 using CSharpFunctionalExtensions;
 using System.ComponentModel.DataAnnotations;
 
@@ -42,13 +42,34 @@ namespace Core.Models.Entities
                 return Result.Failure<Application>("Job post ID cannot be empty.");
             }
 
-            if (status == default)
-                return Result.Failure<Application>("Status cannot be empty.");
+            if (!Enum.IsDefined(typeof(ApplicationStatusEnum), status))
+                return Result.Failure<Application>("Status is invalid.");
 
             if (numberOfApplicants < 0)
                 return Result.Failure<Application>("Number of applicants cannot be less than zero.");
 
             return Result.Success(new Application(id, userId, jobPostId, status, numberOfApplicants, dateTime));
+        }
+
+        public Result SetEmployerDecision(ApplicationStatusEnum newStatus)
+        {
+            if (Status != ApplicationStatusEnum.Applied)
+                return Result.Failure("Only applications in Applied status can be accepted or denied.");
+
+            if (newStatus != ApplicationStatusEnum.Accepted && newStatus != ApplicationStatusEnum.Denied)
+                return Result.Failure("Employer can set only Accepted or Denied status.");
+
+            Status = newStatus;
+            return Result.Success();
+        }
+
+        public Result CancelByEmployee()
+        {
+            if (Status != ApplicationStatusEnum.Applied)
+                return Result.Failure("Only applications in Applied status can be cancelled.");
+
+            Status = ApplicationStatusEnum.Cancelled;
+            return Result.Success();
         }
     }
 }

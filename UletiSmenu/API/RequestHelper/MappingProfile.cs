@@ -1,4 +1,4 @@
-﻿using API.DTOs;
+using API.DTOs;
 using AutoMapper;
 using Core.Models.Entities;
 using Core.Models.Enums;
@@ -37,9 +37,30 @@ namespace API.RequestHelper
                 ).Value
             );
 
-            CreateMap<LoginUserDTO, User>()
-                .ForMember(dest => dest.ProfilePhoto, opt => opt.Ignore());
+            //CreateMap<Employer, RegisterEmployerDTO>();
 
+            CreateMap<Employer, EmployerDTO>()
+             .IncludeBase<User, EmployerDTO>();
+
+            CreateMap<User, EmployerDTO>();
+
+            CreateMap<Employee, EmployeeDTO>();
+
+            CreateMap<RegisterEmployeeDTO, Employee>()
+                .ForMember(dest => dest.Applications, opt => opt.Ignore())
+                .ForMember(dest => dest.ProfilePhoto, opt => opt.Ignore())
+                 .ConstructUsing((dto, context) =>
+                 Employee.Create(
+                     Guid.NewGuid(),
+                     dto.Email,
+                     dto.Email,
+                     dto.PhoneNumber,
+                     "",
+                     null,
+                     dto.FirstName,
+                     dto.LastName).Value);
+
+            CreateMap<Employee, RegisterEmployeeDTO>();
 
             CreateMap<Address, AddressDTO>()
                 .ForMember(dest => dest.Street, opt => opt.MapFrom(src => src.Street.Name))
@@ -48,10 +69,16 @@ namespace API.RequestHelper
                 .ForMember(dest => dest.Country, opt => opt.MapFrom(src => src.City.Country.Name))
                 .ForMember(dest => dest.Region, opt => opt.MapFrom(src => src.City.Region.Name));
 
-            CreateMap<JobPost, JobPostDTO>()
-              .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
+            CreateMap<RestaurantLocation, RestaurantLocationDTO>();
 
-            CreateMap<JobPostDTO, JobPost>()
+            CreateMap<JobPost, JobPostDTO>()
+              .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+              .ForMember(dest => dest.IsArchived, opt => opt.MapFrom(src => src.IsArchived(DateTime.UtcNow)))
+              .ForMember(dest => dest.RestaurantLocationName, opt => opt.MapFrom(src => src.RestaurantLocation != null ? src.RestaurantLocation.Name : null))
+              .ForMember(dest => dest.RestaurantLocationCity, opt => opt.MapFrom(src => src.RestaurantLocation != null ? src.RestaurantLocation.City : null))
+              .ForMember(dest => dest.Employer, opt => opt.MapFrom(src => src.Employer));
+
+            CreateMap<JobPostCreateDTO, JobPost>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore()) 
                 .ForMember(dest => dest.Employer, opt => opt.Ignore())
                 .ForMember(dest => dest.EmployerId, opt => opt.Ignore())
@@ -65,7 +92,9 @@ namespace API.RequestHelper
                         dto.Description,
                         Enum.Parse<JobStatusEnum>(dto.Status),
                         dto.StartingDate,
+                        dto.VisibleUntil,
                         employerId,
+                        dto.RestaurantLocationId,
                         dto.Salary,
                         dto.Position
                     ).Value;
@@ -73,3 +102,8 @@ namespace API.RequestHelper
         }
     }
 }
+
+            //CreateMap<LoginUserDTO, User>()
+            //    .ForMember(dest => dest.ProfilePhoto, opt => opt.Ignore());
+
+            //CreateMap<RegisterEmployeeDTO, Employee>();

@@ -1,4 +1,4 @@
-﻿using Core.Models.Entities;
+using Core.Models.Entities;
 using CSharpFunctionalExtensions;
 
 namespace Core.Services
@@ -6,6 +6,7 @@ namespace Core.Services
     public interface IJobPostService
     {
         Task<Result> CreateJobPostAsync(JobPost jobPost);
-        Task<IEnumerable<JobPost>> GetAllJobPostsAsync();
+        Task<IEnumerable<JobPost>> GetVisibleJobPostsAsync();
+        Task<IEnumerable<JobPost>> GetMyJobPostsAsync(Guid employerId);
     }
 }

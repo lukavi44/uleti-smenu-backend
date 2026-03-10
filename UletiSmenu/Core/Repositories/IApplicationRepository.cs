@@ -1,6 +1,15 @@
-﻿namespace Core.Repositories
+using Core.DTOs;
+using Core.Models.Entities;
+
+namespace Core.Repositories
 {
-    internal interface IApplicationRepository
+    public interface IApplicationRepository
     {
+        Task<bool> HasEmployeeAppliedAsync(Guid employeeId, Guid jobPostId);
+        Task<int> GetApplicantCountByJobPostAsync(Guid jobPostId);
+        Task AddAsync(Application application);
+        Task<Application?> GetByIdAsync(Guid applicationId);
+        Task<List<ApplicationApplicantDTO>> GetApplicantsForJobPostAsync(Guid jobPostId);
+        Task<List<EmployeeApplicationDTO>> GetEmployeeApplicationsAsync(Guid employeeId);
     }
 }

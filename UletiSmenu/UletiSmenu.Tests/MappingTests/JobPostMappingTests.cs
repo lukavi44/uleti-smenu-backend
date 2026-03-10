@@ -1,4 +1,4 @@
-﻿using API.DTOs;
+using API.DTOs;
 using API.RequestHelper;
 using AutoMapper;
 using Core.Models.Entities;
@@ -22,18 +22,23 @@ namespace Tests.Mapping
         }
 
         [Fact]
-        public void Should_Map_JobPostDTO_To_JobPost_With_EmployerId()
+        public void Should_Map_JobPostCreateDTO_To_JobPost_With_EmployerId_And_VisibleUntil()
         {
             // Arrange
-            var dto = new JobPostDTO(
-                Title: "Bartender",
-                Description: "Serve drinks with a smile.",
-                Position: "Evening shift",
-                Status: "Active",
-                Salary: 1500,
-                StartingDate: new DateTime(2025, 5, 1)
-            );
-
+            var startingDate = DateTime.UtcNow.AddHours(3);
+            var visibleUntil = startingDate.AddMinutes(45);
+            var restaurantLocationId = Guid.NewGuid();
+            var dto = new JobPostCreateDTO
+            {
+                Title = "Bartender",
+                Description = "Serve drinks with a smile.",
+                Position = "Evening shift",
+                Status = "Active",
+                Salary = 1500,
+                StartingDate = startingDate,
+                VisibleUntil = visibleUntil,
+                RestaurantLocationId = restaurantLocationId
+            };
             var expectedEmployerId = Guid.NewGuid();
 
             // Act
@@ -48,6 +53,8 @@ namespace Tests.Mapping
             Assert.Equal(dto.Position, result.Position);
             Assert.Equal(dto.Salary, result.Salary);
             Assert.Equal(dto.StartingDate, result.StartingDate);
+            Assert.Equal(dto.VisibleUntil, result.VisibleUntil);
+            Assert.Equal(dto.RestaurantLocationId, result.RestaurantLocationId);
             Assert.Equal(JobStatusEnum.Active, result.Status);
             Assert.Equal(expectedEmployerId, result.EmployerId);
         }

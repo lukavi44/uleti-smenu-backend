@@ -13,7 +13,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Infrastructure.Email", "Inf
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Infrastructure.FileService", "Infrastructure.FileService\Infrastructure.FileService.csproj", "{0E9F75E8-BF50-4B0B-B467-68B7A8112FC7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UletiSmenu.Tests", "UletiSmenu.Tests\UletiSmenu.Tests.csproj", "{C77D4C26-A977-4B29-822D-A10AAB13978D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UletiSmenu.Tests", "UletiSmenu.Tests\UletiSmenu.Tests.csproj", "{C77D4C26-A977-4B29-822D-A10AAB13978D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

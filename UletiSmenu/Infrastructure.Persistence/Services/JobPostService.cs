@@ -1,23 +1,52 @@
-﻿using Core.Models.Entities;
+using Core.Interfaces;
+using Core.Models.Entities;
 using Core.Repositories;
 using Core.Services;
 using CSharpFunctionalExtensions;
+using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Persistence.Services
 {
     public class JobPostService : IJobPostService
     {
         private readonly IJobPostRepository _jobPostRepository;
+        private readonly IRestaurantLocationRepository _restaurantLocationRepository;
         private readonly IApplicationUnitOfWork _applicationUnitOfWork;
-        private readonly IUserRepository _userRepository;
+        private readonly IBillingService _billingService;
+        private readonly IEmailService _emailService;
+        private readonly ILogger<JobPostService> _logger;
 
-        public JobPostService(IJobPostRepository jobPostRepository, IApplicationUnitOfWork applicationUnitOfWork, IUserRepository userRepository) { 
+        public JobPostService(
+            IJobPostRepository jobPostRepository,
+            IRestaurantLocationRepository restaurantLocationRepository,
+            IApplicationUnitOfWork applicationUnitOfWork,
+            IBillingService billingService,
+            IEmailService emailService,
+            ILogger<JobPostService> logger)
+        {
             _jobPostRepository = jobPostRepository;
+            _restaurantLocationRepository = restaurantLocationRepository;
             _applicationUnitOfWork = applicationUnitOfWork;
-            _userRepository = userRepository;
+            _billingService = billingService;
+            _emailService = emailService;
+            _logger = logger;
         }
         public async Task<Result> CreateJobPostAsync(JobPost jobPost)
         {
+            var billingValidation = await _billingService.ValidateEmployerCanCreatePostAsync(jobPost.EmployerId);
+            if (billingValidation.IsFailure)
+                return Result.Failure(billingValidation.Error);
+
+            if (!jobPost.RestaurantLocationId.HasValue)
+                return Result.Failure("Restaurant location must be selected.");
+
+            var location = await _restaurantLocationRepository.GetByIdAsync(jobPost.RestaurantLocationId.Value);
+            if (location == null)
+                return Result.Failure("Selected restaurant location was not found.");
+
+            if (location.EmployerId != jobPost.EmployerId)
+                return Result.Failure("Selected location does not belong to this brand account.");
+
             await _applicationUnitOfWork.BeginTransactionAsync();
 
             try
@@ -25,6 +54,7 @@ namespace Infrastructure.Persistence.Services
                 await _jobPostRepository.AddAsync(jobPost);
                 await _applicationUnitOfWork.SaveChangesAsync();
                 await _applicationUnitOfWork.CommitTransactionAsync();
+                await NotifyFollowersAsync(jobPost);
 
                 return Result.Success("Job post created successfully.");
 
@@ -36,9 +66,35 @@ namespace Infrastructure.Persistence.Services
             }
         }
 
-        public async Task<IEnumerable<JobPost>> GetAllJobPostsAsync()
+        public async Task<IEnumerable<JobPost>> GetVisibleJobPostsAsync()
         {
-            return await _jobPostRepository.GetAllAsync();
+            return await _jobPostRepository.GetVisibleJobPostsAsync(DateTime.UtcNow);
+        }
+
+        public async Task<IEnumerable<JobPost>> GetMyJobPostsAsync(Guid employerId)
+        {
+            return await _jobPostRepository.GetAllByEmployerIdAsync(employerId);
+        }
+
+        private async Task NotifyFollowersAsync(JobPost jobPost)
+        {
+            try
+            {
+                var followerEmails = await _applicationUnitOfWork.Favourites.GetFollowerEmailsByEmployerIdAsync(jobPost.EmployerId);
+
+                foreach (var email in followerEmails.Distinct())
+                {
+                    await _emailService.SendEmailAsync(
+                        email,
+                        "New restaurant shift available",
+                        $"A restaurant you follow just posted a new shift: <b>{jobPost.Title}</b>.");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Notification failure should not roll back job post creation.
+                _logger.LogWarning(ex, "Job post created but follower notification failed for employer {EmployerId}", jobPost.EmployerId);
+            }
         }
     }
 }
