@@ -156,10 +156,7 @@ namespace Core.Models.Entities
                 return Result.Failure("You can only apply to active job posts.");
 
             if (utcNow >= StartingDate)
-                return Result.Failure("You cannot apply after the shift start time has passed.");
-
-            if (!IsVisible(utcNow))
-                return Result.Failure("This job post is no longer visible.");
+                return Result.Failure("Applications are closed because this shift has already started.");
 
             return Result.Success();
         }

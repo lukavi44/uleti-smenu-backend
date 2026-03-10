@@ -68,7 +68,7 @@ namespace UletiSmenu.Tests.Domain
 
             // Assert
             Assert.True(result.IsFailure);
-            Assert.Equal("You cannot apply after the shift start time has passed.", result.Error);
+            Assert.Equal("Applications are closed because this shift has already started.", result.Error);
         }
 
         [Fact]
