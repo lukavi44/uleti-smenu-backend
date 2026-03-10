@@ -54,6 +54,35 @@ namespace API.Controllers
             return Ok(new { message = "Job post created successfully." });
         }
 
+        [Authorize]
+        [HttpPut("my/{jobPostId:guid}")]
+        public async Task<IActionResult> UpdateMyJobPost(Guid jobPostId, [FromBody] JobPostCreateDTO jobPostCreateDTO)
+        {
+            var employerIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(employerIdClaim, out var employerId))
+                return Unauthorized("Invalid user claim.");
+
+            var user = await _userService.GetUserByIdAsync(employerId);
+            if (user is not Employer)
+                return Forbid();
+
+            var result = await _jobPostService.UpdateJobPostAsync(
+                employerId,
+                jobPostId,
+                jobPostCreateDTO.Title,
+                jobPostCreateDTO.Description,
+                jobPostCreateDTO.Position,
+                jobPostCreateDTO.Status,
+                jobPostCreateDTO.Salary,
+                jobPostCreateDTO.StartingDate,
+                jobPostCreateDTO.VisibleUntil,
+                jobPostCreateDTO.RestaurantLocationId);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(new { message = "Job post updated successfully." });
+        }
+
         [HttpGet]
         public async Task<IActionResult> GetAllJobPosts()
         {
@@ -64,13 +93,17 @@ namespace API.Controllers
             return Ok(jobPostDtos);
         }
 
-        [Authorize(Roles = "Employer")]
+        [Authorize]
         [HttpGet("my")]
         public async Task<IActionResult> GetMyJobPosts()
         {
             var employerIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!Guid.TryParse(employerIdClaim, out var employerId))
                 return Unauthorized("Invalid user claim.");
+
+            var user = await _userService.GetUserByIdAsync(employerId);
+            if (user is not Employer)
+                return Forbid();
 
             var jobPosts = await _jobPostService.GetMyJobPostsAsync(employerId);
             var jobPostDtos = _mapper.Map<List<JobPostDTO>>(jobPosts);

@@ -50,7 +50,7 @@ namespace Core.Models.Entities
             string description,
             JobStatusEnum status,
             DateTime startingDate,
-            DateTime visibleUntil,
+            DateTime? visibleUntil,
             Guid employerId,
             Guid restaurantLocationId,
             int salary,
@@ -67,13 +67,12 @@ namespace Core.Models.Entities
             if (startingDate == default || startingDate <= DateTime.UtcNow)
                 return Result.Failure<JobPost>("Starting date must be set and cannot be in the past.");
 
-            if (visibleUntil == default)
-                return Result.Failure<JobPost>("VisibleUntil must be set.");
+            var resolvedVisibleUntil = visibleUntil ?? startingDate;
 
-            if (visibleUntil < startingDate)
+            if (resolvedVisibleUntil < startingDate)
                 return Result.Failure<JobPost>("VisibleUntil cannot be before StartingDate.");
 
-            if (visibleUntil > startingDate.AddHours(1))
+            if (resolvedVisibleUntil > startingDate.AddHours(1))
                 return Result.Failure<JobPost>("VisibleUntil cannot be later than one hour after StartingDate.");
 
             if (restaurantLocationId == Guid.Empty)
@@ -85,7 +84,54 @@ namespace Core.Models.Entities
             if (string.IsNullOrWhiteSpace(position))
                 return Result.Failure<JobPost>("Position cannot be empty");
 
-            return Result.Success<JobPost>(new JobPost(id, title, description, status, startingDate, visibleUntil, employerId, restaurantLocationId, salary, position));
+            return Result.Success<JobPost>(new JobPost(id, title, description, status, startingDate, resolvedVisibleUntil, employerId, restaurantLocationId, salary, position));
+        }
+
+        public Result Update(
+            string title,
+            string description,
+            JobStatusEnum status,
+            DateTime startingDate,
+            DateTime? visibleUntil,
+            Guid restaurantLocationId,
+            int salary,
+            string position)
+        {
+            if (string.IsNullOrWhiteSpace(title))
+                return Result.Failure("Title name cannot be empty.");
+
+            if (string.IsNullOrWhiteSpace(description))
+                return Result.Failure("Description cannot be empty.");
+
+            if (startingDate == default)
+                return Result.Failure("Starting date must be set.");
+
+            var resolvedVisibleUntil = visibleUntil ?? startingDate;
+            if (resolvedVisibleUntil < startingDate)
+                return Result.Failure("VisibleUntil cannot be before StartingDate.");
+
+            if (resolvedVisibleUntil > startingDate.AddHours(1))
+                return Result.Failure("VisibleUntil cannot be later than one hour after StartingDate.");
+
+            if (restaurantLocationId == Guid.Empty)
+                return Result.Failure("Restaurant location must be selected.");
+
+            if (salary <= 0)
+                return Result.Failure("Salary must be greater than zero.");
+
+            if (string.IsNullOrWhiteSpace(position))
+                return Result.Failure("Position cannot be empty");
+
+            Title = title;
+            Description = description;
+            Status = status;
+            StartingDate = startingDate;
+            VisibleUntil = resolvedVisibleUntil;
+            RestaurantLocationId = restaurantLocationId;
+            Salary = salary;
+            Position = position;
+
+            return Result.Success();
         }
 
         public bool IsArchived(DateTime utcNow)

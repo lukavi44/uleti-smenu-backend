@@ -9,7 +9,7 @@ namespace API.DTOs
         public string Status { get; set; }
         public int Salary { get; set; }
         public DateTime StartingDate { get; set; }
-        public DateTime VisibleUntil { get; set; }
+        public DateTime? VisibleUntil { get; set; }
         public Guid RestaurantLocationId { get; set; }
     }
 }

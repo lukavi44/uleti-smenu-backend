@@ -1,5 +1,6 @@
 using Core.Interfaces;
 using Core.Models.Entities;
+using Core.Models.Enums;
 using Core.Repositories;
 using Core.Services;
 using CSharpFunctionalExtensions;
@@ -74,6 +75,53 @@ namespace Infrastructure.Persistence.Services
         public async Task<IEnumerable<JobPost>> GetMyJobPostsAsync(Guid employerId)
         {
             return await _jobPostRepository.GetAllByEmployerIdAsync(employerId);
+        }
+
+        public async Task<Result> UpdateJobPostAsync(
+            Guid employerId,
+            Guid jobPostId,
+            string title,
+            string description,
+            string position,
+            string status,
+            int salary,
+            DateTime startingDate,
+            DateTime? visibleUntil,
+            Guid restaurantLocationId)
+        {
+            var jobPost = await _jobPostRepository.GetJobPostByIdAsync(jobPostId);
+            if (jobPost == null)
+                return Result.Failure("Job post not found.");
+
+            if (jobPost.EmployerId != employerId)
+                return Result.Failure("You can edit only your own job posts.");
+
+            var location = await _restaurantLocationRepository.GetByIdAsync(restaurantLocationId);
+            if (location == null)
+                return Result.Failure("Selected restaurant location was not found.");
+
+            if (location.EmployerId != employerId)
+                return Result.Failure("Selected location does not belong to this brand account.");
+
+            var parseStatusOk = Enum.TryParse<JobStatusEnum>(status, out var parsedStatus);
+            if (!parseStatusOk)
+                return Result.Failure("Invalid job post status.");
+
+            var updateResult = jobPost.Update(
+                title,
+                description,
+                parsedStatus,
+                startingDate,
+                visibleUntil,
+                restaurantLocationId,
+                salary,
+                position);
+
+            if (updateResult.IsFailure)
+                return Result.Failure(updateResult.Error);
+
+            await _applicationUnitOfWork.SaveChangesAsync();
+            return Result.Success("Job post updated successfully.");
         }
 
         private async Task NotifyFollowersAsync(JobPost jobPost)

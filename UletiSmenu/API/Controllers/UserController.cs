@@ -197,7 +197,7 @@ namespace API.Controllers
             return Ok(response);
         }
 
-        [Authorize(Roles = "Employer")]
+        [Authorize]
         [HttpGet("me/locations")]
         public async Task<IActionResult> GetMyLocations()
         {
@@ -205,18 +205,26 @@ namespace API.Controllers
             if (!Guid.TryParse(userIdClaim, out var employerId))
                 return Unauthorized("Invalid user claim.");
 
+            var user = await _userService.GetUserByIdAsync(employerId);
+            if (user is not Employer)
+                return Forbid();
+
             var locations = await _userService.GetEmployerLocationsAsync(employerId);
             var response = _mapper.Map<List<RestaurantLocationDTO>>(locations);
             return Ok(response);
         }
 
-        [Authorize(Roles = "Employer")]
+        [Authorize]
         [HttpPost("me/locations")]
         public async Task<IActionResult> CreateMyLocation([FromBody] CreateRestaurantLocationDTO request)
         {
             var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!Guid.TryParse(userIdClaim, out var employerId))
                 return Unauthorized("Invalid user claim.");
+
+            var user = await _userService.GetUserByIdAsync(employerId);
+            if (user is not Employer)
+                return Forbid();
 
             var result = await _userService.CreateEmployerLocationAsync(
                 employerId,
