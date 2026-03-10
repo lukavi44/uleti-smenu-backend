@@ -1,14 +1,13 @@
 using API.Middlewares;
-using API.RequestHelper;
 using Core.Interfaces;
 using Core.Models.Entities;
+using Core.Models.Enums;
 using Core.Repositories;
 using Core.Services;
 using Infrastructure.Email;
 using Infrastructure.Persistence.Database;
 using Infrastructure.Persistence.Database.Repositories;
 using Infrastructure.Persistence.Services;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
@@ -22,16 +21,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IJobPostRepository, JobPostRepository>();
-builder.Services.AddScoped<IUserClaimsPrincipalFactory<User>, CustomClaimsPrincipalFactory>();
+builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();
+builder.Services.AddScoped<IRestaurantLocationRepository, RestaurantLocationRepository>();
 
-
-//builder.Services.AddScoped<UserManager<User>>();
-//builder.Services.AddScoped<SignInManager<User>>();
 builder.Services.AddScoped<RoleManager<IdentityRole<Guid>>>();
 builder.Services.AddScoped<IApplicationUnitOfWork, ApplicationUnitOfWork>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IJobPostService, JobPostService>();
+builder.Services.AddScoped<IApplicationService, ApplicationService>();
+builder.Services.AddScoped<IBillingService, BillingService>();
 
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"))
     .AddTransient(serviceProvider =>
@@ -50,7 +49,11 @@ builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpS
 builder.Services.AddTransient<IEmailService, EmailService>(provider =>
 {
     var smtpClient = provider.GetRequiredService<SmtpClient>();
-    return new EmailService(smtpClient, (smtpClient.Credentials as NetworkCredential)!.UserName);
+    var smtpSettings = provider.GetRequiredService<IOptions<SmtpSettings>>().Value;
+    var fromEmail = !string.IsNullOrWhiteSpace(smtpSettings.FromEmail)
+        ? smtpSettings.FromEmail
+        : (smtpClient.Credentials as NetworkCredential)?.UserName ?? string.Empty;
+    return new EmailService(smtpClient, fromEmail);
 });
 
 builder.Services.AddHttpContextAccessor();
@@ -83,23 +86,17 @@ builder.Services.AddIdentity<User, IdentityRole<Guid>>(options =>
     options.Password.RequireUppercase = true;
     options.Password.RequiredLength = 8;
 })
+.AddRoles<IdentityRole<Guid>>()
 .AddEntityFrameworkStores<ApplicationDbContext>()
-.AddDefaultTokenProviders();
+.AddDefaultTokenProviders()
+.AddApiEndpoints();
 
-builder.Services.AddAuthentication()
-    .AddBearerToken(IdentityConstants.BearerScheme);
-
-builder.Services.AddAuthorization(options =>
+builder.Services.AddAuthentication(options =>
 {
-    options.FallbackPolicy = new AuthorizationPolicyBuilder()
-        .AddAuthenticationSchemes(IdentityConstants.BearerScheme)
-        .RequireAuthenticatedUser()
-        .Build();
-});
-
-builder.Services.AddIdentityCore<User>()
-    .AddEntityFrameworkStores<ApplicationDbContext>()
-    .AddApiEndpoints();
+    options.DefaultAuthenticateScheme = IdentityConstants.BearerScheme;
+    options.DefaultChallengeScheme = IdentityConstants.BearerScheme;
+})
+.AddBearerToken(IdentityConstants.BearerScheme);
 
 builder.Services.AddCors(options =>
 {
@@ -113,6 +110,9 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+await EnsureDatabaseMigratedAsync(app.Services);
+await EnsureRolesSeededAsync(app.Services);
 
 app.UseStaticFiles(new StaticFileOptions
 {
@@ -129,7 +129,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseRouting();
 app.UseCors("AllowSpecificOrigin");
-app.UseStaticFiles();
 
 app.UseHttpsRedirection();
 
@@ -143,3 +142,29 @@ app.MapIdentityApi<User>();
 app.MapControllers();
 
 app.Run();
+
+static async Task EnsureDatabaseMigratedAsync(IServiceProvider services)
+{
+    using var scope = services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await dbContext.Database.MigrateAsync();
+}
+
+static async Task EnsureRolesSeededAsync(IServiceProvider services)
+{
+    using var scope = services.CreateScope();
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+
+    var roles = new[]
+    {
+        UserRolesEnum.Admin.ToString(),
+        UserRolesEnum.Employee.ToString(),
+        UserRolesEnum.Employer.ToString()
+    };
+
+    foreach (var role in roles)
+    {
+        if (!await roleManager.RoleExistsAsync(role))
+            await roleManager.CreateAsync(new IdentityRole<Guid>(role));
+    }
+}

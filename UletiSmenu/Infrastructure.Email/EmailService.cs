@@ -1,4 +1,4 @@
-﻿using Core.Interfaces;
+using Core.Interfaces;
 using System.Net.Mail;
 
 namespace Infrastructure.Email;
@@ -16,6 +16,9 @@ public class EmailService : IEmailService
 
     public async Task SendEmailAsync(string toEmail, string subject, string message)
     {
+        if (string.IsNullOrWhiteSpace(_fromEmail))
+            throw new InvalidOperationException("SMTP FromEmail is not configured.");
+
         var mailMessage = new MailMessage(_fromEmail, toEmail, subject, message);
         mailMessage.IsBodyHtml = true;
         _smtpClient.UseDefaultCredentials = false;
@@ -24,3 +27,8 @@ public class EmailService : IEmailService
         await _smtpClient.SendMailAsync(mailMessage);
     }
 }
+
+        //_smtpClient.UseDefaultCredentials = false;
+        //_smtpClient.DeliveryMethod = SmtpDeliveryMethod.Network;
+        //var mailMessage = new MailMessage(_fromEmail, toEmail, subject, message);
+        //mailMessage.IsBodyHtml = true;

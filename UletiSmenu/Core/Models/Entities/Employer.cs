@@ -1,4 +1,4 @@
-﻿using Core.Models.ValueObjects;
+using Core.Models.ValueObjects;
 using CSharpFunctionalExtensions;
 using System.Net;
 
@@ -13,7 +13,9 @@ namespace Core.Models.Entities
         public DateTime? SubscriptionStart { get; private set; }
         public DateTime? SubscriptionStop { get; private set; }
         public Address Address { get; private set; }
+        //public ICollection<Employee> Followers { get; set; } = new List<Employee>();
         public ICollection<JobPost> Posts { get; private set; } = new List<JobPost>();
+        public ICollection<RestaurantLocation> Locations { get; private set; } = new List<RestaurantLocation>();
 
         public Employer() : base() {}
 

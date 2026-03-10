@@ -1,6 +1,6 @@
-﻿using Core.Models.Entities;
+using Core.DTOs;
+using Core.Models.Entities;
 using CSharpFunctionalExtensions;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace Core.Services
 {
@@ -13,10 +13,15 @@ namespace Core.Services
         Task<Result> LogoutUserAsync();
         Task<IEnumerable<User>> GetUsersByRoleAsync(string userRole);
         Task<bool> ConfirmEmailAsync(Guid userId, string token);
+        Task<string?> GetUserRoleAsync(Guid userId);
 
         // Employee
         Task<Result> RegisterEmployeeAsync(Employee employee, string password);
         Task<Result> UpdateEmployeeAsync(Guid employeeId, Employee employee);
+        Task<Result> ToggleFavouriteEmployerAsync(Guid employeId, Guid employerId);
+        Task<IEnumerable<EmployerFavouriteStatusDTO>> GetAllEmployersWithFavouriteStatusAsync(Guid employeeId);
+        Task<Result<RestaurantLocation>> CreateEmployerLocationAsync(Guid employerId, string name, string streetName, string streetNumber, string city, string postalCode, string country, string region);
+        Task<IEnumerable<RestaurantLocation>> GetEmployerLocationsAsync(Guid employerId);
 
         // Employer
         Task<IEnumerable<Employer>> GetAllEmployersAsync();

@@ -1,4 +1,4 @@
-﻿using Core.Interfaces;
+using Core.Interfaces;
 using Core.Models.Entities;
 using Core.Repositories;
 using Core.Services;
@@ -16,6 +16,7 @@ namespace UletiSmenu.Tests.Services
     public class UserServiceTests
     {
         private readonly Mock<IUserRepository> _userRepositoryMock;
+        private readonly Mock<IRestaurantLocationRepository> _restaurantLocationRepositoryMock;
         private readonly Mock<UserManager<User>> _userManagerMock;
         private readonly Mock<SignInManager<User>> _signInManagerMock;
         private readonly Mock<IApplicationUnitOfWork> _unitOfWorkMock;
@@ -29,6 +30,7 @@ namespace UletiSmenu.Tests.Services
         public UserServiceTests()
         {
             _userRepositoryMock = new Mock<IUserRepository>();
+            _restaurantLocationRepositoryMock = new Mock<IRestaurantLocationRepository>();
             _userManagerMock = MockHelper.CreateUserManagerMock();
             _signInManagerMock = MockHelper.CreateSignInManagerMock();
             _unitOfWorkMock = new Mock<IApplicationUnitOfWork>();
@@ -39,6 +41,7 @@ namespace UletiSmenu.Tests.Services
 
             _userService = new UserService(
                 _userRepositoryMock.Object,
+                _restaurantLocationRepositoryMock.Object,
                 _userManagerMock.Object,
                 _signInManagerMock.Object,
                 _unitOfWorkMock.Object,

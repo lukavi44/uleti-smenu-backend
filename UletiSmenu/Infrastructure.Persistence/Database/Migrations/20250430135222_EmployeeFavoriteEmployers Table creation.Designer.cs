@@ -4,6 +4,7 @@ using Infrastructure.Persistence.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infrastructure.Persistence.Database.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250430135222_EmployeeFavoriteEmployers Table creation")]
+    partial class EmployeeFavoriteEmployersTablecreation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -79,9 +82,6 @@ namespace Infrastructure.Persistence.Database.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)");
 
-                    b.Property<Guid?>("RestaurantLocationId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<int>("Salary")
                         .HasColumnType("int");
 
@@ -97,77 +97,17 @@ namespace Infrastructure.Persistence.Database.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<DateTime>("VisibleUntil")
-                        .HasColumnType("datetime2");
-
                     b.HasKey("Id");
 
                     b.HasIndex("EmployerId");
 
                     b.HasIndex("Position");
 
-                    b.HasIndex("RestaurantLocationId");
-
                     b.HasIndex("Salary");
 
                     b.HasIndex("StartingDate");
 
-                    b.HasIndex("VisibleUntil");
-
                     b.ToTable("JobPosts", (string)null);
-                });
-
-            modelBuilder.Entity("Core.Models.Entities.RestaurantLocation", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("City")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("Country")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<Guid>("EmployerId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("PostalCode")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<string>("Region")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("StreetName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<string>("StreetNumber")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmployerId");
-
-                    b.HasIndex("EmployerId", "Name");
-
-                    b.ToTable("RestaurantLocations", (string)null);
                 });
 
             modelBuilder.Entity("Core.Models.Entities.Subscription", b =>
@@ -284,7 +224,7 @@ namespace Infrastructure.Persistence.Database.Migrations
                     b.UseTphMappingStrategy();
                 });
 
-            modelBuilder.Entity("Core.Models.Favourite", b =>
+            modelBuilder.Entity("EmployeeFavoriteEmployers", b =>
                 {
                     b.Property<Guid>("EmployeeId")
                         .HasColumnType("uniqueidentifier");
@@ -292,11 +232,16 @@ namespace Infrastructure.Persistence.Database.Migrations
                     b.Property<Guid>("EmployerId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETDATE()");
+
                     b.HasKey("EmployeeId", "EmployerId");
 
                     b.HasIndex("EmployerId");
 
-                    b.ToTable("Favourites", (string)null);
+                    b.ToTable("EmployeeFavoriteEmployers");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", b =>
@@ -536,44 +481,22 @@ namespace Infrastructure.Persistence.Database.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Core.Models.Entities.RestaurantLocation", "RestaurantLocation")
-                        .WithMany()
-                        .HasForeignKey("RestaurantLocationId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.Navigation("Employer");
-
-                    b.Navigation("RestaurantLocation");
                 });
 
-            modelBuilder.Entity("Core.Models.Entities.RestaurantLocation", b =>
+            modelBuilder.Entity("EmployeeFavoriteEmployers", b =>
                 {
-                    b.HasOne("Core.Models.Entities.Employer", "Employer")
-                        .WithMany("Locations")
+                    b.HasOne("Core.Models.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.ClientCascade)
+                        .IsRequired();
+
+                    b.HasOne("Core.Models.Entities.Employer", null)
+                        .WithMany()
                         .HasForeignKey("EmployerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Employer");
-                });
-
-            modelBuilder.Entity("Core.Models.Favourite", b =>
-                {
-                    b.HasOne("Core.Models.Entities.Employee", "Employee")
-                        .WithMany()
-                        .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Core.Models.Entities.Employer", "Employer")
-                        .WithMany()
-                        .HasForeignKey("EmployerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Employee");
-
-                    b.Navigation("Employer");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
@@ -763,8 +686,6 @@ namespace Infrastructure.Persistence.Database.Migrations
 
             modelBuilder.Entity("Core.Models.Entities.Employer", b =>
                 {
-                    b.Navigation("Locations");
-
                     b.Navigation("Posts");
                 });
 #pragma warning restore 612, 618

@@ -1,7 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Core.Models.Entities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Core.Models.Entities;
-using Core.Models.ValueObjects;
 
 namespace Infrastructure.Persistence.Database.Configurations
 {

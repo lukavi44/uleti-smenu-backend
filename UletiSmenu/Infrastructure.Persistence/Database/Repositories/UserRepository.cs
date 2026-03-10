@@ -1,5 +1,6 @@
 ﻿using Core.Models.Entities;
 using Core.Models.Enums;
+using Core.Models.ValueObjects;
 using Core.Repositories;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -42,6 +43,23 @@ namespace Infrastructure.Persistence.Database.Repositories
         {
             var roleName = role.ToString();
             return await _userManager.GetUsersInRoleAsync(roleName);
+        }
+        //public async Task<Employee?> GetEmployeeWithFavouritesAsync(Guid employeeId)
+        //{
+        //    return await _context.Users
+        //        .OfType<Employee>()
+        //        .Include(e => e.FavouriteEmployers)
+        //        .FirstOrDefaultAsync(e => e.Id == employeeId);
+        //}
+
+        public async Task<T> GetByIdAsync<T>(Guid id) where T : class
+        {
+            return await _context.Set<T>().FindAsync(id);
+        }
+
+        public Task<Employee?> GetEmployeeWithFavouritesAsync(Guid employeeId)
+        {
+            throw new NotImplementedException();
         }
     }
 }
