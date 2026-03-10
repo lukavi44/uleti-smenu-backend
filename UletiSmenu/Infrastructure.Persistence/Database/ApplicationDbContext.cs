@@ -18,6 +18,7 @@ namespace Infrastructure.Persistence.Database
         public DbSet<Application> Applications { get; set; }
         public DbSet<Subscription> Subscriptions { get; set; }
         public DbSet<Favourite> Favourites { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

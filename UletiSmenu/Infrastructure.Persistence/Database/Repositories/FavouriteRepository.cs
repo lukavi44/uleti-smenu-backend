@@ -67,6 +67,14 @@ namespace Infrastructure.Persistence.Database.Repositories
                 .ToListAsync();
         }
 
+        public async Task<List<Guid>> GetEmployeeIdsByEmployerIdAsync(Guid employerId)
+        {
+            return await _applicationDbContext.Favourites
+                .Where(f => f.EmployerId == employerId)
+                .Select(f => f.EmployeeId)
+                .ToListAsync();
+        }
+
         public async Task<List<string>> GetFollowerEmailsByEmployerIdAsync(Guid employerId)
         {
             return await (from favourite in _applicationDbContext.Favourites

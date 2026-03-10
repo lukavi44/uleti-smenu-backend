@@ -1,4 +1,4 @@
-﻿using Core.Repositories;
+using Core.Repositories;
 using Core.Services;
 using Infrastructure.Persistence.Database.Repositories;
 
@@ -11,9 +11,11 @@ public class ApplicationUnitOfWork : IApplicationUnitOfWork
     {
         _context = context;
         Favourites = new FavouriteRepository(context);
+        Notifications = new NotificationRepository(context);
     }
 
     public IFavouriteRepository Favourites { get; }
+    public INotificationRepository Notifications { get; }
 
     public async Task CommitTransactionAsync() =>
         await _context.Database.CommitTransactionAsync();

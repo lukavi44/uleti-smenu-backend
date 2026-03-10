@@ -10,6 +10,7 @@ namespace Infrastructure.Persistence.Services
 {
     public class JobPostService : IJobPostService
     {
+        private const string NewFavouriteRestaurantJobPostType = "NewFavouriteRestaurantJobPost";
         private readonly IJobPostRepository _jobPostRepository;
         private readonly IRestaurantLocationRepository _restaurantLocationRepository;
         private readonly IApplicationUnitOfWork _applicationUnitOfWork;
@@ -53,6 +54,7 @@ namespace Infrastructure.Persistence.Services
             try
             {
                 await _jobPostRepository.AddAsync(jobPost);
+                await CreateInAppNotificationsAsync(jobPost);
                 await _applicationUnitOfWork.SaveChangesAsync();
                 await _applicationUnitOfWork.CommitTransactionAsync();
                 await NotifyFollowersAsync(jobPost);
@@ -122,6 +124,35 @@ namespace Infrastructure.Persistence.Services
 
             await _applicationUnitOfWork.SaveChangesAsync();
             return Result.Success("Job post updated successfully.");
+        }
+
+        private async Task CreateInAppNotificationsAsync(JobPost jobPost)
+        {
+            var followerIds = await _applicationUnitOfWork.Favourites.GetEmployeeIdsByEmployerIdAsync(jobPost.EmployerId);
+            if (followerIds.Count == 0)
+                return;
+
+            var existingRecipientIds = await _applicationUnitOfWork.Notifications
+                .GetRecipientIdsForJobPostAsync(jobPost.Id, NewFavouriteRestaurantJobPostType);
+
+            var recipients = followerIds
+                .Distinct()
+                .Where(employeeId => !existingRecipientIds.Contains(employeeId))
+                .ToList();
+
+            if (recipients.Count == 0)
+                return;
+
+            var notifications = recipients.Select(employeeId =>
+                Notification.Create(
+                    employeeId,
+                    jobPost.EmployerId,
+                    jobPost.Id,
+                    NewFavouriteRestaurantJobPostType,
+                    $"New job post from a favourite restaurant: {jobPost.Title}"))
+                .ToList();
+
+            await _applicationUnitOfWork.Notifications.AddRangeAsync(notifications);
         }
 
         private async Task NotifyFollowersAsync(JobPost jobPost)
