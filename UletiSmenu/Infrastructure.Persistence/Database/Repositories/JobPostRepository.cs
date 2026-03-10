@@ -51,8 +51,7 @@ namespace Infrastructure.Persistence.Database.Repositories
                 .Include(jp => jp.RestaurantLocation)
                 .Where(jp =>
                     jp.Status == Core.Models.Enums.JobStatusEnum.Active
-                    && jp.VisibleUntil >= utcNow
-                    && jp.StartingDate.AddHours(1) >= utcNow)
+                    && (jp.VisibleUntil >= utcNow || jp.StartingDate.AddHours(1) >= utcNow))
                 .ToListAsync();
         }
 
