@@ -1,4 +1,4 @@
-﻿using Core.Models.Entities;
+using Core.Models.Entities;
 using Core.Models.Enums;
 using Core.Models.ValueObjects;
 using Core.Repositories;
@@ -23,9 +23,12 @@ namespace Infrastructure.Persistence.Database.Repositories
                 .ToListAsync();
         }
 
-        public Task<IEnumerable<Employer>> GetAllEmployersAsync()
+        public async Task<IEnumerable<Employer>> GetAllEmployersAsync()
         {
-            throw new NotImplementedException();
+            return await _context.Users
+                .OfType<Employer>()
+                .Include(e => e.Address)
+                .ToListAsync();
         }
 
         public async Task<IEnumerable<Employer>> GetEmployerByCity(string city)
