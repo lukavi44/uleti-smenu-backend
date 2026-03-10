@@ -189,6 +189,7 @@ namespace API.Controllers
             var result = await _userService.GetAllEmployersWithFavouriteStatusAsync(userId);
             var response = result.Select(x => new EmployerDTO
             {
+                Id = x.EmployerId,
                 Name = x.Name,
                 ProfilePhoto = x.ProfilePhoto ?? string.Empty,
                 IsFavourite = x.IsFavourite
