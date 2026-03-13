@@ -44,15 +44,29 @@ namespace Infrastructure.Persistence.Database.Repositories
             return response;
         }
 
-        public async Task<IEnumerable<JobPost>> GetVisibleJobPostsAsync(DateTime utcNow)
+        public async Task<IEnumerable<JobPost>> GetVisibleJobPostsAsync(DateTime utcNow, string? sortBy = null, string? sortDirection = null)
         {
-            return await _context.JobPosts
+            var query = _context.JobPosts
                 .Include(jp => jp.Employer)
                 .Include(jp => jp.RestaurantLocation)
                 .Where(jp =>
                     jp.Status == Core.Models.Enums.JobStatusEnum.Active
-                    && (jp.VisibleUntil >= utcNow || jp.StartingDate.AddHours(1) >= utcNow))
-                .ToListAsync();
+                    && (jp.VisibleUntil >= utcNow || jp.StartingDate.AddHours(1) >= utcNow));
+
+            var isAscending = string.Equals(sortDirection, "asc", StringComparison.OrdinalIgnoreCase);
+            var normalizedSortBy = sortBy?.Trim().ToLowerInvariant();
+
+            query = normalizedSortBy switch
+            {
+                "salary" => isAscending
+                    ? query.OrderBy(jp => jp.Salary).ThenBy(jp => jp.CreatedAtUtc)
+                    : query.OrderByDescending(jp => jp.Salary).ThenByDescending(jp => jp.CreatedAtUtc),
+                _ => isAscending
+                    ? query.OrderBy(jp => jp.CreatedAtUtc).ThenBy(jp => jp.StartingDate)
+                    : query.OrderByDescending(jp => jp.CreatedAtUtc).ThenByDescending(jp => jp.StartingDate)
+            };
+
+            return await query.ToListAsync();
         }
 
         public async Task<JobPost?> GetJobPostByIdAsync(Guid id)

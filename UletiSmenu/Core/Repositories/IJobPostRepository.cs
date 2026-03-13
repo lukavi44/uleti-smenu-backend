@@ -9,6 +9,6 @@ namespace Core.Repositories
         Task<IEnumerable<JobPost>> GetAllByEmployerIdAsync(Guid employerId);
         Task DeleteJobPostAsync(JobPost jobPost);
         Task<IEnumerable<JobPost>> GetAllJobPostsAsync();
-        Task<IEnumerable<JobPost>> GetVisibleJobPostsAsync(DateTime utcNow);
+        Task<IEnumerable<JobPost>> GetVisibleJobPostsAsync(DateTime utcNow, string? sortBy = null, string? sortDirection = null);
     }
 }

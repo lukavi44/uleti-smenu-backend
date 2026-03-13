@@ -84,9 +84,9 @@ namespace API.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAllJobPosts()
+        public async Task<IActionResult> GetAllJobPosts([FromQuery] string? sortBy = null, [FromQuery] string? sortDirection = null)
         {
-            var jobPosts = await _jobPostService.GetVisibleJobPostsAsync();
+            var jobPosts = await _jobPostService.GetVisibleJobPostsAsync(sortBy, sortDirection);
 
             var jobPostDtos = _mapper.Map<List<JobPostDTO>>(jobPosts);
 

@@ -11,6 +11,7 @@ namespace Core.Models.Entities
         public string Position { get; private set; }
         public JobStatusEnum Status { get; private set; }
         public int Salary { get; private set; }
+        public DateTime CreatedAtUtc { get; private set; }
         public DateTime StartingDate { get; private set; }
         public DateTime VisibleUntil { get; private set; }
         public Guid EmployerId { get; private set; }
@@ -23,6 +24,7 @@ namespace Core.Models.Entities
             string title,
             string description,
             JobStatusEnum status,
+            DateTime createdAtUtc,
             DateTime startingDate,
             DateTime visibleUntil,
             Guid employerId,
@@ -34,6 +36,7 @@ namespace Core.Models.Entities
             Title = title;
             Description = description;
             Status = status;
+            CreatedAtUtc = createdAtUtc;
             StartingDate = startingDate;
             VisibleUntil = visibleUntil;
             EmployerId = employerId;
@@ -84,7 +87,7 @@ namespace Core.Models.Entities
             if (string.IsNullOrWhiteSpace(position))
                 return Result.Failure<JobPost>("Position cannot be empty");
 
-            return Result.Success<JobPost>(new JobPost(id, title, description, status, startingDate, resolvedVisibleUntil, employerId, restaurantLocationId, salary, position));
+            return Result.Success<JobPost>(new JobPost(id, title, description, status, DateTime.UtcNow, startingDate, resolvedVisibleUntil, employerId, restaurantLocationId, salary, position));
         }
 
         public Result Update(

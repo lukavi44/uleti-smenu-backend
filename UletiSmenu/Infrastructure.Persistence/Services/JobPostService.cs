@@ -69,9 +69,9 @@ namespace Infrastructure.Persistence.Services
             }
         }
 
-        public async Task<IEnumerable<JobPost>> GetVisibleJobPostsAsync()
+        public async Task<IEnumerable<JobPost>> GetVisibleJobPostsAsync(string? sortBy = null, string? sortDirection = null)
         {
-            return await _jobPostRepository.GetVisibleJobPostsAsync(DateTime.UtcNow);
+            return await _jobPostRepository.GetVisibleJobPostsAsync(DateTime.UtcNow, sortBy, sortDirection);
         }
 
         public async Task<IEnumerable<JobPost>> GetMyJobPostsAsync(Guid employerId)

@@ -17,7 +17,7 @@ namespace Core.Services
             DateTime startingDate,
             DateTime? visibleUntil,
             Guid restaurantLocationId);
-        Task<IEnumerable<JobPost>> GetVisibleJobPostsAsync();
+        Task<IEnumerable<JobPost>> GetVisibleJobPostsAsync(string? sortBy = null, string? sortDirection = null);
         Task<IEnumerable<JobPost>> GetMyJobPostsAsync(Guid employerId);
     }
 }

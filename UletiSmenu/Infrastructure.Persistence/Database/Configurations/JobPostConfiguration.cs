@@ -29,6 +29,9 @@ namespace Infrastructure.Persistence.Database.Configurations
             builder.Property(j => j.Salary)
                 .IsRequired();
 
+            builder.Property(j => j.CreatedAtUtc)
+                .IsRequired();
+
             builder.Property(j => j.StartingDate)
                 .IsRequired();
 
@@ -53,6 +56,7 @@ namespace Infrastructure.Persistence.Database.Configurations
 
             builder.HasIndex(j => j.Position);
             builder.HasIndex(j => j.Salary);
+            builder.HasIndex(j => j.CreatedAtUtc);
             builder.HasIndex(j => j.StartingDate);
             builder.HasIndex(j => j.VisibleUntil);
             builder.HasIndex(j => j.RestaurantLocationId);
