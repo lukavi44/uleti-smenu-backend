@@ -1,5 +1,6 @@
 using API.DTOs;
 using AutoMapper;
+using Core.DTOs;
 using Core.Models.Entities;
 using Core.Services;
 using Infrastructure.Persistence.Database;
@@ -95,7 +96,14 @@ namespace API.Controllers
 
         [Authorize]
         [HttpGet("my")]
-        public async Task<IActionResult> GetMyJobPosts()
+        public async Task<IActionResult> GetMyJobPosts(
+            [FromQuery] int? page = null,
+            [FromQuery] int? pageSize = null,
+            [FromQuery] string? position = null,
+            [FromQuery] string? status = null,
+            [FromQuery] string? lifecycle = null,
+            [FromQuery] string? sortBy = null,
+            [FromQuery] string? sortDirection = null)
         {
             var employerIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!Guid.TryParse(employerIdClaim, out var employerId))
@@ -105,10 +113,47 @@ namespace API.Controllers
             if (user is not Employer)
                 return Forbid();
 
+            if (page.HasValue || pageSize.HasValue)
+            {
+                var pagedJobPosts = await _jobPostService.GetMyJobPostsPagedAsync(
+                    employerId,
+                    page ?? 1,
+                    pageSize ?? 6,
+                    position,
+                    status,
+                    lifecycle,
+                    sortBy,
+                    sortDirection);
+
+                return Ok(new PagedResultDTO<JobPostDTO>
+                {
+                    Items = _mapper.Map<List<JobPostDTO>>(pagedJobPosts.Items),
+                    TotalCount = pagedJobPosts.TotalCount,
+                    Page = pagedJobPosts.Page,
+                    PageSize = pagedJobPosts.PageSize
+                });
+            }
+
             var jobPosts = await _jobPostService.GetMyJobPostsAsync(employerId);
             var jobPostDtos = _mapper.Map<List<JobPostDTO>>(jobPosts);
 
             return Ok(jobPostDtos);
+        }
+
+        [Authorize]
+        [HttpGet("my/positions")]
+        public async Task<IActionResult> GetMyJobPostPositions()
+        {
+            var employerIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(employerIdClaim, out var employerId))
+                return Unauthorized("Invalid user claim.");
+
+            var user = await _userService.GetUserByIdAsync(employerId);
+            if (user is not Employer)
+                return Forbid();
+
+            var positions = await _jobPostService.GetMyJobPostPositionsAsync(employerId);
+            return Ok(positions);
         }
     }
 }

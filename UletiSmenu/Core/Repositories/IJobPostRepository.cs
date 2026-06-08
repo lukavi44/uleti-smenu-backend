@@ -7,6 +7,17 @@ namespace Core.Repositories
         Task AddJobPostAsync(JobPost jobPost);
         Task<JobPost?> GetJobPostByIdAsync(Guid id);
         Task<IEnumerable<JobPost>> GetAllByEmployerIdAsync(Guid employerId);
+        Task<List<string>> GetDistinctPositionsByEmployerIdAsync(Guid employerId);
+        Task<(List<JobPost> Items, int TotalCount)> GetByEmployerIdPagedAsync(
+            Guid employerId,
+            DateTime utcNow,
+            int page,
+            int pageSize,
+            string? position = null,
+            string? status = null,
+            string? lifecycle = null,
+            string? sortBy = null,
+            string? sortDirection = null);
         Task DeleteJobPostAsync(JobPost jobPost);
         Task<IEnumerable<JobPost>> GetAllJobPostsAsync();
         Task<IEnumerable<JobPost>> GetVisibleJobPostsAsync(DateTime utcNow, string? sortBy = null, string? sortDirection = null);

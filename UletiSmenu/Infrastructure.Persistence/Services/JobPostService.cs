@@ -1,3 +1,4 @@
+using Core.DTOs;
 using Core.Interfaces;
 using Core.Models.Entities;
 using Core.Models.Enums;
@@ -77,6 +78,44 @@ namespace Infrastructure.Persistence.Services
         public async Task<IEnumerable<JobPost>> GetMyJobPostsAsync(Guid employerId)
         {
             return await _jobPostRepository.GetAllByEmployerIdAsync(employerId);
+        }
+
+        public async Task<List<string>> GetMyJobPostPositionsAsync(Guid employerId)
+        {
+            return await _jobPostRepository.GetDistinctPositionsByEmployerIdAsync(employerId);
+        }
+
+        public async Task<PagedResultDTO<JobPost>> GetMyJobPostsPagedAsync(
+            Guid employerId,
+            int page,
+            int pageSize,
+            string? position = null,
+            string? status = null,
+            string? lifecycle = null,
+            string? sortBy = null,
+            string? sortDirection = null)
+        {
+            var safePage = page < 1 ? 1 : page;
+            var safePageSize = pageSize < 1 ? 6 : Math.Min(pageSize, 50);
+
+            var (items, totalCount) = await _jobPostRepository.GetByEmployerIdPagedAsync(
+                employerId,
+                DateTime.UtcNow,
+                safePage,
+                safePageSize,
+                position,
+                status,
+                lifecycle,
+                sortBy,
+                sortDirection);
+
+            return new PagedResultDTO<JobPost>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = safePage,
+                PageSize = safePageSize
+            };
         }
 
         public async Task<Result> UpdateJobPostAsync(

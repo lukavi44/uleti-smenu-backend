@@ -1,3 +1,4 @@
+using Core.DTOs;
 using Core.Models.Entities;
 using CSharpFunctionalExtensions;
 
@@ -19,5 +20,15 @@ namespace Core.Services
             Guid restaurantLocationId);
         Task<IEnumerable<JobPost>> GetVisibleJobPostsAsync(string? sortBy = null, string? sortDirection = null);
         Task<IEnumerable<JobPost>> GetMyJobPostsAsync(Guid employerId);
+        Task<List<string>> GetMyJobPostPositionsAsync(Guid employerId);
+        Task<PagedResultDTO<JobPost>> GetMyJobPostsPagedAsync(
+            Guid employerId,
+            int page,
+            int pageSize,
+            string? position = null,
+            string? status = null,
+            string? lifecycle = null,
+            string? sortBy = null,
+            string? sortDirection = null);
     }
 }
