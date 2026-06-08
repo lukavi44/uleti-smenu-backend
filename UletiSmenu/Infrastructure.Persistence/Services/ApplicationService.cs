@@ -9,6 +9,8 @@ namespace Infrastructure.Persistence.Services
 {
     public class ApplicationService : IApplicationService
     {
+        private const string ApplicationAcceptedNotificationType = "ApplicationAccepted";
+        private const string ApplicationDeclinedNotificationType = "ApplicationDeclined";
         private readonly IApplicationRepository _applicationRepository;
         private readonly IJobPostRepository _jobPostRepository;
         private readonly IUserRepository _userRepository;
@@ -112,6 +114,7 @@ namespace Infrastructure.Persistence.Services
             if (statusResult.IsFailure)
                 return Result.Failure(statusResult.Error);
 
+            await CreateDecisionNotificationIfNeededAsync(application, jobPost, newStatus);
             await _applicationUnitOfWork.SaveChangesAsync();
             return Result.Success();
         }
@@ -131,6 +134,38 @@ namespace Infrastructure.Persistence.Services
 
             await _applicationUnitOfWork.SaveChangesAsync();
             return Result.Success();
+        }
+
+        private async Task CreateDecisionNotificationIfNeededAsync(
+            Application application,
+            JobPost jobPost,
+            ApplicationStatusEnum newStatus)
+        {
+            if (newStatus != ApplicationStatusEnum.Accepted && newStatus != ApplicationStatusEnum.Denied)
+                return;
+
+            var notificationType = newStatus == ApplicationStatusEnum.Accepted
+                ? ApplicationAcceptedNotificationType
+                : ApplicationDeclinedNotificationType;
+
+            var existingRecipientIds = await _applicationUnitOfWork.Notifications
+                .GetRecipientIdsForJobPostAsync(jobPost.Id, notificationType);
+
+            if (existingRecipientIds.Contains(application.UserId))
+                return;
+
+            var message = newStatus == ApplicationStatusEnum.Accepted
+                ? $"Your application for {jobPost.Title} has been accepted."
+                : $"Your application for {jobPost.Title} has been declined.";
+
+            var notification = Notification.Create(
+                application.UserId,
+                jobPost.EmployerId,
+                jobPost.Id,
+                notificationType,
+                message);
+
+            await _applicationUnitOfWork.Notifications.AddRangeAsync(new[] { notification });
         }
     }
 }
