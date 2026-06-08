@@ -58,5 +58,19 @@ namespace API.Controllers
 
             return Ok(new { message = "Notification marked as read." });
         }
+
+        [HttpDelete("{notificationId:guid}")]
+        public async Task<IActionResult> Delete(Guid notificationId)
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdClaim, out var userId))
+                return Unauthorized("Invalid user claim.");
+
+            var result = await _notificationService.DeleteAsync(userId, notificationId);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(new { message = "Notification deleted successfully." });
+        }
     }
 }

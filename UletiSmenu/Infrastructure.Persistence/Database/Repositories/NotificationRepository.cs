@@ -47,5 +47,10 @@ namespace Infrastructure.Persistence.Database.Repositories
 
             return userIds.ToHashSet();
         }
+
+        public void Delete(Notification notification)
+        {
+            _context.Set<Notification>().Remove(notification);
+        }
     }
 }

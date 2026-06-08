@@ -72,5 +72,23 @@ namespace Infrastructure.Persistence.Services
 
             return Result.Success();
         }
+
+        public async Task<Result> DeleteAsync(Guid userId, Guid notificationId)
+        {
+            var employee = await _userRepository.GetByIdAsync<Employee>(userId);
+            if (employee == null)
+                return Result.Failure("Employee not found.");
+
+            var notification = await _notificationRepository.GetByIdAsync(notificationId);
+            if (notification == null)
+                return Result.Failure("Notification not found.");
+
+            if (notification.UserId != userId)
+                return Result.Failure("You can delete only your own notifications.");
+
+            _notificationRepository.Delete(notification);
+            await _applicationUnitOfWork.SaveChangesAsync();
+            return Result.Success();
+        }
     }
 }

@@ -9,5 +9,6 @@ namespace Core.Repositories
         Task<int> GetUnreadCountByUserIdAsync(Guid userId);
         Task<Notification?> GetByIdAsync(Guid notificationId);
         Task<HashSet<Guid>> GetRecipientIdsForJobPostAsync(Guid jobPostId, string type);
+        void Delete(Notification notification);
     }
 }
