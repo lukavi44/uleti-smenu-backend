@@ -11,6 +11,7 @@ namespace UletiSmenu.Tests.Services
     {
         private readonly Mock<IApplicationRepository> _applicationRepositoryMock;
         private readonly Mock<IJobPostRepository> _jobPostRepositoryMock;
+        private readonly Mock<IChatRepository> _chatRepositoryMock;
         private readonly Mock<IUserRepository> _userRepositoryMock;
         private readonly Mock<IApplicationUnitOfWork> _unitOfWorkMock;
         private readonly ApplicationService _applicationService;
@@ -19,12 +20,14 @@ namespace UletiSmenu.Tests.Services
         {
             _applicationRepositoryMock = new Mock<IApplicationRepository>();
             _jobPostRepositoryMock = new Mock<IJobPostRepository>();
+            _chatRepositoryMock = new Mock<IChatRepository>();
             _userRepositoryMock = new Mock<IUserRepository>();
             _unitOfWorkMock = new Mock<IApplicationUnitOfWork>();
 
             _applicationService = new ApplicationService(
                 _applicationRepositoryMock.Object,
                 _jobPostRepositoryMock.Object,
+                _chatRepositoryMock.Object,
                 _userRepositoryMock.Object,
                 _unitOfWorkMock.Object);
         }

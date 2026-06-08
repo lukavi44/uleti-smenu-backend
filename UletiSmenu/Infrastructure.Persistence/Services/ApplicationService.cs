@@ -13,17 +13,20 @@ namespace Infrastructure.Persistence.Services
         private const string ApplicationDeclinedNotificationType = "ApplicationDeclined";
         private readonly IApplicationRepository _applicationRepository;
         private readonly IJobPostRepository _jobPostRepository;
+        private readonly IChatRepository _chatRepository;
         private readonly IUserRepository _userRepository;
         private readonly IApplicationUnitOfWork _applicationUnitOfWork;
 
         public ApplicationService(
             IApplicationRepository applicationRepository,
             IJobPostRepository jobPostRepository,
+            IChatRepository chatRepository,
             IUserRepository userRepository,
             IApplicationUnitOfWork applicationUnitOfWork)
         {
             _applicationRepository = applicationRepository;
             _jobPostRepository = jobPostRepository;
+            _chatRepository = chatRepository;
             _userRepository = userRepository;
             _applicationUnitOfWork = applicationUnitOfWork;
         }
@@ -115,8 +118,31 @@ namespace Infrastructure.Persistence.Services
                 return Result.Failure(statusResult.Error);
 
             await CreateDecisionNotificationIfNeededAsync(application, jobPost, newStatus);
+            await CreateConversationIfAcceptedAsync(application, jobPost, newStatus);
             await _applicationUnitOfWork.SaveChangesAsync();
             return Result.Success();
+        }
+
+        private async Task CreateConversationIfAcceptedAsync(
+            Application application,
+            JobPost jobPost,
+            ApplicationStatusEnum newStatus)
+        {
+            if (newStatus != ApplicationStatusEnum.Accepted)
+                return;
+
+            var existingConversation = await _chatRepository.GetConversationByApplicationIdAsync(application.Id);
+            if (existingConversation != null)
+                return;
+
+            var conversation = Conversation.Create(
+                application.Id,
+                jobPost.EmployerId,
+                application.UserId,
+                jobPost.Id,
+                DateTime.UtcNow);
+
+            await _chatRepository.AddConversationAsync(conversation);
         }
 
         public async Task<Result> CancelMyApplicationAsync(Guid employeeId, Guid applicationId)

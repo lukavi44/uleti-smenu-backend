@@ -19,6 +19,9 @@ namespace Infrastructure.Persistence.Database
         public DbSet<Subscription> Subscriptions { get; set; }
         public DbSet<Favourite> Favourites { get; set; }
         public DbSet<Notification> Notifications { get; set; }
+        public DbSet<Conversation> Conversations { get; set; }
+        public DbSet<ChatMessage> ChatMessages { get; set; }
+        public DbSet<ConversationReadState> ConversationReadStates { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
