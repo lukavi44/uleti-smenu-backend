@@ -15,6 +15,7 @@ namespace API.DTOs
         public string? RestaurantLocationName { get; set; }
         public string? RestaurantLocationCity { get; set; }
         public bool IsArchived { get; set; }
+        public int ApplicantCount { get; set; }
         public EmployerDTO Employer { get; set; }
     }
 }

@@ -25,6 +25,19 @@ namespace Infrastructure.Persistence.Database.Repositories
             return await _context.Applications.CountAsync(x => x.JobPostId == jobPostId);
         }
 
+        public async Task<Dictionary<Guid, int>> GetApplicantCountsByJobPostIdsAsync(IEnumerable<Guid> jobPostIds)
+        {
+            var ids = jobPostIds.Distinct().ToList();
+            if (ids.Count == 0)
+                return new Dictionary<Guid, int>();
+
+            return await _context.Applications
+                .Where(application => ids.Contains(application.JobPostId))
+                .GroupBy(application => application.JobPostId)
+                .Select(group => new { JobPostId = group.Key, Count = group.Count() })
+                .ToDictionaryAsync(x => x.JobPostId, x => x.Count);
+        }
+
         public async Task AddAsync(Application application)
         {
             await _context.Applications.AddAsync(application);

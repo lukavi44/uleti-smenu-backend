@@ -29,6 +29,8 @@ namespace Core.Services
             string? status = null,
             string? lifecycle = null,
             string? sortBy = null,
-            string? sortDirection = null);
+            string? sortDirection = null,
+            bool? hasApplicants = null);
+        Task<EmployerDashboardSummaryDTO> GetEmployerDashboardSummaryAsync(Guid employerId);
     }
 }

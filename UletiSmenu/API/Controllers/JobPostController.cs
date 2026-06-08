@@ -2,6 +2,7 @@ using API.DTOs;
 using AutoMapper;
 using Core.DTOs;
 using Core.Models.Entities;
+using Core.Repositories;
 using Core.Services;
 using Infrastructure.Persistence.Database;
 using Microsoft.AspNetCore.Authorization;
@@ -19,15 +20,22 @@ namespace API.Controllers
         private readonly IMapper _mapper;
         private readonly IUserService _userService;
         private readonly IJobPostService _jobPostService;
+        private readonly IApplicationRepository _applicationRepository;
         private readonly UserManager<User> _userManager;
-        
 
-        public JobPostController(ApplicationDbContext context, IMapper mapper, IUserService userService, IJobPostService jobPostService, UserManager<User> userManager)
+        public JobPostController(
+            ApplicationDbContext context,
+            IMapper mapper,
+            IUserService userService,
+            IJobPostService jobPostService,
+            IApplicationRepository applicationRepository,
+            UserManager<User> userManager)
         {
             _context = context;
             _mapper = mapper;
             _userService = userService;
             _jobPostService = jobPostService;
+            _applicationRepository = applicationRepository;
             _userManager = userManager;
         }
 
@@ -103,7 +111,8 @@ namespace API.Controllers
             [FromQuery] string? status = null,
             [FromQuery] string? lifecycle = null,
             [FromQuery] string? sortBy = null,
-            [FromQuery] string? sortDirection = null)
+            [FromQuery] string? sortDirection = null,
+            [FromQuery] bool? hasApplicants = null)
         {
             var employerIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!Guid.TryParse(employerIdClaim, out var employerId))
@@ -123,11 +132,15 @@ namespace API.Controllers
                     status,
                     lifecycle,
                     sortBy,
-                    sortDirection);
+                    sortDirection,
+                    hasApplicants);
+
+                var jobPostDtos = _mapper.Map<List<JobPostDTO>>(pagedJobPosts.Items);
+                await EnrichApplicantCountsAsync(jobPostDtos);
 
                 return Ok(new PagedResultDTO<JobPostDTO>
                 {
-                    Items = _mapper.Map<List<JobPostDTO>>(pagedJobPosts.Items),
+                    Items = jobPostDtos,
                     TotalCount = pagedJobPosts.TotalCount,
                     Page = pagedJobPosts.Page,
                     PageSize = pagedJobPosts.PageSize
@@ -135,9 +148,40 @@ namespace API.Controllers
             }
 
             var jobPosts = await _jobPostService.GetMyJobPostsAsync(employerId);
-            var jobPostDtos = _mapper.Map<List<JobPostDTO>>(jobPosts);
+            var allJobPostDtos = _mapper.Map<List<JobPostDTO>>(jobPosts);
+            await EnrichApplicantCountsAsync(allJobPostDtos);
 
-            return Ok(jobPostDtos);
+            return Ok(allJobPostDtos);
+        }
+
+        [Authorize]
+        [HttpGet("my/dashboard-summary")]
+        public async Task<IActionResult> GetMyDashboardSummary()
+        {
+            var employerIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(employerIdClaim, out var employerId))
+                return Unauthorized("Invalid user claim.");
+
+            var user = await _userService.GetUserByIdAsync(employerId);
+            if (user is not Employer)
+                return Forbid();
+
+            var summary = await _jobPostService.GetEmployerDashboardSummaryAsync(employerId);
+            return Ok(summary);
+        }
+
+        private async Task EnrichApplicantCountsAsync(List<JobPostDTO> jobPostDtos)
+        {
+            if (jobPostDtos.Count == 0)
+                return;
+
+            var counts = await _applicationRepository.GetApplicantCountsByJobPostIdsAsync(
+                jobPostDtos.Select(jobPost => jobPost.Id));
+
+            foreach (var jobPostDto in jobPostDtos)
+            {
+                jobPostDto.ApplicantCount = counts.GetValueOrDefault(jobPostDto.Id);
+            }
         }
 
         [Authorize]

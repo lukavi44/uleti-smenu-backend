@@ -1,3 +1,4 @@
+using Core.DTOs;
 using Core.Models.Entities;
 
 namespace Core.Repositories
@@ -17,7 +18,9 @@ namespace Core.Repositories
             string? status = null,
             string? lifecycle = null,
             string? sortBy = null,
-            string? sortDirection = null);
+            string? sortDirection = null,
+            bool? hasApplicants = null);
+        Task<EmployerDashboardSummaryDTO> GetEmployerDashboardSummaryAsync(Guid employerId);
         Task DeleteJobPostAsync(JobPost jobPost);
         Task<IEnumerable<JobPost>> GetAllJobPostsAsync();
         Task<IEnumerable<JobPost>> GetVisibleJobPostsAsync(DateTime utcNow, string? sortBy = null, string? sortDirection = null);

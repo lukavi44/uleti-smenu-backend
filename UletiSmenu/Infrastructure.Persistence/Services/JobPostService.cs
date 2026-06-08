@@ -93,7 +93,8 @@ namespace Infrastructure.Persistence.Services
             string? status = null,
             string? lifecycle = null,
             string? sortBy = null,
-            string? sortDirection = null)
+            string? sortDirection = null,
+            bool? hasApplicants = null)
         {
             var safePage = page < 1 ? 1 : page;
             var safePageSize = pageSize < 1 ? 6 : Math.Min(pageSize, 50);
@@ -107,7 +108,8 @@ namespace Infrastructure.Persistence.Services
                 status,
                 lifecycle,
                 sortBy,
-                sortDirection);
+                sortDirection,
+                hasApplicants);
 
             return new PagedResultDTO<JobPost>
             {
@@ -116,6 +118,11 @@ namespace Infrastructure.Persistence.Services
                 Page = safePage,
                 PageSize = safePageSize
             };
+        }
+
+        public async Task<EmployerDashboardSummaryDTO> GetEmployerDashboardSummaryAsync(Guid employerId)
+        {
+            return await _jobPostRepository.GetEmployerDashboardSummaryAsync(employerId);
         }
 
         public async Task<Result> UpdateJobPostAsync(
