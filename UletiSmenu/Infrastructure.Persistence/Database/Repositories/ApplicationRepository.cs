@@ -51,7 +51,7 @@ namespace Infrastructure.Persistence.Database.Repositories
 
         public async Task<List<ApplicationApplicantDTO>> GetApplicantsForJobPostAsync(Guid jobPostId)
         {
-            return await (from application in _context.Applications
+            var applicants = await (from application in _context.Applications
                           join user in _context.Users.OfType<Employee>() on application.UserId equals user.Id
                           where application.JobPostId == jobPostId
                           select new ApplicationApplicantDTO
@@ -66,6 +66,34 @@ namespace Infrastructure.Persistence.Database.Repositories
                               Status = application.Status.ToString(),
                               AppliedAt = application.DateTime
                           }).ToListAsync();
+
+            if (applicants.Count == 0)
+                return applicants;
+
+            var employeeIds = applicants.Select(applicant => applicant.UserId).ToList();
+            var reviewSummaries = await _context.MatchReviews
+                .Where(review => employeeIds.Contains(review.RevieweeId))
+                .GroupBy(review => review.RevieweeId)
+                .Select(group => new
+                {
+                    EmployeeId = group.Key,
+                    AverageRating = group.Average(review => review.Rating),
+                    ReviewCount = group.Count()
+                })
+                .ToDictionaryAsync(
+                    item => item.EmployeeId,
+                    item => new { item.AverageRating, item.ReviewCount });
+
+            foreach (var applicant in applicants)
+            {
+                if (reviewSummaries.TryGetValue(applicant.UserId, out var summary))
+                {
+                    applicant.AverageRating = Math.Round(summary.AverageRating, 1);
+                    applicant.ReviewCount = summary.ReviewCount;
+                }
+            }
+
+            return applicants;
         }
 
         public async Task<List<EmployeeApplicationDTO>> GetEmployeeApplicationsAsync(Guid employeeId)

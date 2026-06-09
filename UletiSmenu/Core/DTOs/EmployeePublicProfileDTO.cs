@@ -10,5 +10,7 @@ namespace Core.DTOs
         public string? ProfilePhoto { get; set; }
         public List<WorkExperienceDTO> WorkExperiences { get; set; } = new();
         public List<EmployeePlatformShiftDTO> PlatformShifts { get; set; } = new();
+        public ReviewSummaryDTO ReviewSummary { get; set; } = new();
+        public List<ReviewDTO> Reviews { get; set; } = new();
     }
 }

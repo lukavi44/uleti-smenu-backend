@@ -24,6 +24,7 @@ builder.Services.AddScoped<IJobPostRepository, JobPostRepository>();
 builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();
 builder.Services.AddScoped<IChatRepository, ChatRepository>();
 builder.Services.AddScoped<IWorkExperienceRepository, WorkExperienceRepository>();
+builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
 builder.Services.AddScoped<IRestaurantLocationRepository, RestaurantLocationRepository>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 
@@ -35,6 +36,7 @@ builder.Services.AddScoped<IJobPostService, JobPostService>();
 builder.Services.AddScoped<IApplicationService, ApplicationService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IEmployeeProfileService, EmployeeProfileService>();
+builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IBillingService, BillingService>();
 

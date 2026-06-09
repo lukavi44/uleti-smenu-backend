@@ -11,5 +11,7 @@ namespace Core.DTOs
         public string? ProfilePhoto { get; set; }
         public string Status { get; set; } = string.Empty;
         public DateTime AppliedAt { get; set; }
+        public double AverageRating { get; set; }
+        public int ReviewCount { get; set; }
     }
 }

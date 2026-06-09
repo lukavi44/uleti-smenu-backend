@@ -11,17 +11,20 @@ namespace Infrastructure.Persistence.Services
     {
         private readonly IWorkExperienceRepository _workExperienceRepository;
         private readonly IApplicationRepository _applicationRepository;
+        private readonly IReviewRepository _reviewRepository;
         private readonly IApplicationUnitOfWork _applicationUnitOfWork;
         private readonly UserManager<User> _userManager;
 
         public EmployeeProfileService(
             IWorkExperienceRepository workExperienceRepository,
             IApplicationRepository applicationRepository,
+            IReviewRepository reviewRepository,
             IApplicationUnitOfWork applicationUnitOfWork,
             UserManager<User> userManager)
         {
             _workExperienceRepository = workExperienceRepository;
             _applicationRepository = applicationRepository;
+            _reviewRepository = reviewRepository;
             _applicationUnitOfWork = applicationUnitOfWork;
             _userManager = userManager;
         }
@@ -104,6 +107,8 @@ namespace Infrastructure.Persistence.Services
 
             var workExperiences = await _workExperienceRepository.GetByEmployeeIdAsync(employeeId);
             var platformShifts = await BuildPlatformShiftsAsync(employeeId);
+            var reviewSummary = await _reviewRepository.GetEmployeeReviewSummaryAsync(employeeId);
+            var reviews = await _reviewRepository.GetReviewsForEmployeeAsync(employeeId);
 
             return Result.Success(new EmployeePublicProfileDTO
             {
@@ -114,7 +119,9 @@ namespace Infrastructure.Persistence.Services
                 PhoneNumber = employee.PhoneNumber ?? string.Empty,
                 ProfilePhoto = employee.ProfilePhoto,
                 WorkExperiences = workExperiences.Select(MapWorkExperience).ToList(),
-                PlatformShifts = platformShifts
+                PlatformShifts = platformShifts,
+                ReviewSummary = reviewSummary,
+                Reviews = reviews
             });
         }
 
