@@ -22,6 +22,7 @@ namespace Infrastructure.Persistence.Database
         public DbSet<Conversation> Conversations { get; set; }
         public DbSet<ChatMessage> ChatMessages { get; set; }
         public DbSet<ConversationReadState> ConversationReadStates { get; set; }
+        public DbSet<WorkExperience> WorkExperiences { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

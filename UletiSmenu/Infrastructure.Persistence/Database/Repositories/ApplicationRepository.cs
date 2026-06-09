@@ -1,5 +1,6 @@
 using Core.DTOs;
 using Core.Models.Entities;
+using Core.Models.Enums;
 using Core.Repositories;
 using Microsoft.EntityFrameworkCore;
 
@@ -90,6 +91,32 @@ namespace Infrastructure.Persistence.Database.Repositories
                               Status = application.Status.ToString(),
                               AppliedAt = application.DateTime
                           }).ToListAsync();
+        }
+
+        public async Task<bool> EmployerCanViewEmployeeAsync(Guid employerId, Guid employeeId)
+        {
+            return await (
+                from application in _context.Applications
+                join jobPost in _context.JobPosts on application.JobPostId equals jobPost.Id
+                where application.UserId == employeeId && jobPost.EmployerId == employerId
+                select application.Id).AnyAsync();
+        }
+
+        public async Task<List<(Application Application, JobPost JobPost, Employer Employer, RestaurantLocation? Location)>> GetAcceptedApplicationsWithDetailsAsync(Guid employeeId)
+        {
+            var rows = await (
+                from application in _context.Applications
+                join jobPost in _context.JobPosts on application.JobPostId equals jobPost.Id
+                join employer in _context.Users.OfType<Employer>() on jobPost.EmployerId equals employer.Id
+                join location in _context.RestaurantLocations on jobPost.RestaurantLocationId equals location.Id into locationGroup
+                from location in locationGroup.DefaultIfEmpty()
+                where application.UserId == employeeId && application.Status == ApplicationStatusEnum.Accepted
+                orderby jobPost.StartingDate descending
+                select new { application, jobPost, employer, location }).ToListAsync();
+
+            return rows
+                .Select(row => (row.application, row.jobPost, row.employer, row.location))
+                .ToList();
         }
     }
 }

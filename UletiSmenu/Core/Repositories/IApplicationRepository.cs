@@ -12,5 +12,7 @@ namespace Core.Repositories
         Task<Application?> GetByIdAsync(Guid applicationId);
         Task<List<ApplicationApplicantDTO>> GetApplicantsForJobPostAsync(Guid jobPostId);
         Task<List<EmployeeApplicationDTO>> GetEmployeeApplicationsAsync(Guid employeeId);
+        Task<bool> EmployerCanViewEmployeeAsync(Guid employerId, Guid employeeId);
+        Task<List<(Application Application, JobPost JobPost, Employer Employer, RestaurantLocation? Location)>> GetAcceptedApplicationsWithDetailsAsync(Guid employeeId);
     }
 }
