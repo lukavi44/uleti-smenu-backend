@@ -30,6 +30,7 @@ builder.Services.AddScoped<IWorkExperienceRepository, WorkExperienceRepository>(
 builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
 builder.Services.AddScoped<IRestaurantLocationRepository, RestaurantLocationRepository>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
+builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
 
 builder.Services.AddScoped<RoleManager<IdentityRole<Guid>>>();
 builder.Services.AddScoped<IApplicationUnitOfWork, ApplicationUnitOfWork>();
@@ -144,6 +145,7 @@ var app = builder.Build();
 
 await EnsureDatabaseMigratedAsync(app.Services);
 await EnsureRolesSeededAsync(app.Services);
+await EnsureSubscriptionsSeededAsync(app.Services);
 
 app.UseStaticFiles(new StaticFileOptions
 {
@@ -199,4 +201,43 @@ static async Task EnsureRolesSeededAsync(IServiceProvider services)
         if (!await roleManager.RoleExistsAsync(role))
             await roleManager.CreateAsync(new IdentityRole<Guid>(role));
     }
+}
+
+static async Task EnsureSubscriptionsSeededAsync(IServiceProvider services)
+{
+    using var scope = services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var billingService = scope.ServiceProvider.GetRequiredService<IBillingService>();
+
+    var trialPlanExists = await dbContext.Subscriptions
+        .AnyAsync(plan => plan.Id == Core.Billing.BillingConstants.TrialPlanId);
+
+    if (!trialPlanExists)
+    {
+        var trialPlan = Subscription.Create(
+            Core.Billing.BillingConstants.TrialPlanId,
+            "3-Month Free Trial",
+            "Full access to post shifts for the first 3 months.",
+            0,
+            Core.Billing.BillingConstants.TrialDurationDays,
+            0).Value;
+
+        await dbContext.Subscriptions.AddAsync(trialPlan);
+        await dbContext.SaveChangesAsync();
+    }
+
+    var employersWithoutSubscription = await dbContext.Users
+        .OfType<Employer>()
+        .Where(employer => employer.SubscriptionId == null)
+        .ToListAsync();
+
+    if (employersWithoutSubscription.Count == 0)
+        return;
+
+    foreach (var employer in employersWithoutSubscription)
+    {
+        billingService.AssignTrialToEmployer(employer);
+    }
+
+    await dbContext.SaveChangesAsync();
 }

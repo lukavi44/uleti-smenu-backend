@@ -23,5 +23,25 @@ namespace Infrastructure.Persistence.Database.Repositories
             return await _context.RestaurantLocations
                 .FirstOrDefaultAsync(x => x.Id == locationId);
         }
+
+        public async Task<List<string>> GetDistinctCitiesAsync()
+        {
+            return await _context.RestaurantLocations
+                .Select(location => location.City)
+                .Where(city => !string.IsNullOrWhiteSpace(city))
+                .Distinct()
+                .OrderBy(city => city)
+                .ToListAsync();
+        }
+
+        public async Task<List<Guid>> GetEmployerIdsByCityAsync(string city)
+        {
+            var normalizedCity = city.Trim().ToLower();
+            return await _context.RestaurantLocations
+                .Where(location => location.City.ToLower() == normalizedCity)
+                .Select(location => location.EmployerId)
+                .Distinct()
+                .ToListAsync();
+        }
     }
 }

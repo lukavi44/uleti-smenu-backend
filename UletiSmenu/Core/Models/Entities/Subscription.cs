@@ -31,7 +31,7 @@ namespace Core.Models.Entities
 
             if (string.IsNullOrWhiteSpace(description)) return Result.Failure<Subscription>("Description cannot be empty.");
 
-            if (cost <= 0) return Result.Failure<Subscription>("Cost must be greater than zero.");
+            if (cost < 0) return Result.Failure<Subscription>("Cost cannot be negative.");
 
             if (durationInDays <= 0) return Result.Failure<Subscription>("Duration in days must be greater than zero.");
 

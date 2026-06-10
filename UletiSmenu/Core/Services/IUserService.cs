@@ -19,12 +19,14 @@ namespace Core.Services
         Task<Result> RegisterEmployeeAsync(Employee employee, string password);
         Task<Result> UpdateEmployeeAsync(Guid employeeId, Employee employee);
         Task<Result> ToggleFavouriteEmployerAsync(Guid employeId, Guid employerId);
-        Task<IEnumerable<EmployerFavouriteStatusDTO>> GetAllEmployersWithFavouriteStatusAsync(Guid employeeId);
+        Task<List<string>> GetEmployerCitiesAsync();
+        Task<IEnumerable<Employer>> GetEmployersAsync(string? city = null);
+        Task<IEnumerable<EmployerFavouriteStatusDTO>> GetAllEmployersWithFavouriteStatusAsync(Guid employeeId, string? city = null);
         Task<Result<RestaurantLocation>> CreateEmployerLocationAsync(Guid employerId, string name, string phoneNumber, string pib, string mb, string streetName, string streetNumber, string city, string postalCode, string country, string region);
         Task<IEnumerable<RestaurantLocation>> GetEmployerLocationsAsync(Guid employerId);
 
         // Employer
-        Task<IEnumerable<Employer>> GetAllEmployersAsync();
+        Task<IEnumerable<Employer>> GetAllEmployersAsync(string? city = null);
         Task<Employer> GetEmployerByCityAsync(string city);
         Task<Employer> GetEmployerByNameAsync(string name);
 

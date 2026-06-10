@@ -23,6 +23,7 @@ namespace UletiSmenu.Tests.Services
         private readonly Mock<IEmailService> _emailServiceMock;
         private readonly Mock<IConfiguration> _configurationMock;
         private readonly Mock<IHttpContextAccessor> _httpContextAccessorMock;
+        private readonly Mock<IBillingService> _billingServiceMock;
         private readonly Mock<ILogger<UserService>> _loggerMock;
 
         private readonly UserService _userService;
@@ -37,7 +38,12 @@ namespace UletiSmenu.Tests.Services
             _emailServiceMock = new Mock<IEmailService>();
             _configurationMock = new Mock<IConfiguration>();
             _httpContextAccessorMock = new Mock<IHttpContextAccessor>();
+            _billingServiceMock = new Mock<IBillingService>();
             _loggerMock = new Mock<ILogger<UserService>>();
+
+            _billingServiceMock
+                .Setup(service => service.AssignTrialToEmployer(It.IsAny<Employer>()))
+                .Returns(CSharpFunctionalExtensions.Result.Success());
 
             _userService = new UserService(
                 _userRepositoryMock.Object,
@@ -48,6 +54,7 @@ namespace UletiSmenu.Tests.Services
                 _emailServiceMock.Object,
                 _configurationMock.Object,
                 _httpContextAccessorMock.Object,
+                _billingServiceMock.Object,
                 _loggerMock.Object);
         }
 

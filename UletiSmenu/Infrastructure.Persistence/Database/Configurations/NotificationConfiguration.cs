@@ -16,6 +16,7 @@ namespace Infrastructure.Persistence.Database.Configurations
             builder.Property(n => n.Type).IsRequired().HasMaxLength(100);
             builder.Property(n => n.Message).IsRequired().HasMaxLength(500);
             builder.Property(n => n.IsRead).IsRequired();
+            builder.Property(n => n.IsDismissed).IsRequired().HasDefaultValue(false);
             builder.Property(n => n.CreatedAtUtc).IsRequired();
 
             builder.HasOne<User>()

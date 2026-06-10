@@ -51,5 +51,27 @@ namespace Core.Models.Entities
             var employer = new Employer(id, name, email, username, phoneNumber, profilePhoto, pib, mb, subscriptionId, subscriptionStart, subscriptionStop, address);
             return Result.Success(employer);
         }
+
+        public Result AssignSubscription(Guid subscriptionId, DateTime subscriptionStart, DateTime subscriptionStop)
+        {
+            if (subscriptionId == Guid.Empty)
+                return Result.Failure("Subscription ID cannot be empty.");
+
+            if (subscriptionStop <= subscriptionStart)
+                return Result.Failure("Subscription end must be after start.");
+
+            SubscriptionId = subscriptionId;
+            SubscriptionStart = subscriptionStart;
+            SubscriptionStop = subscriptionStop;
+            return Result.Success();
+        }
+
+        public bool HasActiveSubscription(DateTime utcNow)
+        {
+            if (!SubscriptionId.HasValue || !SubscriptionStart.HasValue || !SubscriptionStop.HasValue)
+                return false;
+
+            return SubscriptionStart.Value <= utcNow && SubscriptionStop.Value >= utcNow;
+        }
     }
 }

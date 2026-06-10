@@ -86,7 +86,7 @@ namespace Infrastructure.Persistence.Services
             if (notification.UserId != userId)
                 return Result.Failure("You can delete only your own notifications.");
 
-            _notificationRepository.Delete(notification);
+            notification.Dismiss();
             await _applicationUnitOfWork.SaveChangesAsync();
             return Result.Success();
         }

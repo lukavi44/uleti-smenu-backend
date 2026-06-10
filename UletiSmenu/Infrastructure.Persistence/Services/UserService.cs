@@ -24,15 +24,17 @@ namespace Infrastructure.Persistence.Services
         private readonly IEmailService _emailService;
         private readonly IConfiguration _configuration;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IBillingService _billingService;
         private readonly ILogger<UserService> _logger;
 
         public UserService(IUserRepository userRepository, IRestaurantLocationRepository restaurantLocationRepository, UserManager<User> userManager, SignInManager<User> signInManager,
-            IApplicationUnitOfWork applicationUnitOfWork, IEmailService emailService, IConfiguration configuration, IHttpContextAccessor httpContextAccessor, ILogger<UserService> logger)
+            IApplicationUnitOfWork applicationUnitOfWork, IEmailService emailService, IConfiguration configuration, IHttpContextAccessor httpContextAccessor, IBillingService billingService, ILogger<UserService> logger)
         {
             _userRepository = userRepository;
             _restaurantLocationRepository = restaurantLocationRepository;
             _userManager = userManager;
             _signInManager = signInManager;
+            _billingService = billingService;
             _applicationUnitOfWork = applicationUnitOfWork;
             _emailService = emailService;
             _configuration = configuration;
@@ -52,6 +54,10 @@ namespace Infrastructure.Persistence.Services
                     _logger.LogWarning($"Attempted to register user with existing email: {employer.Email}");
                     return Result.Failure("Email already exists");
                 }
+
+                var trialResult = _billingService.AssignTrialToEmployer(employer);
+                if (trialResult.IsFailure)
+                    return Result.Failure(trialResult.Error);
 
                 var identityResult = await _userManager.CreateAsync(employer, password);
                 if (!identityResult.Succeeded)
@@ -226,9 +232,31 @@ namespace Infrastructure.Persistence.Services
             throw new NotImplementedException();
         }
 
-        public async Task<IEnumerable<Employer>> GetAllEmployersAsync()
+        public async Task<List<string>> GetEmployerCitiesAsync()
         {
-            return await _userRepository.GetAllEmployersAsync();
+            var branchCities = await _restaurantLocationRepository.GetDistinctCitiesAsync();
+            var employers = await _userRepository.GetAllEmployersAsync();
+            var registrationCities = employers
+                .Select(employer => employer.Address?.City?.Name)
+                .Where(city => !string.IsNullOrWhiteSpace(city))
+                .Select(city => city!);
+
+            return branchCities
+                .Concat(registrationCities)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(city => city, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        public async Task<IEnumerable<Employer>> GetEmployersAsync(string? city = null)
+        {
+            var employers = await _userRepository.GetAllEmployersAsync();
+            return await FilterEmployersByCityAsync(employers, city);
+        }
+
+        public async Task<IEnumerable<Employer>> GetAllEmployersAsync(string? city = null)
+        {
+            return await GetEmployersAsync(city);
         }
 
         public Task<Employer> GetEmployerByCityAsync(string city)
@@ -280,12 +308,12 @@ namespace Infrastructure.Persistence.Services
             return Result.Success();
         }
 
-        public async Task<IEnumerable<EmployerFavouriteStatusDTO>> GetAllEmployersWithFavouriteStatusAsync(Guid employeeId)
+        public async Task<IEnumerable<EmployerFavouriteStatusDTO>> GetAllEmployersWithFavouriteStatusAsync(Guid employeeId, string? city = null)
         {
             var favouritedEmployerIds = await _applicationUnitOfWork.Favourites
                 .GetEmployerIdsFavouritedByEmployeeAsync(employeeId);
 
-            var employers = await _userRepository.GetAllEmployersAsync();
+            var employers = await GetEmployersAsync(city);
 
             return employers.Select(e => new EmployerFavouriteStatusDTO
             {
@@ -294,6 +322,19 @@ namespace Infrastructure.Persistence.Services
                 ProfilePhoto = e.ProfilePhoto,
                 IsFavourite = favouritedEmployerIds.Contains(e.Id)
             }).ToList();
+        }
+
+        private async Task<IEnumerable<Employer>> FilterEmployersByCityAsync(IEnumerable<Employer> employers, string? city)
+        {
+            if (string.IsNullOrWhiteSpace(city))
+                return employers;
+
+            var normalizedCity = city.Trim();
+            var employerIdsWithBranch = (await _restaurantLocationRepository.GetEmployerIdsByCityAsync(normalizedCity)).ToHashSet();
+
+            return employers.Where(employer =>
+                employerIdsWithBranch.Contains(employer.Id) ||
+                string.Equals(employer.Address?.City?.Name, normalizedCity, StringComparison.OrdinalIgnoreCase));
         }
 
         public async Task<Result<RestaurantLocation>> CreateEmployerLocationAsync(

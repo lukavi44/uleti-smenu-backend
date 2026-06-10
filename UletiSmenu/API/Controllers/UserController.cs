@@ -14,13 +14,20 @@ namespace API.Controllers
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly IBillingService _billingService;
         private readonly IMapper _mapper;
         private readonly IFileService _fileService;
         private readonly UserManager<User> _userManager;
 
-        public UserController(IUserService userService, IMapper mapper, IFileService fileService, UserManager<User> userManager)
+        public UserController(
+            IUserService userService,
+            IBillingService billingService,
+            IMapper mapper,
+            IFileService fileService,
+            UserManager<User> userManager)
         {
             _userService = userService;
+            _billingService = billingService;
             _mapper = mapper;
             _fileService = fileService;
             _userManager = userManager;
@@ -88,8 +95,14 @@ namespace API.Controllers
         }
 
         [HttpGet("role/{roleName}")]
-        public async Task<IActionResult> GetUsersByRole(string roleName)
+        public async Task<IActionResult> GetUsersByRole(string roleName, [FromQuery] string? city)
         {
+            if (roleName.Equals("employer", StringComparison.OrdinalIgnoreCase))
+            {
+                var employers = await _userService.GetEmployersAsync(city);
+                return Ok(employers);
+            }
+
             var users = await _userService.GetUsersByRoleAsync(roleName);
             return Ok(users);
         }
@@ -155,11 +168,21 @@ namespace API.Controllers
 
             return role switch
             {
-                "Employer" => Ok(_mapper.Map<EmployerDTO>(user)),
+                "Employer" => Ok(await BuildEmployerResponseAsync(user)),
                 "Employee" => Ok(_mapper.Map<EmployeeDTO>(user)),
                 //"Admin" => Ok(_mapper.Map<AdminDTO>(user)),
                 _ => BadRequest("Unknown role")
             };
+        }
+
+        private async Task<EmployerDTO> BuildEmployerResponseAsync(User user)
+        {
+            var employer = user as Employer ?? await _userService.GetUserByIdAsync(user.Id) as Employer;
+            var response = _mapper.Map<EmployerDTO>(employer ?? user);
+            if (employer != null)
+                response.Subscription = await _billingService.GetSubscriptionStatusAsync(employer.Id);
+
+            return response;
         }
 
         [Authorize(Roles = "Employee")]
@@ -178,15 +201,22 @@ namespace API.Controllers
             return Ok();
         }
 
+        [HttpGet("employers/cities")]
+        public async Task<IActionResult> GetEmployerCities()
+        {
+            var cities = await _userService.GetEmployerCitiesAsync();
+            return Ok(cities);
+        }
+
         [Authorize(Roles = "Employee")]
         [HttpGet("employers/")]
-        public async Task<IActionResult> GetEmployersWithFavouriteStatus()
+        public async Task<IActionResult> GetEmployersWithFavouriteStatus([FromQuery] string? city)
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (!Guid.TryParse(userIdClaim, out var userId))
                 return Unauthorized("Invalid user claim.");
 
-            var result = await _userService.GetAllEmployersWithFavouriteStatusAsync(userId);
+            var result = await _userService.GetAllEmployersWithFavouriteStatusAsync(userId, city);
             var response = result.Select(x => new EmployerDTO
             {
                 Id = x.EmployerId,

@@ -9,6 +9,7 @@ namespace Core.Models.Entities
         public string Type { get; private set; } = string.Empty;
         public string Message { get; private set; } = string.Empty;
         public bool IsRead { get; private set; }
+        public bool IsDismissed { get; private set; }
         public DateTime CreatedAtUtc { get; private set; }
 
         private Notification() { }
@@ -51,6 +52,12 @@ namespace Core.Models.Entities
 
         public void MarkAsRead()
         {
+            IsRead = true;
+        }
+
+        public void Dismiss()
+        {
+            IsDismissed = true;
             IsRead = true;
         }
     }

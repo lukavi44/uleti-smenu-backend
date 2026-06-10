@@ -6,5 +6,7 @@ namespace Core.Repositories
     {
         Task<List<RestaurantLocation>> GetByEmployerIdAsync(Guid employerId);
         Task<RestaurantLocation?> GetByIdAsync(Guid locationId);
+        Task<List<string>> GetDistinctCitiesAsync();
+        Task<List<Guid>> GetEmployerIdsByCityAsync(string city);
     }
 }

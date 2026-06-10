@@ -25,16 +25,22 @@ namespace Infrastructure.Persistence.Database.Repositories
 
         public async Task<List<Notification>> GetByUserIdAsync(Guid userId)
         {
-            return await _context.Set<Notification>()
-                .Where(n => n.UserId == userId)
+            var notifications = await _context.Set<Notification>()
+                .Where(n => n.UserId == userId && !n.IsDismissed)
                 .OrderByDescending(n => n.CreatedAtUtc)
                 .ToListAsync();
+
+            return notifications
+                .GroupBy(notification => new { notification.JobPostId, notification.Type })
+                .Select(group => group.First())
+                .OrderByDescending(notification => notification.CreatedAtUtc)
+                .ToList();
         }
 
         public async Task<int> GetUnreadCountByUserIdAsync(Guid userId)
         {
             return await _context.Set<Notification>()
-                .CountAsync(n => n.UserId == userId && !n.IsRead);
+                .CountAsync(n => n.UserId == userId && !n.IsDismissed && !n.IsRead);
         }
 
         public async Task<Notification?> GetByIdAsync(Guid notificationId)

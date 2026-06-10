@@ -16,18 +16,15 @@ namespace Infrastructure.Persistence.Services
 
         private readonly IReviewService _reviewService;
         private readonly INotificationRepository _notificationRepository;
-        private readonly IRealtimeNotifier _realtimeNotifier;
         private readonly IApplicationUnitOfWork _applicationUnitOfWork;
 
         public ReviewReminderService(
             IReviewService reviewService,
             INotificationRepository notificationRepository,
-            IRealtimeNotifier realtimeNotifier,
             IApplicationUnitOfWork applicationUnitOfWork)
         {
             _reviewService = reviewService;
             _notificationRepository = notificationRepository;
-            _realtimeNotifier = realtimeNotifier;
             _applicationUnitOfWork = applicationUnitOfWork;
         }
 
@@ -46,7 +43,6 @@ namespace Infrastructure.Persistence.Services
                     return Result.Failure(pendingResult.Error);
 
                 var existingJobPostIds = await _notificationRepository.GetJobPostIdsByTypeAsync(userId, ReviewReminderType);
-                var createdNotifications = new List<Notification>();
 
                 foreach (var pendingReview in pendingResult.Value)
                 {
@@ -65,12 +61,8 @@ namespace Infrastructure.Persistence.Services
                         $"Leave a review for {pendingReview.RevieweeName}: {pendingReview.JobPostTitle}");
 
                     await _notificationRepository.AddAsync(notification);
-                    createdNotifications.Add(notification);
                     existingJobPostIds.Add(pendingReview.JobPostId);
                 }
-
-                if (createdNotifications.Count == 0)
-                    return Result.Success();
 
                 try
                 {
@@ -79,16 +71,6 @@ namespace Infrastructure.Persistence.Services
                 catch (DbUpdateException)
                 {
                     // Another concurrent request may have inserted the same reminder first.
-                    return Result.Success();
-                }
-
-                var unreadCount = await _notificationRepository.GetUnreadCountByUserIdAsync(userId);
-                foreach (var notification in createdNotifications)
-                {
-                    await _realtimeNotifier.NotifyNotificationAsync(
-                        userId,
-                        MapNotification(notification),
-                        unreadCount);
                 }
 
                 return Result.Success();
@@ -97,20 +79,6 @@ namespace Infrastructure.Persistence.Services
             {
                 userLock.Release();
             }
-        }
-
-        private static Core.DTOs.UserNotificationDTO MapNotification(Notification notification)
-        {
-            return new Core.DTOs.UserNotificationDTO
-            {
-                Id = notification.Id,
-                EmployerId = notification.EmployerId,
-                JobPostId = notification.JobPostId,
-                Type = notification.Type,
-                Message = notification.Message,
-                IsRead = notification.IsRead,
-                CreatedAtUtc = notification.CreatedAtUtc
-            };
         }
     }
 }

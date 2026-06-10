@@ -1,3 +1,5 @@
+using Core.DTOs;
+
 namespace API.DTOs
 {
     public class EmployerDTO
@@ -10,6 +12,7 @@ namespace API.DTOs
         public string PIB { get; set; } = string.Empty;
         public string MB { get; set; } = string.Empty;
         public bool IsFavourite { get; set; }
+        public EmployerSubscriptionDTO? Subscription { get; set; }
     }
 }
 
