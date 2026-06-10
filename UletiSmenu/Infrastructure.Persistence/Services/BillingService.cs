@@ -15,6 +15,7 @@ namespace Infrastructure.Persistence.Services
         private readonly ISubscriptionRepository _subscriptionRepository;
         private readonly IJobPostRepository _jobPostRepository;
         private readonly IPaymentProvider _paymentProvider;
+        private readonly IApplicationUnitOfWork _unitOfWork;
         private readonly BillingSettings _billingSettings;
 
         public BillingService(
@@ -22,12 +23,14 @@ namespace Infrastructure.Persistence.Services
             ISubscriptionRepository subscriptionRepository,
             IJobPostRepository jobPostRepository,
             IPaymentProvider paymentProvider,
+            IApplicationUnitOfWork unitOfWork,
             IOptions<BillingSettings> billingSettings)
         {
             _userRepository = userRepository;
             _subscriptionRepository = subscriptionRepository;
             _jobPostRepository = jobPostRepository;
             _paymentProvider = paymentProvider;
+            _unitOfWork = unitOfWork;
             _billingSettings = billingSettings.Value;
         }
 
@@ -85,6 +88,8 @@ namespace Infrastructure.Persistence.Services
                 return Result.Failure("Subscription plan not found.");
 
             var now = DateTime.UtcNow;
+            await ExpireTrialIfNeededAsync(employer, now);
+
             var access = EvaluatePostingAccess(employer, plan, now);
             if (!access.CanPost)
                 return Result.Failure(access.Reason);
@@ -267,6 +272,19 @@ namespace Infrastructure.Persistence.Services
             PlanKind.Basic => _billingSettings.Basic.CreditsPerPost,
             _ => 0
         };
+
+        private async Task ExpireTrialIfNeededAsync(Employer employer, DateTime now)
+        {
+            if (employer.BillingStatus != BillingStatus.Trialing)
+                return;
+
+            var trialEnded = employer.TrialEndsAtUtc.HasValue && now > employer.TrialEndsAtUtc.Value;
+            if (!trialEnded && employer.HasActiveSubscription(now))
+                return;
+
+            employer.MarkExpired();
+            await _unitOfWork.SaveChangesAsync();
+        }
 
         private sealed record PostingAccess(bool CanPost, string Reason);
     }
