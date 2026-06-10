@@ -12,6 +12,7 @@ using Infrastructure.Email;
 using Infrastructure.Persistence.Database;
 using Infrastructure.Persistence.Database.Repositories;
 using Infrastructure.Persistence.Services;
+using Infrastructure.Stripe;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
@@ -49,8 +50,16 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddSingleton<IRealtimeNotifier, RealtimeNotifier>();
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IBillingService, BillingService>();
-builder.Services.AddScoped<IPaymentProvider, DisabledPaymentProvider>();
+builder.Services.AddScoped<IBillingCheckoutService, BillingCheckoutService>();
+builder.Services.AddScoped<IBillingWebhookProcessor, BillingWebhookProcessor>();
 builder.Services.Configure<BillingSettings>(builder.Configuration.GetSection(BillingSettings.SectionName));
+builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection(StripeSettings.SectionName));
+
+var stripeEnabled = builder.Configuration.GetValue<bool>($"{StripeSettings.SectionName}:Enabled");
+if (stripeEnabled)
+    builder.Services.AddScoped<IPaymentProvider, StripePaymentProvider>();
+else
+    builder.Services.AddScoped<IPaymentProvider, DisabledPaymentProvider>();
 
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"))
     .AddTransient(serviceProvider =>
@@ -278,6 +287,17 @@ static async Task EnsureSubscriptionsSeededAsync(IServiceProvider services)
     foreach (var employer in employersWithoutSubscription)
     {
         billingService.AssignTrialToEmployer(employer);
+    }
+
+    var employersNeedingStatus = await dbContext.Users
+        .OfType<Employer>()
+        .Where(e => e.SubscriptionId != null && e.BillingStatus == BillingStatus.Incomplete)
+        .ToListAsync();
+
+    foreach (var employer in employersNeedingStatus)
+    {
+        if (employer.SubscriptionId == BillingConstants.TrialPlanId)
+            employer.AssignTrial(employer.SubscriptionId.Value, employer.SubscriptionStart ?? DateTime.UtcNow, employer.SubscriptionStop ?? DateTime.UtcNow);
     }
 
     await dbContext.SaveChangesAsync();

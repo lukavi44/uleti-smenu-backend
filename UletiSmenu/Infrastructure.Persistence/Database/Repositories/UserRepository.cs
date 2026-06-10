@@ -64,5 +64,12 @@ namespace Infrastructure.Persistence.Database.Repositories
         {
             throw new NotImplementedException();
         }
+
+        public async Task<Employer?> FindEmployerByStripeSubscriptionIdAsync(string stripeSubscriptionId)
+        {
+            return await _context.Users
+                .OfType<Employer>()
+                .FirstOrDefaultAsync(e => e.StripeSubscriptionId == stripeSubscriptionId);
+        }
     }
 }

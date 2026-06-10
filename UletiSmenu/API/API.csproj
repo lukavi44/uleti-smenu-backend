@@ -24,6 +24,7 @@
     <ProjectReference Include="..\Infrastructure.Email\Infrastructure.Email.csproj" />
     <ProjectReference Include="..\Infrastructure.FileService\Infrastructure.FileService.csproj" />
     <ProjectReference Include="..\Infrastructure.Persistence\Infrastructure.Persistence.csproj" />
+    <ProjectReference Include="..\Infrastructure.Stripe\Infrastructure.Stripe.csproj" />
   </ItemGroup>
 
 </Project>

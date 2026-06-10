@@ -1,0 +1,18 @@
+namespace Core.Billing
+{
+    public class StripeSettings
+    {
+        public const string SectionName = "Stripe";
+
+        public bool Enabled { get; set; }
+        public string SecretKey { get; set; } = string.Empty;
+        public string WebhookSecret { get; set; } = string.Empty;
+        public StripePriceIds PriceIds { get; set; } = new();
+    }
+
+    public class StripePriceIds
+    {
+        public string BasicCreditPack { get; set; } = string.Empty;
+        public string ProMonthly { get; set; } = string.Empty;
+    }
+}

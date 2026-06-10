@@ -12,5 +12,6 @@ namespace Core.Repositories
         Task<Result<Employer>> GetEmployerByIdAsync(Guid id);
         Task<Employee?> GetEmployeeWithFavouritesAsync(Guid employeeId);
         Task<T> GetByIdAsync<T>(Guid id) where T : class;
+        Task<Employer?> FindEmployerByStripeSubscriptionIdAsync(string stripeSubscriptionId);
     }
 }
