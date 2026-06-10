@@ -132,6 +132,8 @@ namespace Infrastructure.Persistence.Services
         private async Task<EmployerSubscriptionDTO> BuildSubscriptionStatusAsync(Employer employer)
         {
             var now = DateTime.UtcNow;
+            await ExpireTrialIfNeededAsync(employer, now);
+
             var plan = employer.SubscriptionId.HasValue
                 ? await _subscriptionRepository.GetByIdAsync(employer.SubscriptionId.Value)
                 : null;
@@ -161,6 +163,7 @@ namespace Infrastructure.Persistence.Services
                 PostCredits = employer.PostCredits,
                 MaxActivePosts = plan != null ? GetMaxActivePosts(plan.PlanKind) : 0,
                 IsActive = access.CanPost || employer.BillingStatus is BillingStatus.Trialing or BillingStatus.Active or BillingStatus.PastDue,
+                CanPost = access.CanPost,
                 NeedsAttention = needsAttention,
                 CanManageBilling = !string.IsNullOrWhiteSpace(employer.StripeCustomerId) && _paymentProvider.IsEnabled
             };

@@ -12,6 +12,7 @@ namespace Core.DTOs
         public int PostCredits { get; set; }
         public int MaxActivePosts { get; set; }
         public bool IsActive { get; set; }
+        public bool CanPost { get; set; }
         public bool NeedsAttention { get; set; }
         public bool CanManageBilling { get; set; }
     }
