@@ -1,4 +1,5 @@
 using Core.DTOs;
+using Core.Models.Entities;
 using Core.Models.Enums;
 using Core.Repositories;
 using Core.Services;
@@ -9,11 +10,16 @@ namespace Infrastructure.Persistence.Services
     public class ReviewService : IReviewService
     {
         private readonly IReviewRepository _reviewRepository;
+        private readonly IUserRepository _userRepository;
         private readonly IApplicationUnitOfWork _applicationUnitOfWork;
 
-        public ReviewService(IReviewRepository reviewRepository, IApplicationUnitOfWork applicationUnitOfWork)
+        public ReviewService(
+            IReviewRepository reviewRepository,
+            IUserRepository userRepository,
+            IApplicationUnitOfWork applicationUnitOfWork)
         {
             _reviewRepository = reviewRepository;
+            _userRepository = userRepository;
             _applicationUnitOfWork = applicationUnitOfWork;
         }
 
@@ -90,6 +96,41 @@ namespace Infrastructure.Persistence.Services
         public async Task<Result<ReviewSummaryDTO>> GetEmployeeReviewSummaryAsync(Guid employeeId)
         {
             return Result.Success(await _reviewRepository.GetEmployeeReviewSummaryAsync(employeeId));
+        }
+
+        public async Task<Result<ReviewSummaryDTO>> GetEmployerReviewSummaryAsync(Guid employerId)
+        {
+            return Result.Success(await _reviewRepository.GetEmployerReviewSummaryAsync(employerId));
+        }
+
+        public async Task<Result<ReviewPageDTO>> GetEmployeeReviewPageAsync(Guid employeeId)
+        {
+            var employee = await _userRepository.GetByIdAsync<Employee>(employeeId);
+            if (employee == null)
+                return Result.Failure<ReviewPageDTO>("Employee not found.");
+
+            return Result.Success(new ReviewPageDTO
+            {
+                SubjectId = employeeId,
+                SubjectName = $"{employee.FirstName} {employee.LastName}",
+                Summary = await _reviewRepository.GetEmployeeReviewSummaryAsync(employeeId),
+                Reviews = await _reviewRepository.GetReviewsForEmployeeAsync(employeeId)
+            });
+        }
+
+        public async Task<Result<ReviewPageDTO>> GetEmployerReviewPageAsync(Guid employerId)
+        {
+            var employer = await _userRepository.GetByIdAsync<Employer>(employerId);
+            if (employer == null)
+                return Result.Failure<ReviewPageDTO>("Restaurant not found.");
+
+            return Result.Success(new ReviewPageDTO
+            {
+                SubjectId = employerId,
+                SubjectName = employer.Name,
+                Summary = await _reviewRepository.GetEmployerReviewSummaryAsync(employerId),
+                Reviews = await _reviewRepository.GetReviewsForEmployerAsync(employerId)
+            });
         }
     }
 }

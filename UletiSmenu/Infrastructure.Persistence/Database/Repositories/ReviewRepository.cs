@@ -65,10 +65,74 @@ namespace Infrastructure.Persistence.Database.Repositories
                 .ToList();
         }
 
+        public async Task<List<ReviewDTO>> GetReviewsForEmployerAsync(Guid employerId)
+        {
+            var reviews = await (
+                from review in _context.MatchReviews
+                join application in _context.Applications on review.ApplicationId equals application.Id
+                join jobPost in _context.JobPosts on application.JobPostId equals jobPost.Id
+                join reviewerEmployer in _context.Users.OfType<Employer>() on review.ReviewerId equals reviewerEmployer.Id into employerReviewers
+                from reviewerEmployer in employerReviewers.DefaultIfEmpty()
+                join reviewerEmployee in _context.Users.OfType<Employee>() on review.ReviewerId equals reviewerEmployee.Id into employeeReviewers
+                from reviewerEmployee in employeeReviewers.DefaultIfEmpty()
+                where review.RevieweeId == employerId
+                orderby review.CreatedAtUtc descending
+                select new
+                {
+                    review,
+                    jobPost.Title,
+                    ReviewerName = reviewerEmployer != null
+                        ? reviewerEmployer.Name
+                        : reviewerEmployee != null
+                            ? reviewerEmployee.FirstName + " " + reviewerEmployee.LastName
+                            : "Unknown"
+                }).ToListAsync();
+
+            return reviews
+                .Select(item => new ReviewDTO
+                {
+                    Id = item.review.Id,
+                    ApplicationId = item.review.ApplicationId,
+                    ReviewerName = item.ReviewerName,
+                    Rating = item.review.Rating,
+                    Comment = item.review.Comment,
+                    JobPostTitle = item.Title,
+                    CreatedAtUtc = item.review.CreatedAtUtc
+                })
+                .ToList();
+        }
+
         public async Task<ReviewSummaryDTO> GetEmployeeReviewSummaryAsync(Guid employeeId)
         {
             var summaries = await GetEmployeeReviewSummariesAsync(new[] { employeeId });
             return summaries.GetValueOrDefault(employeeId, new ReviewSummaryDTO());
+        }
+
+        public async Task<ReviewSummaryDTO> GetEmployerReviewSummaryAsync(Guid employerId)
+        {
+            return await GetReviewSummaryForRevieweeAsync(employerId);
+        }
+
+        private async Task<ReviewSummaryDTO> GetReviewSummaryForRevieweeAsync(Guid revieweeId)
+        {
+            var grouped = await _context.MatchReviews
+                .Where(review => review.RevieweeId == revieweeId)
+                .GroupBy(review => review.RevieweeId)
+                .Select(group => new
+                {
+                    AverageRating = group.Average(review => review.Rating),
+                    ReviewCount = group.Count()
+                })
+                .FirstOrDefaultAsync();
+
+            if (grouped == null)
+                return new ReviewSummaryDTO();
+
+            return new ReviewSummaryDTO
+            {
+                AverageRating = Math.Round(grouped.AverageRating, 1),
+                ReviewCount = grouped.ReviewCount
+            };
         }
 
         public async Task<Dictionary<Guid, ReviewSummaryDTO>> GetEmployeeReviewSummariesAsync(IEnumerable<Guid> employeeIds)

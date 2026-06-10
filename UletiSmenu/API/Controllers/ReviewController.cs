@@ -68,6 +68,36 @@ namespace API.Controllers
             return Ok(result.Value);
         }
 
+        [HttpGet("employees/{employeeId:guid}/page")]
+        public async Task<IActionResult> GetEmployeeReviewPage(Guid employeeId)
+        {
+            var result = await _reviewService.GetEmployeeReviewPageAsync(employeeId);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Value);
+        }
+
+        [HttpGet("employers/{employerId:guid}/summary")]
+        public async Task<IActionResult> GetEmployerReviewSummary(Guid employerId)
+        {
+            var result = await _reviewService.GetEmployerReviewSummaryAsync(employerId);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Value);
+        }
+
+        [HttpGet("employers/{employerId:guid}/page")]
+        public async Task<IActionResult> GetEmployerReviewPage(Guid employerId)
+        {
+            var result = await _reviewService.GetEmployerReviewPageAsync(employerId);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Value);
+        }
+
         private async Task<(Guid UserId, string? Role, IActionResult? ErrorResult)> ResolveCurrentUserAsync()
         {
             var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
