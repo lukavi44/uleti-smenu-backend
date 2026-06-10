@@ -12,17 +12,20 @@ namespace Infrastructure.Persistence.Services
         private readonly IApplicationRepository _applicationRepository;
         private readonly IJobPostRepository _jobPostRepository;
         private readonly IApplicationUnitOfWork _applicationUnitOfWork;
+        private readonly IRealtimeNotifier _realtimeNotifier;
 
         public ChatService(
             IChatRepository chatRepository,
             IApplicationRepository applicationRepository,
             IJobPostRepository jobPostRepository,
-            IApplicationUnitOfWork applicationUnitOfWork)
+            IApplicationUnitOfWork applicationUnitOfWork,
+            IRealtimeNotifier realtimeNotifier)
         {
             _chatRepository = chatRepository;
             _applicationRepository = applicationRepository;
             _jobPostRepository = jobPostRepository;
             _applicationUnitOfWork = applicationUnitOfWork;
+            _realtimeNotifier = realtimeNotifier;
         }
 
         public async Task<Result<List<ChatConversationListItemDTO>>> GetMyConversationsAsync(Guid userId, string role)
@@ -115,13 +118,28 @@ namespace Infrastructure.Persistence.Services
             await _applicationUnitOfWork.SaveChangesAsync();
 
             var message = messageResult.Value;
-            return Result.Success(new ChatMessageDTO
+            var messageDto = new ChatMessageDTO
             {
                 Id = message.Id,
                 SenderId = message.SenderId,
                 Content = message.Content,
                 SentAtUtc = message.SentAtUtc
-            });
+            };
+
+            var conversation = await _chatRepository.GetConversationByIdAsync(conversationId);
+            if (conversation != null)
+            {
+                var recipientUserId = conversation.EmployerId == userId
+                    ? conversation.EmployeeId
+                    : conversation.EmployerId;
+
+                await _realtimeNotifier.NotifyChatMessageAsync(conversationId, recipientUserId, messageDto);
+
+                var unreadCount = await _chatRepository.GetTotalUnreadCountAsync(recipientUserId);
+                await _realtimeNotifier.NotifyChatUnreadCountAsync(recipientUserId, unreadCount);
+            }
+
+            return Result.Success(messageDto);
         }
 
         public async Task<Result<int>> GetMyUnreadCountAsync(Guid userId, string role)

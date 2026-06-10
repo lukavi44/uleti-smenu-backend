@@ -12,11 +12,16 @@ namespace API.Controllers
     public class ReviewController : ControllerBase
     {
         private readonly IReviewService _reviewService;
+        private readonly IReviewReminderService _reviewReminderService;
         private readonly IUserService _userService;
 
-        public ReviewController(IReviewService reviewService, IUserService userService)
+        public ReviewController(
+            IReviewService reviewService,
+            IReviewReminderService reviewReminderService,
+            IUserService userService)
         {
             _reviewService = reviewService;
+            _reviewReminderService = reviewReminderService;
             _userService = userService;
         }
 
@@ -26,6 +31,8 @@ namespace API.Controllers
             var (userId, role, errorResult) = await ResolveCurrentUserAsync();
             if (errorResult != null)
                 return errorResult;
+
+            await _reviewReminderService.SyncReviewRemindersAsync(userId, role!);
 
             var result = await _reviewService.GetMyPendingReviewsAsync(userId, role!);
             if (result.IsFailure)

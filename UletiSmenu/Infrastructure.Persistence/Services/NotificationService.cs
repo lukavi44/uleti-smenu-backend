@@ -24,9 +24,9 @@ namespace Infrastructure.Persistence.Services
 
         public async Task<Result<List<UserNotificationDTO>>> GetMyNotificationsAsync(Guid userId)
         {
-            var employee = await _userRepository.GetByIdAsync<Employee>(userId);
-            if (employee == null)
-                return Result.Failure<List<UserNotificationDTO>>("Employee not found.");
+            var user = await _userRepository.GetByIdAsync<User>(userId);
+            if (user == null)
+                return Result.Failure<List<UserNotificationDTO>>("User not found.");
 
             var notifications = await _notificationRepository.GetByUserIdAsync(userId);
 
@@ -46,9 +46,9 @@ namespace Infrastructure.Persistence.Services
 
         public async Task<Result<int>> GetMyUnreadCountAsync(Guid userId)
         {
-            var employee = await _userRepository.GetByIdAsync<Employee>(userId);
-            if (employee == null)
-                return Result.Failure<int>("Employee not found.");
+            var user = await _userRepository.GetByIdAsync<User>(userId);
+            if (user == null)
+                return Result.Failure<int>("User not found.");
 
             var count = await _notificationRepository.GetUnreadCountByUserIdAsync(userId);
             return Result.Success(count);
@@ -56,9 +56,9 @@ namespace Infrastructure.Persistence.Services
 
         public async Task<Result> MarkAsReadAsync(Guid userId, Guid notificationId)
         {
-            var employee = await _userRepository.GetByIdAsync<Employee>(userId);
-            if (employee == null)
-                return Result.Failure("Employee not found.");
+            var user = await _userRepository.GetByIdAsync<User>(userId);
+            if (user == null)
+                return Result.Failure("User not found.");
 
             var notification = await _notificationRepository.GetByIdAsync(notificationId);
             if (notification == null)
@@ -75,9 +75,9 @@ namespace Infrastructure.Persistence.Services
 
         public async Task<Result> DeleteAsync(Guid userId, Guid notificationId)
         {
-            var employee = await _userRepository.GetByIdAsync<Employee>(userId);
-            if (employee == null)
-                return Result.Failure("Employee not found.");
+            var user = await _userRepository.GetByIdAsync<User>(userId);
+            if (user == null)
+                return Result.Failure("User not found.");
 
             var notification = await _notificationRepository.GetByIdAsync(notificationId);
             if (notification == null)

@@ -18,6 +18,11 @@ namespace Infrastructure.Persistence.Database.Repositories
             await _context.Set<Notification>().AddRangeAsync(notifications);
         }
 
+        public async Task AddAsync(Notification notification)
+        {
+            await _context.Set<Notification>().AddAsync(notification);
+        }
+
         public async Task<List<Notification>> GetByUserIdAsync(Guid userId)
         {
             return await _context.Set<Notification>()
@@ -46,6 +51,22 @@ namespace Infrastructure.Persistence.Database.Repositories
                 .ToListAsync();
 
             return userIds.ToHashSet();
+        }
+
+        public async Task<bool> ExistsAsync(Guid userId, Guid jobPostId, string type)
+        {
+            return await _context.Set<Notification>()
+                .AnyAsync(n => n.UserId == userId && n.JobPostId == jobPostId && n.Type == type);
+        }
+
+        public async Task<HashSet<Guid>> GetJobPostIdsByTypeAsync(Guid userId, string type)
+        {
+            var jobPostIds = await _context.Set<Notification>()
+                .Where(n => n.UserId == userId && n.Type == type)
+                .Select(n => n.JobPostId)
+                .ToListAsync();
+
+            return jobPostIds.ToHashSet();
         }
 
         public void Delete(Notification notification)
