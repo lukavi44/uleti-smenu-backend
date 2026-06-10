@@ -1,4 +1,5 @@
 ﻿using Core.Models.Entities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Infrastructure.Persistence.Database.Configurations
@@ -35,6 +36,38 @@ namespace Infrastructure.Persistence.Database.Configurations
 
             builder.Property(e => e.SubscriptionStop)
                    .IsRequired(false);
+
+            builder.Property(e => e.BillingStatus)
+                   .IsRequired()
+                   .HasConversion<string>()
+                   .HasMaxLength(32);
+
+            builder.Property(e => e.StripeCustomerId)
+                   .HasMaxLength(128);
+
+            builder.Property(e => e.StripeSubscriptionId)
+                   .HasMaxLength(128);
+
+            builder.Property(e => e.StripePriceId)
+                   .HasMaxLength(128);
+
+            builder.Property(e => e.CurrentPeriodEndUtc)
+                   .IsRequired(false);
+
+            builder.Property(e => e.TrialEndsAtUtc)
+                   .IsRequired(false);
+
+            builder.Property(e => e.GracePeriodEndsAtUtc)
+                   .IsRequired(false);
+
+            builder.Property(e => e.PostCredits)
+                   .IsRequired()
+                   .HasDefaultValue(0);
+
+            builder.Property(e => e.BillingProvider)
+                   .IsRequired()
+                   .HasMaxLength(32)
+                   .HasDefaultValue("None");
 
             builder.OwnsOne(c => c.Address, address =>
             {

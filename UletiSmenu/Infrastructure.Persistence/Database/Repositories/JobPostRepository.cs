@@ -31,6 +31,12 @@ namespace Infrastructure.Persistence.Database.Repositories
               .ToListAsync();
         }
 
+        public async Task<int> CountActiveByEmployerIdAsync(Guid employerId)
+        {
+            return await _context.JobPosts
+                .CountAsync(jp => jp.EmployerId == employerId && jp.Status == JobStatusEnum.Active);
+        }
+
         public async Task<List<string>> GetDistinctPositionsByEmployerIdAsync(Guid employerId)
         {
             return await _context.JobPosts

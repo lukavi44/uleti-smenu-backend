@@ -2,6 +2,7 @@ using API.Hubs;
 using API.Middlewares;
 using API.Services;
 using Microsoft.AspNetCore.Authentication.BearerToken;
+using Core.Billing;
 using Core.Interfaces;
 using Core.Models.Entities;
 using Core.Models.Enums;
@@ -31,6 +32,7 @@ builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
 builder.Services.AddScoped<IRestaurantLocationRepository, RestaurantLocationRepository>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
+builder.Services.AddScoped<IPaymentEventRepository, PaymentEventRepository>();
 
 builder.Services.AddScoped<RoleManager<IdentityRole<Guid>>>();
 builder.Services.AddScoped<IApplicationUnitOfWork, ApplicationUnitOfWork>();
@@ -47,6 +49,8 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddSingleton<IRealtimeNotifier, RealtimeNotifier>();
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IBillingService, BillingService>();
+builder.Services.AddScoped<IPaymentProvider, DisabledPaymentProvider>();
+builder.Services.Configure<BillingSettings>(builder.Configuration.GetSection(BillingSettings.SectionName));
 
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"))
     .AddTransient(serviceProvider =>
@@ -222,40 +226,43 @@ static async Task EnsureSubscriptionsSeededAsync(IServiceProvider services)
     if (!trialPlanExists)
     {
         var trialPlan = Subscription.Create(
-            Core.Billing.BillingConstants.TrialPlanId,
-            "3-Month Free Trial",
-            "Full access to post shifts for the first 3 months.",
+            BillingConstants.TrialPlanId,
+            "Free Trial",
+            "90-day trial for new restaurant accounts. Post shifts during the pilot period.",
             0,
-            Core.Billing.BillingConstants.TrialDurationDays,
-            0).Value;
+            BillingConstants.TrialDurationDays,
+            0,
+            PlanKind.Trial).Value;
 
         await dbContext.Subscriptions.AddAsync(trialPlan);
     }
 
-    if (!await dbContext.Subscriptions.AnyAsync(plan => plan.Id == Core.Billing.BillingConstants.MonthlyStarterPlanId))
+    if (!await dbContext.Subscriptions.AnyAsync(plan => plan.Id == BillingConstants.BasicCreditPackPlanId))
     {
-        var monthlyPlan = Subscription.Create(
-            Core.Billing.BillingConstants.MonthlyStarterPlanId,
-            "Starter Monthly",
-            "Unlimited job posts, applicants, chat, and reviews.",
-            Core.Billing.BillingConstants.MonthlyStarterPriceRsd,
-            30,
-            0).Value;
+        var basicPlan = Subscription.Create(
+            BillingConstants.BasicCreditPackPlanId,
+            "Basic Credit Pack",
+            "Buy post credits for small cafés. Each credit publishes one active job post.",
+            BillingConstants.BasicCreditPackPriceEur,
+            0,
+            BillingConstants.BasicCreditPackCredits,
+            PlanKind.Basic).Value;
 
-        await dbContext.Subscriptions.AddAsync(monthlyPlan);
+        await dbContext.Subscriptions.AddAsync(basicPlan);
     }
 
-    if (!await dbContext.Subscriptions.AnyAsync(plan => plan.Id == Core.Billing.BillingConstants.YearlyStarterPlanId))
+    if (!await dbContext.Subscriptions.AnyAsync(plan => plan.Id == BillingConstants.ProMonthlyPlanId))
     {
-        var yearlyPlan = Subscription.Create(
-            Core.Billing.BillingConstants.YearlyStarterPlanId,
-            "Starter Yearly",
-            "Unlimited job posts for one year. Save compared to monthly billing.",
-            Core.Billing.BillingConstants.YearlyStarterPriceRsd,
-            365,
-            0).Value;
+        var proPlan = Subscription.Create(
+            BillingConstants.ProMonthlyPlanId,
+            "Pro Monthly",
+            "Monthly subscription for restaurants that hire often. Higher active post limits.",
+            BillingConstants.ProMonthlyPriceEur,
+            BillingConstants.ProMonthlyDurationDays,
+            0,
+            PlanKind.Pro).Value;
 
-        await dbContext.Subscriptions.AddAsync(yearlyPlan);
+        await dbContext.Subscriptions.AddAsync(proPlan);
     }
 
     await dbContext.SaveChangesAsync();

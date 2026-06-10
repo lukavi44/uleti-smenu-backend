@@ -34,6 +34,11 @@ namespace Infrastructure.Persistence.Database.Configurations
             builder.Property(s => s.NumberOfPosts)
                 .IsRequired();
 
+            builder.Property(s => s.PlanKind)
+                .IsRequired()
+                .HasConversion<string>()
+                .HasMaxLength(32);
+
             // Indexes for optimization (if necessary)
             builder.HasIndex(s => s.Cost); // If filtering by cost
             builder.HasIndex(s => s.DurationInDays); // If filtering by duration

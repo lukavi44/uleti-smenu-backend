@@ -7,7 +7,10 @@ namespace Core.DTOs
         public string Description { get; set; } = string.Empty;
         public decimal Cost { get; set; }
         public int DurationInDays { get; set; }
+        public int CreditsIncluded { get; set; }
         public string BillingInterval { get; set; } = string.Empty;
-        public string Currency { get; set; } = "RSD";
+        public string PlanKind { get; set; } = string.Empty;
+        public string CheckoutMode { get; set; } = "subscription";
+        public string Currency { get; set; } = "EUR";
     }
 }

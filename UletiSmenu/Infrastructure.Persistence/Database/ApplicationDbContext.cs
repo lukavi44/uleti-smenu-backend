@@ -24,6 +24,7 @@ namespace Infrastructure.Persistence.Database
         public DbSet<ConversationReadState> ConversationReadStates { get; set; }
         public DbSet<WorkExperience> WorkExperiences { get; set; }
         public DbSet<MatchReview> MatchReviews { get; set; }
+        public DbSet<PaymentEvent> PaymentEvents { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

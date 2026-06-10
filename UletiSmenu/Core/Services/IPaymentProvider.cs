@@ -1,13 +1,13 @@
+using Core.Models.Enums;
 using CSharpFunctionalExtensions;
 
 namespace Core.Services
 {
-    /// <summary>
-    /// Payment provider abstraction. Stripe (or another provider) implements this interface.
-    /// Not wired yet — see docs/PAYMENT_PROPOSAL.md.
-    /// </summary>
     public interface IPaymentProvider
     {
+        string ProviderName { get; }
+        bool IsEnabled { get; }
+
         Task<Result<string>> CreateCheckoutSessionAsync(
             Guid employerId,
             Guid planId,
@@ -17,5 +17,7 @@ namespace Core.Services
         Task<Result<string>> CreateCustomerPortalSessionAsync(Guid employerId, string returnUrl);
 
         Task<Result> HandleWebhookAsync(string jsonBody, string signatureHeader);
+
+        BillingStatus MapStripeSubscriptionStatus(string stripeStatus);
     }
 }

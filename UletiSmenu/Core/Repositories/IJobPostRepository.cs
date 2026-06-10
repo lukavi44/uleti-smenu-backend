@@ -24,5 +24,6 @@ namespace Core.Repositories
         Task DeleteJobPostAsync(JobPost jobPost);
         Task<IEnumerable<JobPost>> GetAllJobPostsAsync();
         Task<IEnumerable<JobPost>> GetVisibleJobPostsAsync(DateTime utcNow, string? sortBy = null, string? sortDirection = null);
+        Task<int> CountActiveByEmployerIdAsync(Guid employerId);
     }
 }

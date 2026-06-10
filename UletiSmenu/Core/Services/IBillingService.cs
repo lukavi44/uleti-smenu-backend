@@ -10,5 +10,9 @@ namespace Core.Services
         Task<EmployerSubscriptionDTO> GetSubscriptionStatusAsync(Guid employerId);
         Task<List<BillingPlanDTO>> GetAvailablePaidPlansAsync();
         Task<Result> ValidateEmployerCanCreatePostAsync(Guid employerId);
+        Task<Result> OnJobPostCreatedAsync(Guid employerId);
+        Task<Result<string>> CreateCheckoutSessionAsync(Guid employerId, Guid planId, string successUrl, string cancelUrl);
+        Task<Result<string>> CreateCustomerPortalSessionAsync(Guid employerId, string returnUrl);
+        bool IsPaymentsEnabled();
     }
 }

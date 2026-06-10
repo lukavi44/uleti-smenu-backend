@@ -1,6 +1,6 @@
+using Core.Models.Enums;
 using Core.Models.ValueObjects;
 using CSharpFunctionalExtensions;
-using System.Net;
 
 namespace Core.Models.Entities
 {
@@ -12,8 +12,16 @@ namespace Core.Models.Entities
         public Guid? SubscriptionId { get; private set; }
         public DateTime? SubscriptionStart { get; private set; }
         public DateTime? SubscriptionStop { get; private set; }
+        public BillingStatus BillingStatus { get; private set; } = BillingStatus.Incomplete;
+        public string? StripeCustomerId { get; private set; }
+        public string? StripeSubscriptionId { get; private set; }
+        public string? StripePriceId { get; private set; }
+        public DateTime? CurrentPeriodEndUtc { get; private set; }
+        public DateTime? TrialEndsAtUtc { get; private set; }
+        public DateTime? GracePeriodEndsAtUtc { get; private set; }
+        public int PostCredits { get; private set; }
+        public string BillingProvider { get; private set; } = "None";
         public Address Address { get; private set; }
-        //public ICollection<Employee> Followers { get; set; } = new List<Employee>();
         public ICollection<JobPost> Posts { get; private set; } = new List<JobPost>();
         public ICollection<RestaurantLocation> Locations { get; private set; } = new List<RestaurantLocation>();
 
@@ -66,6 +74,100 @@ namespace Core.Models.Entities
             return Result.Success();
         }
 
+        public Result AssignTrial(Guid subscriptionId, DateTime startUtc, DateTime endUtc)
+        {
+            var result = AssignSubscription(subscriptionId, startUtc, endUtc);
+            if (result.IsFailure)
+                return result;
+
+            BillingStatus = BillingStatus.Trialing;
+            TrialEndsAtUtc = endUtc;
+            CurrentPeriodEndUtc = endUtc;
+            GracePeriodEndsAtUtc = null;
+            return Result.Success();
+        }
+
+        public Result ActivatePaidPlan(
+            Guid planId,
+            DateTime periodStartUtc,
+            DateTime periodEndUtc,
+            string billingProvider,
+            string? stripeCustomerId,
+            string? stripeSubscriptionId,
+            string? stripePriceId)
+        {
+            var assignResult = AssignSubscription(planId, periodStartUtc, periodEndUtc);
+            if (assignResult.IsFailure)
+                return assignResult;
+
+            BillingStatus = BillingStatus.Active;
+            BillingProvider = billingProvider;
+            StripeCustomerId = stripeCustomerId;
+            StripeSubscriptionId = stripeSubscriptionId;
+            StripePriceId = stripePriceId;
+            CurrentPeriodEndUtc = periodEndUtc;
+            TrialEndsAtUtc = null;
+            GracePeriodEndsAtUtc = null;
+            return Result.Success();
+        }
+
+        public void UpdateStripeCustomerId(string customerId)
+        {
+            StripeCustomerId = customerId;
+            BillingProvider = "Stripe";
+        }
+
+        public void SyncStripeSubscription(
+            BillingStatus status,
+            DateTime? currentPeriodEndUtc,
+            string? stripeSubscriptionId,
+            string? stripePriceId,
+            int gracePeriodDays)
+        {
+            BillingProvider = "Stripe";
+            BillingStatus = status;
+            StripeSubscriptionId = stripeSubscriptionId;
+            StripePriceId = stripePriceId;
+            CurrentPeriodEndUtc = currentPeriodEndUtc;
+
+            if (currentPeriodEndUtc.HasValue)
+                SubscriptionStop = currentPeriodEndUtc.Value;
+
+            if (status == BillingStatus.PastDue)
+            {
+                GracePeriodEndsAtUtc ??= DateTime.UtcNow.AddDays(gracePeriodDays);
+            }
+            else if (status is BillingStatus.Active or BillingStatus.Trialing)
+            {
+                GracePeriodEndsAtUtc = null;
+            }
+            else if (status is BillingStatus.Expired or BillingStatus.Incomplete)
+            {
+                GracePeriodEndsAtUtc = null;
+            }
+        }
+
+        public void MarkExpired()
+        {
+            BillingStatus = BillingStatus.Expired;
+            GracePeriodEndsAtUtc = null;
+        }
+
+        public void AddPostCredits(int credits)
+        {
+            if (credits > 0)
+                PostCredits += credits;
+        }
+
+        public Result ConsumePostCredit(int creditsRequired = 1)
+        {
+            if (PostCredits < creditsRequired)
+                return Result.Failure("Insufficient post credits.");
+
+            PostCredits -= creditsRequired;
+            return Result.Success();
+        }
+
         public bool HasActiveSubscription(DateTime utcNow)
         {
             if (!SubscriptionId.HasValue || !SubscriptionStart.HasValue || !SubscriptionStop.HasValue)
@@ -73,5 +175,13 @@ namespace Core.Models.Entities
 
             return SubscriptionStart.Value <= utcNow && SubscriptionStop.Value >= utcNow;
         }
+
+        public bool IsWithinGracePeriod(DateTime utcNow) =>
+            GracePeriodEndsAtUtc.HasValue && utcNow <= GracePeriodEndsAtUtc.Value;
+
+        public bool CanPostDuringPastDue(DateTime utcNow) =>
+            BillingStatus == BillingStatus.PastDue &&
+            IsWithinGracePeriod(utcNow) &&
+            !string.IsNullOrWhiteSpace(StripeSubscriptionId);
     }
 }

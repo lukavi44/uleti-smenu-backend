@@ -55,6 +55,14 @@ namespace Infrastructure.Persistence.Services
             try
             {
                 await _jobPostRepository.AddAsync(jobPost);
+
+                var creditResult = await _billingService.OnJobPostCreatedAsync(jobPost.EmployerId);
+                if (creditResult.IsFailure)
+                {
+                    await _applicationUnitOfWork.RollbackTransactionAsync();
+                    return Result.Failure(creditResult.Error);
+                }
+
                 await CreateInAppNotificationsAsync(jobPost);
                 await _applicationUnitOfWork.SaveChangesAsync();
                 await _applicationUnitOfWork.CommitTransactionAsync();
