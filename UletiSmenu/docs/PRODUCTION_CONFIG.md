@@ -119,9 +119,15 @@ Set on the server or in Azure App Service / hosting panel.
 | `ConnectionStrings__UletiSmenu` | SQL connection | `Server=...;User Id=...;Password=...` |
 | `SmtpSettings__Username` | SMTP user | `apikey` |
 | `SmtpSettings__Password` | SMTP password | `***` |
+| `Stripe__Enabled` | Turn on live checkout | `true` |
 | `Stripe__SecretKey` | Stripe secret | `sk_live_...` |
 | `Stripe__WebhookSecret` | Webhook signing | `whsec_...` |
-| `Stripe__PriceIdMonthly` | Price ID | `price_...` |
+| `Stripe__PriceIds__BasicCreditPack` | Basic one-time price | `price_...` |
+| `Stripe__PriceIds__ProMonthly` | Pro subscription price | `price_...` |
+| `Billing__GracePeriodDays` | PastDue grace (days) | `7` |
+| `Billing__Trial__MaxActivePosts` | Trial post limit | `5` |
+| `Billing__Basic__MaxActivePosts` | Basic post limit | `3` |
+| `Billing__Pro__MaxActivePosts` | Pro post limit | `50` |
 | `ASPNETCORE_ENVIRONMENT` | Environment | `Production` |
 
 Note: `__` (double underscore) = nested JSON path in .NET config.
@@ -227,6 +233,41 @@ Migrations run on startup (`EnsureDatabaseMigratedAsync`) — fine for small dep
 
 ---
 
+## Billing & Stripe configuration
+
+**Committed defaults** (`appsettings.json`):
+
+```json
+"Billing": {
+  "GracePeriodDays": 7,
+  "Currency": "EUR",
+  "Trial": { "MaxActivePosts": 5, "CreditsPerPost": 0 },
+  "Basic": { "MaxActivePosts": 3, "CreditsPerPost": 1 },
+  "Pro": { "MaxActivePosts": 50, "CreditsPerPost": 0 }
+},
+"Stripe": {
+  "Enabled": false,
+  "SecretKey": "",
+  "WebhookSecret": "",
+  "PriceIds": {
+    "BasicCreditPack": "",
+    "ProMonthly": ""
+  }
+}
+```
+
+**Production:** set `Stripe:Enabled=true` and all secrets via environment variables. Register webhook URL in Stripe Dashboard:
+
+`https://api.yourdomain.com/api/v1/Billing/webhooks/stripe`
+
+Events: `checkout.session.completed`, `customer.subscription.*`, `invoice.payment_failed`, `invoice.payment_succeeded`.
+
+**Frontend:** upgrade page calls `POST /api/v1/Billing/checkout` and redirects to Stripe; success/cancel returns to `/billing/upgrade?checkout=success|canceled`.
+
+See `docs/PAYMENT_PROPOSAL.md` for full billing behavior.
+
+---
+
 ## Checklist before going live
 
 - [ ] `ASPNETCORE_ENVIRONMENT=Production`
@@ -236,7 +277,9 @@ Migrations run on startup (`EnsureDatabaseMigratedAsync`) — fine for small dep
 - [ ] Upload folder exists and is writable
 - [ ] SMTP configured and test email sent
 - [ ] HTTPS on API and frontend
-- [ ] Stripe keys in env vars (when billing goes live)
+- [ ] Stripe enabled + keys + price IDs in env vars
+- [ ] Stripe webhook endpoint registered and tested
+- [ ] `Billing:*` limits reviewed for launch
 - [ ] Legal pages reviewed by a lawyer (see draft disclaimer on site)
 
 ---
