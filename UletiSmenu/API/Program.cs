@@ -130,12 +130,15 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? new[] { "http://localhost:5173" };
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecificOrigin",
-        builder =>
-            builder
-                .WithOrigins("http://localhost:5173")
+        policy =>
+            policy
+                .WithOrigins(corsOrigins)
                 .AllowAnyHeader()
                 .AllowAnyMethod()
                 .AllowCredentials());
@@ -143,13 +146,17 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+var uploadPath = app.Configuration["FileSettings:UploadPath"]
+    ?? Path.Combine(app.Environment.ContentRootPath, "uploads");
+Directory.CreateDirectory(uploadPath);
+
 await EnsureDatabaseMigratedAsync(app.Services);
 await EnsureRolesSeededAsync(app.Services);
 await EnsureSubscriptionsSeededAsync(app.Services);
 
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new PhysicalFileProvider(@"D:\uploads"),
+    FileProvider = new PhysicalFileProvider(uploadPath),
     RequestPath = "/uploads"
 });
 
@@ -223,8 +230,35 @@ static async Task EnsureSubscriptionsSeededAsync(IServiceProvider services)
             0).Value;
 
         await dbContext.Subscriptions.AddAsync(trialPlan);
-        await dbContext.SaveChangesAsync();
     }
+
+    if (!await dbContext.Subscriptions.AnyAsync(plan => plan.Id == Core.Billing.BillingConstants.MonthlyStarterPlanId))
+    {
+        var monthlyPlan = Subscription.Create(
+            Core.Billing.BillingConstants.MonthlyStarterPlanId,
+            "Starter Monthly",
+            "Unlimited job posts, applicants, chat, and reviews.",
+            Core.Billing.BillingConstants.MonthlyStarterPriceRsd,
+            30,
+            0).Value;
+
+        await dbContext.Subscriptions.AddAsync(monthlyPlan);
+    }
+
+    if (!await dbContext.Subscriptions.AnyAsync(plan => plan.Id == Core.Billing.BillingConstants.YearlyStarterPlanId))
+    {
+        var yearlyPlan = Subscription.Create(
+            Core.Billing.BillingConstants.YearlyStarterPlanId,
+            "Starter Yearly",
+            "Unlimited job posts for one year. Save compared to monthly billing.",
+            Core.Billing.BillingConstants.YearlyStarterPriceRsd,
+            365,
+            0).Value;
+
+        await dbContext.Subscriptions.AddAsync(yearlyPlan);
+    }
+
+    await dbContext.SaveChangesAsync();
 
     var employersWithoutSubscription = await dbContext.Users
         .OfType<Employer>()

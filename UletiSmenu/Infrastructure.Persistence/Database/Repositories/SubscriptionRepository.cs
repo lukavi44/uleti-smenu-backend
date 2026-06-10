@@ -18,6 +18,14 @@ namespace Infrastructure.Persistence.Database.Repositories
             return await _context.Subscriptions.FirstOrDefaultAsync(plan => plan.Id == subscriptionId);
         }
 
+        public async Task<List<Subscription>> GetPaidPlansAsync()
+        {
+            return await _context.Subscriptions
+                .Where(plan => plan.Id != Core.Billing.BillingConstants.TrialPlanId && plan.Cost > 0)
+                .OrderBy(plan => plan.Cost)
+                .ToListAsync();
+        }
+
         public async Task AddAsync(Subscription subscription)
         {
             await _context.Subscriptions.AddAsync(subscription);

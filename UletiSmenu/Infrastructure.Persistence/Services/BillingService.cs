@@ -42,6 +42,12 @@ namespace Infrastructure.Persistence.Services
             return await BuildSubscriptionStatusAsync(employer);
         }
 
+        public async Task<List<BillingPlanDTO>> GetAvailablePaidPlansAsync()
+        {
+            var plans = await _subscriptionRepository.GetPaidPlansAsync();
+            return plans.Select(MapPlan).ToList();
+        }
+
         public async Task<Result> ValidateEmployerCanCreatePostAsync(Guid employerId)
         {
             var employer = await _userRepository.GetByIdAsync<Employer>(employerId);
@@ -84,6 +90,21 @@ namespace Infrastructure.Persistence.Services
                 SubscriptionStop = employer.SubscriptionStop,
                 DaysRemaining = daysRemaining,
                 IsActive = isActive
+            };
+        }
+
+        private static BillingPlanDTO MapPlan(Subscription plan)
+        {
+            var interval = plan.DurationInDays >= 360 ? "year" : "month";
+            return new BillingPlanDTO
+            {
+                Id = plan.Id,
+                Title = plan.Title,
+                Description = plan.Description,
+                Cost = plan.Cost,
+                DurationInDays = plan.DurationInDays,
+                BillingInterval = interval,
+                Currency = "RSD"
             };
         }
 

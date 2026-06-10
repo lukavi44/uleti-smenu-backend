@@ -8,6 +8,7 @@ namespace Core.Services
     {
         Result AssignTrialToEmployer(Employer employer);
         Task<EmployerSubscriptionDTO> GetSubscriptionStatusAsync(Guid employerId);
+        Task<List<BillingPlanDTO>> GetAvailablePaidPlansAsync();
         Task<Result> ValidateEmployerCanCreatePostAsync(Guid employerId);
     }
 }
