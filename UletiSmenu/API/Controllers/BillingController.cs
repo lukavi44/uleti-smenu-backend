@@ -46,7 +46,7 @@ namespace API.Controllers
                 paymentsEnabled,
                 message = paymentsEnabled
                     ? string.Empty
-                    : "Online payments are not enabled. Set Stripe:Enabled and API keys to activate checkout."
+                    : "Online checkout is not active yet. Contact support@uletismenu.com to upgrade your plan manually."
             });
         }
 

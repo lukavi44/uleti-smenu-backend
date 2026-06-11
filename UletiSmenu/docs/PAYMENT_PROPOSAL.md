@@ -18,7 +18,8 @@ Limits are **configurable** in `appsettings.json` → `Billing` section (not har
 
 ## Currency
 
-**EUR** in Stripe for now. RSD/local provider can be evaluated later.
+**EUR** in Stripe for now (when using a supported-country Stripe account).  
+**RSD + local provider (e.g. CorvusPay)** is the realistic path for merchants registered in **Serbia**, since Stripe does not onboard Serbian businesses directly.
 
 ---
 

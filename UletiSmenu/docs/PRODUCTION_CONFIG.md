@@ -277,8 +277,8 @@ See `docs/PAYMENT_PROPOSAL.md` for full billing behavior.
 - [ ] Upload folder exists and is writable
 - [ ] SMTP configured and test email sent
 - [ ] HTTPS on API and frontend
-- [ ] Stripe enabled + keys + price IDs in env vars
-- [ ] Stripe webhook endpoint registered and tested
+- [ ] Payment provider configured (Stripe **or** CorvusPay) — optional until launch billing
+- [ ] If using Stripe: keys, price IDs, webhook registered
 - [ ] `Billing:*` limits reviewed for launch
 - [ ] Legal pages reviewed by a lawyer (see draft disclaimer on site)
 
