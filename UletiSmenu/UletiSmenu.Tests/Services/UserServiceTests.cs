@@ -5,8 +5,9 @@ using Core.Services;
 using Infrastructure.Persistence.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Moq;
 using UletiSmenu.Tests.TestHelpers;
 using API.DTOs;
@@ -24,6 +25,7 @@ namespace UletiSmenu.Tests.Services
         private readonly Mock<IConfiguration> _configurationMock;
         private readonly Mock<IHttpContextAccessor> _httpContextAccessorMock;
         private readonly Mock<IBillingService> _billingServiceMock;
+        private readonly Mock<IServiceScopeFactory> _serviceScopeFactoryMock;
         private readonly Mock<ILogger<UserService>> _loggerMock;
 
         private readonly UserService _userService;
@@ -39,6 +41,7 @@ namespace UletiSmenu.Tests.Services
             _configurationMock = new Mock<IConfiguration>();
             _httpContextAccessorMock = new Mock<IHttpContextAccessor>();
             _billingServiceMock = new Mock<IBillingService>();
+            _serviceScopeFactoryMock = new Mock<IServiceScopeFactory>();
             _loggerMock = new Mock<ILogger<UserService>>();
 
             _billingServiceMock
@@ -55,6 +58,7 @@ namespace UletiSmenu.Tests.Services
                 _configurationMock.Object,
                 _httpContextAccessorMock.Object,
                 _billingServiceMock.Object,
+                _serviceScopeFactoryMock.Object,
                 _loggerMock.Object);
         }
 

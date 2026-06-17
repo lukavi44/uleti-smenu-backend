@@ -9,6 +9,7 @@ using CSharpFunctionalExtensions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Net;
 
@@ -25,10 +26,11 @@ namespace Infrastructure.Persistence.Services
         private readonly IConfiguration _configuration;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IBillingService _billingService;
+        private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly ILogger<UserService> _logger;
 
         public UserService(IUserRepository userRepository, IRestaurantLocationRepository restaurantLocationRepository, UserManager<User> userManager, SignInManager<User> signInManager,
-            IApplicationUnitOfWork applicationUnitOfWork, IEmailService emailService, IConfiguration configuration, IHttpContextAccessor httpContextAccessor, IBillingService billingService, ILogger<UserService> logger)
+            IApplicationUnitOfWork applicationUnitOfWork, IEmailService emailService, IConfiguration configuration, IHttpContextAccessor httpContextAccessor, IBillingService billingService, IServiceScopeFactory serviceScopeFactory, ILogger<UserService> logger)
         {
             _userRepository = userRepository;
             _restaurantLocationRepository = restaurantLocationRepository;
@@ -39,6 +41,7 @@ namespace Infrastructure.Persistence.Services
             _emailService = emailService;
             _configuration = configuration;
             _httpContextAccessor = httpContextAccessor;
+            _serviceScopeFactory = serviceScopeFactory;
             _logger = logger;
         }
 
@@ -86,18 +89,7 @@ namespace Infrastructure.Persistence.Services
                 await _applicationUnitOfWork.SaveChangesAsync();
                 await _applicationUnitOfWork.CommitTransactionAsync();
 
-                try
-                {
-                    var token = await _userManager.GenerateEmailConfirmationTokenAsync(employer);
-                    var confirmationLink = $"{_configuration["Backend:BaseUrl"]}/api/v1/User/confirm-email?userId={employer.Id}&token={WebUtility.UrlEncode(token)}";
-                    await _emailService.SendEmailAsync(employer.Email!, "Confirm Your Email",
-                        $"Click <a href='{confirmationLink}'>here</a> to confirm your email.");
-                }
-                catch (Exception emailEx)
-                {
-                    _logger.LogWarning(emailEx, "Employer {Email} registered, but confirmation email was not sent.", employer.Email);
-                    return Result.Success("User registered successfully, but confirmation email could not be sent.");
-                }
+                QueueConfirmationEmail(employer.Id, employer.Email!);
 
                 return Result.Success("User registered successfully! Please check your email for confirmation.");
             }
@@ -132,18 +124,7 @@ namespace Infrastructure.Persistence.Services
                 await _applicationUnitOfWork.SaveChangesAsync();
                 await _applicationUnitOfWork.CommitTransactionAsync();
 
-                try
-                {
-                    var token = await _userManager.GenerateEmailConfirmationTokenAsync(employee);
-                    var confirmationLink = $"{_configuration["Backend:BaseUrl"]}/api/v1/User/confirm-email?userId={employee.Id}&token={WebUtility.UrlEncode(token)}";
-                    await _emailService.SendEmailAsync(employee.Email!, "Confirm Your Email",
-                        $"Click <a href='{confirmationLink}'>here</a> to confirm your email.");
-                }
-                catch (Exception emailEx)
-                {
-                    _logger.LogWarning(emailEx, "Employee {Email} registered, but confirmation email was not sent.", employee.Email);
-                    return Result.Success("User registered successfully, but confirmation email could not be sent.");
-                }
+                QueueConfirmationEmail(employee.Id, employee.Email!);
 
                 return Result.Success("User registered successfully! Please check your email for confirmation.");
             }
@@ -384,6 +365,36 @@ namespace Infrastructure.Persistence.Services
         public async Task<IEnumerable<RestaurantLocation>> GetEmployerLocationsAsync(Guid employerId)
         {
             return await _restaurantLocationRepository.GetByEmployerIdAsync(employerId);
+        }
+
+        private void QueueConfirmationEmail(Guid userId, string email)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    using var scope = _serviceScopeFactory.CreateScope();
+                    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+                    var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+                    var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+
+                    var user = await userManager.FindByIdAsync(userId.ToString());
+                    if (user == null)
+                    {
+                        _logger.LogWarning("Confirmation email skipped: user {UserId} not found.", userId);
+                        return;
+                    }
+
+                    var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
+                    var confirmationLink = $"{configuration["Backend:BaseUrl"]}/api/v1/User/confirm-email?userId={userId}&token={WebUtility.UrlEncode(token)}";
+                    await emailService.SendEmailAsync(email, "Confirm Your Email",
+                        $"Click <a href='{confirmationLink}'>here</a> to confirm your email.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Confirmation email was not sent to {Email}.", email);
+                }
+            });
         }
 
     }

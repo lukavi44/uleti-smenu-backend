@@ -76,7 +76,8 @@ builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpS
             Host = smtpSettings.Host,
             Port = smtpSettings.Port,
             Credentials = new NetworkCredential(smtpSettings.Username, smtpSettings.Password),
-            EnableSsl = smtpSettings.EnableSsl
+            EnableSsl = smtpSettings.EnableSsl,
+            Timeout = 10000
         };
     });
 
