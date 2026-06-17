@@ -2,6 +2,7 @@ using API.Hubs;
 using API.Middlewares;
 using API.Services;
 using Microsoft.AspNetCore.Authentication.BearerToken;
+using Microsoft.AspNetCore.DataProtection;
 using Core.Billing;
 using Core.Interfaces;
 using Core.Models.Entities;
@@ -27,11 +28,6 @@ var builder = WebApplication.CreateBuilder(args);
 var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrWhiteSpace(port))
     builder.WebHost.UseUrls($"http://*:{port}");
-
-var dataProtectionPath = builder.Configuration["DataProtection:KeysPath"] ?? "data-protection-keys";
-Directory.CreateDirectory(dataProtectionPath);
-builder.Services.AddDataProtection()
-    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionPath));
 
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IJobPostRepository, JobPostRepository>();
@@ -115,6 +111,9 @@ builder.Services.AddDbContext<ApplicationDbContext>(
         connectionString: builder.Configuration["ConnectionStrings:UletiSmenu"]
     )
 );
+
+builder.Services.AddDataProtection()
+    .PersistKeysToDbContext<ApplicationDbContext>();
 
 builder.Services.AddIdentity<User, IdentityRole<Guid>>(options =>
 {
