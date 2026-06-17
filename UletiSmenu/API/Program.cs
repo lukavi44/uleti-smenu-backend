@@ -28,6 +28,11 @@ var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrWhiteSpace(port))
     builder.WebHost.UseUrls($"http://*:{port}");
 
+var dataProtectionPath = builder.Configuration["DataProtection:KeysPath"] ?? "data-protection-keys";
+Directory.CreateDirectory(dataProtectionPath);
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionPath));
+
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IJobPostRepository, JobPostRepository>();
 builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();

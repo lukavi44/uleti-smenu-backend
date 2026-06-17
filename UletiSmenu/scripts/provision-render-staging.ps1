@@ -87,6 +87,7 @@ if ($existingApi) {
             @{ key = "Cors__AllowedOrigins__0"; value = "https://uletismenu-web-staging.onrender.com" }
             @{ key = "Cors__AllowedOrigins__1"; value = "http://localhost:5173" }
             @{ key = "FileSettings__UploadPath"; value = "/app/uploads" }
+            @{ key = "DataProtection__KeysPath"; value = "/app/data-protection-keys" }
             @{ key = "Stripe__Enabled"; value = "false" }
         )
     }
