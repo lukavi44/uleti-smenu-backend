@@ -24,6 +24,10 @@ using System.Net.Mail;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var port = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(port))
+    builder.WebHost.UseUrls($"http://*:{port}");
+
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IJobPostRepository, JobPostRepository>();
 builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();
@@ -174,7 +178,7 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
@@ -183,7 +187,8 @@ if (app.Environment.IsDevelopment())
 app.UseRouting();
 app.UseCors("AllowSpecificOrigin");
 
-app.UseHttpsRedirection();
+if (app.Environment.IsProduction())
+    app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -194,6 +199,7 @@ app.MapIdentityApi<User>();
 
 app.MapControllers();
 app.MapHub<RealtimeHub>("/hubs/realtime");
+app.MapGet("/health", () => Results.Ok("ok"));
 
 app.Run();
 

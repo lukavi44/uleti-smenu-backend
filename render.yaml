@@ -1,0 +1,26 @@
+# Render Blueprint - UletiSmenu API (staging)
+# Repo: https://github.com/lukavi44/uleti-smenu-backend
+# Dashboard: New > Blueprint > connect repo, Blueprint path: render.yaml
+
+services:
+  - type: web
+    name: uletismenu-api-staging
+    runtime: docker
+    plan: free
+    region: frankfurt
+    rootDir: UletiSmenu
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Staging
+      - key: ConnectionStrings__UletiSmenu
+        sync: false
+      - key: Cors__AllowedOrigins__0
+        value: https://uletismenu-web-staging.onrender.com
+      - key: Cors__AllowedOrigins__1
+        value: http://localhost:5173
+      - key: FileSettings__UploadPath
+        value: /app/uploads
+      - key: Stripe__Enabled
+        value: "false"

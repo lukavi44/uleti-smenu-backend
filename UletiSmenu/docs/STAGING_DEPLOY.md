@@ -1,159 +1,203 @@
-# Staging deployment guide (no Docker)
+# Staging on Azure
 
-Deploy UletiSmenu to a **staging** environment for testing before production.  
-Payments stay **disabled** (`Stripe:Enabled=false`) until you add CorvusPay or Stripe later.
+Deploy UletiSmenu staging at **https://staging.uletismenu.com** with API at **https://api-staging.uletismenu.com**.
+
+Payments stay **disabled** (`Stripe:Enabled=false`) until CorvusPay or Stripe is configured.
+
+### Azure names (defaults)
+
+| Resource | Name |
+|----------|------|
+| Resource group | `rg-uletismenu-staging` |
+| API App Service | `api-staging-uletismenu` |
+| Custom API host | `api-staging.uletismenu.com` |
+| Custom web host | `staging.uletismenu.com` |
+| SQL database | `UletiSmenuDb_Staging` |
 
 ---
 
-## Architecture (staging)
+## Architecture
 
 ```
-Browser → https://staging.uletismenu.com     (React static files)
-       → https://api-staging.uletismenu.com (ASP.NET Core API)
-       → SQL Server (Azure SQL or your server)
-       → Upload folder on disk (profile photos, etc.)
+Browser → https://staging.uletismenu.com      (Azure Static Web App — React)
+       → https://api-staging.uletismenu.com  (Azure App Service — .NET 8 API)
+       → Azure SQL Database (UletiSmenuDb_Staging)
+       → /home/uploads on App Service (profile photos)
 ```
 
-Replace hostnames with your real staging URLs.
+### Why Azure SQL?
+
+For App Service hosting, **Azure SQL Database** is the right default:
+
+| | Azure SQL | SQL on a VPS |
+|---|-----------|--------------|
+| Backups | Automatic | You manage |
+| Firewall | Per-server rules + “Allow Azure services” | Manual |
+| Scaling | Change tier in portal | Resize VM |
+| Connection | Standard encrypted connection string | Same, but you maintain server |
+
+Use a **Basic** tier database for staging (~few EUR/month). Production can use S0 or higher.
 
 ---
 
 ## 1. Prerequisites
 
-- .NET 8 SDK on your machine (for publishing)
-- Node.js 20+ (for frontend build)
-- **SQL Server** database (Azure SQL Database or SQL Server on a VPS)
-- Hosting for API (pick one):
-  - **Azure App Service** (Windows or Linux) — recommended if new to deploy
-  - **IIS on Windows Server** — if you already have a VPS
-- Hosting for frontend (pick one):
-  - **Azure Static Web Apps**
-  - **Netlify / Cloudflare Pages**
-  - **Same server as API** — IIS/nginx serving `dist/` folder
+- [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) — `az login`
+- .NET 8 SDK (publish API locally)
+- Node.js 20+ (build frontend)
+- DNS access for `uletismenu.com` (CNAME records)
 
 ---
 
-## 2. Database
+## 2. One-time: provision Azure resources
 
-1. Create database `UletiSmenuDb_Staging` on your SQL Server.
-2. Note connection string (store in hosting secrets, not git):
-
-```
-Server=tcp:YOUR_SERVER.database.windows.net,1433;Database=UletiSmenuDb_Staging;User Id=...;Password=...;Encrypt=True;TrustServerCertificate=False;
-```
-
-3. Migrations run automatically on API startup (`EnsureDatabaseMigratedAsync`).
-
----
-
-## 3. Publish the API
-
-From repo root:
+From the backend repo:
 
 ```powershell
 cd D:\repos\UletiSmenu\uleti-smenu-backend-git\UletiSmenu
-.\scripts\publish-api.ps1
+az login
+.\scripts\provision-azure-staging.ps1 -NamePrefix uletismenu-stg
 ```
 
-Output: `.\publish\api\` — zip this folder for upload or use `az webapp deploy`.
+`NamePrefix` must be **globally unique** (used in SQL server and app names). If taken, try `uletismenu-stg2`.
 
-### Environment variables on the host
+This creates:
 
-Set these in Azure **Configuration → Application settings** or IIS environment:
+- Resource group `rg-uletismenu-staging` (West Europe by default)
+- Azure SQL server + database `UletiSmenuDb_Staging`
+- Linux App Service plan (B1) + API web app **`api-staging-uletismenu`**
+- Static Web App for the React build
+- App settings: `Staging` environment, connection string, CORS, upload path
 
-| Name | Example |
-|------|---------|
-| `ASPNETCORE_ENVIRONMENT` | `Staging` |
-| `ConnectionStrings__UletiSmenu` | (full connection string) |
-| `Cors__AllowedOrigins__0` | `https://staging.uletismenu.com` |
-| `FileSettings__UploadPath` | `D:\inetpub\uploads` or `/home/uploads` |
-| `SmtpSettings__Username` | (when ready) |
-| `SmtpSettings__Password` | (secret) |
-| `Stripe__Enabled` | `false` |
+Output is saved to `scripts/azure-staging-output.json` (gitignored — add to `.gitignore` if needed).
 
-`appsettings.Staging.json` provides non-secret defaults; **secrets override via env vars**.
+**Save the SQL admin password** printed during provisioning.
 
-### Azure App Service (quick path)
-
-1. Create **Web App** (.NET 8, Windows or Linux).
-2. **Configuration** → add settings above.
-3. Deploy zip:
+### Optional: allow your IP for SSMS
 
 ```powershell
-az webapp deploy --resource-group YOUR_RG --name YOUR_API_APP --src-path .\publish\api.zip --type zip
+az sql server firewall-rule create `
+  --resource-group rg-uletismenu-staging `
+  --server YOUR_SQL_SERVER_NAME `
+  --name MyDevMachine `
+  --start-ip-address YOUR_PUBLIC_IP `
+  --end-ip-address YOUR_PUBLIC_IP
 ```
 
-4. Enable **HTTPS only**. Note URL → set as `VITE_API_BASE_URL` for frontend build.
-
-### IIS (Windows VPS)
-
-1. Install [.NET 8 Hosting Bundle](https://dotnet.microsoft.com/download/dotnet/8.0).
-2. Create site pointing to `publish\api` folder.
-3. Create app pool: **No Managed Code**.
-4. Create upload folder; grant `IIS_IUSRS` modify rights.
-5. Bind HTTPS certificate.
+Migrations run automatically on API startup.
 
 ---
 
-## 4. Build & deploy frontend
+## 3. Custom domains & HTTPS
+
+### API (`api-staging.uletismenu.com`)
+
+1. Azure Portal → App Service → **Custom domains** → Add `api-staging.uletismenu.com`
+2. DNS: **CNAME** `api-staging` → `api-staging-uletismenu.azurewebsites.net`
+3. **TLS/SSL** → Create **App Service Managed Certificate** (free) → bind to the hostname
+
+### Frontend (`staging.uletismenu.com`)
+
+1. Azure Portal → Static Web App → **Custom domains** → Add `staging.uletismenu.com`
+2. Follow the wizard (CNAME or TXT validation)
+3. Managed certificate is issued automatically for SWA custom domains
+
+---
+
+## 4. Configure & deploy the API
+
+If the app was created manually in the portal, fix settings first (connection string name must be `ConnectionStrings__UletiSmenu`, not `DefaultConnection`):
+
+```powershell
+cd D:\repos\UletiSmenu\uleti-smenu-backend-git\UletiSmenu
+.\scripts\configure-azure-staging.ps1
+.\scripts\deploy-azure-staging.ps1
+```
+
+Defaults: resource group `rg-uletismenu-staging`, API app **`api-staging-uletismenu`**  
+(URL: `https://api-staging-uletismenu.azurewebsites.net` until custom domain is bound).
+
+Smoke test: `https://api-staging.uletismenu.com/swagger` (disable Swagger in production later).
+
+---
+
+## 5. Build & deploy frontend
 
 ```powershell
 cd D:\repos\UletiSmenu\uleti-smenu\uleti-smenu_react\uleti-smenu
-
-# Create .env.staging locally (copy from .env.staging.example)
-# VITE_API_BASE_URL=https://api-staging.uletismenu.com
-
-npm ci
-npm run build
+.\scripts\build-staging.ps1
 ```
 
-Upload contents of `dist/` to static hosting.
+`VITE_API_BASE_URL` must be `https://api-staging.uletismenu.com` (set in `.env.staging`).
 
-**Important:** `VITE_API_BASE_URL` is baked in at build time — rebuild when API URL changes.
+### Deploy `dist/` to Static Web App
+
+**Option A — SWA CLI (quick manual deploy):**
+
+```powershell
+npm install -g @azure/static-web-apps-cli
+swa deploy ./dist --env production --deployment-token YOUR_SWA_DEPLOYMENT_TOKEN
+```
+
+Token: Static Web App → **Manage deployment token** in Azure Portal.
+
+**Option B — GitHub Actions:** connect the frontend repo to the SWA in Azure Portal for CI deploys on push.
 
 ---
 
-## 5. CORS check
+## 6. App settings reference
 
-API `Cors:AllowedOrigins` must **exactly** match frontend origin:
+Set in Azure Portal → App Service → **Configuration** (provision script sets most of these):
 
-- `https://staging.uletismenu.com` (no trailing slash)
-- Include `http://localhost:5173` only if you still test locally against staging API
+| Name | Value |
+|------|--------|
+| `ASPNETCORE_ENVIRONMENT` | `Staging` |
+| `ConnectionStrings__UletiSmenu` | Azure SQL connection string |
+| `Cors__AllowedOrigins__0` | `https://staging.uletismenu.com` |
+| `Cors__AllowedOrigins__1` | `http://localhost:5173` (optional, local dev against staging API) |
+| `FileSettings__UploadPath` | `/home/uploads` |
+| `Stripe__Enabled` | `false` |
+| `SmtpSettings__Username` | (when ready) |
+| `SmtpSettings__Password` | (secret) |
+
+Non-secret defaults live in `appsettings.Staging.json`; **secrets override via app settings**.
 
 ---
 
-## 6. Smoke test checklist
+## 7. Smoke test checklist
 
-- [ ] `GET https://api-staging.../swagger` (disable in prod later)
+- [ ] `GET https://api-staging.uletismenu.com/swagger`
 - [ ] Register employee + employer
-- [ ] Employer gets 90-day trial; can create job post
-- [ ] Employee can apply; employer can accept
-- [ ] Chat opens after accept
-- [ ] Profile photo upload works (upload path writable)
-- [ ] `/billing/upgrade` shows plans; checkout **disabled** (expected)
-- [ ] SignalR notifications (if used) — check browser console
+- [ ] Employer trial; create job post
+- [ ] Employee apply; employer accept
+- [ ] Chat after accept
+- [ ] Profile photo upload (`/home/uploads` writable on App Service)
+- [ ] `/billing/upgrade` — plans visible; checkout disabled (expected)
+- [ ] SignalR notifications — check browser console
 
 ---
 
-## 7. Payments (current status)
+## 8. Payments (current)
 
-- **Stripe:** not available for Serbia-only businesses — leave disabled.
+- **Stripe:** not for Serbia-only businesses — leave disabled.
 - **Manual upgrades:** `support@uletismenu.com` until CorvusPay or foreign-entity Stripe.
-- Billing gate and trial still work without a payment provider.
+- Trial and billing gates work without a payment provider.
 
 ---
 
-## 8. Scripts in this repo
+## 9. Scripts
 
-| Script | Purpose |
-|--------|---------|
-| `scripts/publish-api.ps1` | Release publish to `publish/api` |
-| `scripts/set-stripe-dev-secrets.ps1` | Optional; only if Stripe test account exists |
-
-Workspace root (not in git): `D:\repos\UletiSmenu\run-dev.ps1` — starts API + frontend locally.
+| Script | Repo | Purpose |
+|--------|------|---------|
+| `scripts/provision-azure-staging.ps1` | backend | One-time Azure resources |
+| `scripts/configure-azure-staging.ps1` | backend | App settings + start web app |
+| `scripts/provision-render-staging.ps1` | backend | Create Render API + static site |
+| `scripts/deploy-azure-staging.ps1` | backend | Publish + zip deploy API |
+| `scripts/publish-api.ps1` | backend | Release build only |
+| `scripts/build-staging.ps1` | frontend | Staging `npm run build` |
 
 ---
 
 ## Next: production
 
-When staging is stable, copy approach to production using `appsettings.Production.json` and `PRODUCTION_CONFIG.md`.
+When staging is stable, mirror with `appsettings.Production.json` and `PRODUCTION_CONFIG.md` (separate SQL database, production hostnames, Swagger off).
