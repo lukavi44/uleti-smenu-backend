@@ -54,10 +54,22 @@ In Render → **uletismenu-api-staging** → **Environment**:
 
 ## 4. Azure SQL firewall
 
-Allow Render to reach Azure SQL:
+**Render is not an Azure service** — `Allow Azure services` alone is not enough.
 
-- Azure Portal → SQL server → **Networking** → allow **Azure services** (if API were on Azure)
-- For Render: add Render service **outbound IPs** from Dashboard → service → **Connect** tab, or temporarily allow `0.0.0.0` for staging only
+**Staging (quick):** allow external connections on the SQL server:
+
+```powershell
+az sql server firewall-rule create `
+  --resource-group rg-uletismenu-staging `
+  --server uletismenu-staging-sql `
+  --name AllowExternalStaging `
+  --start-ip-address 0.0.0.0 `
+  --end-ip-address 255.255.255.255
+```
+
+**Tighter (production):** Render Dashboard → API service → **Connect** → **Outbound** tab → add those CIDR ranges as firewall rules (Frankfurt region).
+
+Error **40613** on startup often means firewall blocked or database waking from pause — the API retries migrations automatically.
 
 ---
 

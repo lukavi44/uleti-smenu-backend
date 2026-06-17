@@ -207,7 +207,42 @@ static async Task EnsureDatabaseMigratedAsync(IServiceProvider services)
 {
     using var scope = services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await dbContext.Database.MigrateAsync();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DatabaseMigration");
+
+    const int maxAttempts = 12;
+    for (var attempt = 1; attempt <= maxAttempts; attempt++)
+    {
+        try
+        {
+            await dbContext.Database.MigrateAsync();
+            return;
+        }
+        catch (Exception ex) when (attempt < maxAttempts && IsTransientDatabaseError(ex))
+        {
+            var delay = TimeSpan.FromSeconds(Math.Min(30, 2 * attempt));
+            logger.LogWarning(
+                ex,
+                "Database unavailable (attempt {Attempt}/{MaxAttempts}). Retrying in {DelaySeconds}s.",
+                attempt,
+                maxAttempts,
+                delay.TotalSeconds);
+            await Task.Delay(delay);
+        }
+    }
+}
+
+static bool IsTransientDatabaseError(Exception ex)
+{
+    for (var current = ex; current is not null; current = current.InnerException)
+    {
+        if (current is Microsoft.Data.SqlClient.SqlException sqlEx &&
+            sqlEx.Number is 40613 or -2 or 40197 or 40501 or 49918 or 49919 or 49920)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 static async Task EnsureRolesSeededAsync(IServiceProvider services)
