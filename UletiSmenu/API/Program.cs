@@ -25,6 +25,33 @@ using System.Net.Mail;
 
 var builder = WebApplication.CreateBuilder(args);
 
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddJsonFile(
+        "appsettings.Development.local.json",
+        optional: true,
+        reloadOnChange: true);
+}
+
+static string DescribeDatabaseTarget(string? connectionString)
+{
+    if (string.IsNullOrWhiteSpace(connectionString))
+        return "not configured";
+
+    if (connectionString.Contains("database.windows.net", StringComparison.OrdinalIgnoreCase))
+        return "Azure SQL — use appsettings.Development.json for local SQL Server";
+
+    const string serverKey = "Server=";
+    var start = connectionString.IndexOf(serverKey, StringComparison.OrdinalIgnoreCase);
+    if (start < 0)
+        return "local SQL Server";
+
+    start += serverKey.Length;
+    var end = connectionString.IndexOf(';', start);
+    var server = end < 0 ? connectionString[start..] : connectionString[start..end];
+    return $"local SQL Server ({server.Trim()})";
+}
+
 var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrWhiteSpace(port))
     builder.WebHost.UseUrls($"http://*:{port}");
@@ -167,6 +194,12 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    var connectionString = app.Configuration["ConnectionStrings:UletiSmenu"];
+    app.Logger.LogInformation("Development database target: {DatabaseTarget}", DescribeDatabaseTarget(connectionString));
+}
 
 var uploadPath = app.Configuration["FileSettings:UploadPath"]
     ?? Path.Combine(app.Environment.ContentRootPath, "uploads");
