@@ -164,6 +164,9 @@ namespace Infrastructure.Persistence.Services
             await _chatRepository.MarkConversationReadAsync(userId, conversationId, readAtUtc);
             await _applicationUnitOfWork.SaveChangesAsync();
 
+            var unreadCount = await _chatRepository.GetTotalUnreadCountAsync(userId);
+            await _realtimeNotifier.NotifyChatUnreadCountAsync(userId, unreadCount);
+
             return Result.Success();
         }
     }
