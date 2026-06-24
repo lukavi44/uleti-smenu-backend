@@ -76,6 +76,7 @@ builder.Services.AddScoped<IApplicationService, ApplicationService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IEmployeeProfileService, EmployeeProfileService>();
 builder.Services.AddScoped<IEmployerProfileService, EmployerProfileService>();
+builder.Services.AddScoped<IPlatformStatsService, PlatformStatsService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IReviewReminderService, ReviewReminderService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
