@@ -13,5 +13,7 @@ namespace Core.Repositories
         Task<Employee?> GetEmployeeWithFavouritesAsync(Guid employeeId);
         Task<T> GetByIdAsync<T>(Guid id) where T : class;
         Task<Employer?> FindEmployerByStripeSubscriptionIdAsync(string stripeSubscriptionId);
+        Task<Employer?> FindEmployerByPublicSlugAsync(string publicSlug);
+        Task<bool> PublicSlugExistsAsync(string publicSlug, Guid excludeEmployerId);
     }
 }

@@ -39,7 +39,34 @@ namespace Infrastructure.Persistence.Database.Repositories
 
         public Task<CSharpFunctionalExtensions.Result<Employer>> GetEmployerByIdAsync(Guid id)
         {
-            throw new NotImplementedException();
+            return GetEmployerByIdResultAsync(id);
+        }
+
+        private async Task<CSharpFunctionalExtensions.Result<Employer>> GetEmployerByIdResultAsync(Guid id)
+        {
+            var employer = await _context.Users
+                .OfType<Employer>()
+                .FirstOrDefaultAsync(e => e.Id == id);
+
+            return employer == null
+                ? CSharpFunctionalExtensions.Result.Failure<Employer>("Employer not found.")
+                : CSharpFunctionalExtensions.Result.Success(employer);
+        }
+
+        public async Task<Employer?> FindEmployerByPublicSlugAsync(string publicSlug)
+        {
+            var normalizedSlug = publicSlug.Trim().ToLowerInvariant();
+            return await _context.Users
+                .OfType<Employer>()
+                .FirstOrDefaultAsync(e => e.PublicSlug == normalizedSlug);
+        }
+
+        public async Task<bool> PublicSlugExistsAsync(string publicSlug, Guid excludeEmployerId)
+        {
+            var normalizedSlug = publicSlug.Trim().ToLowerInvariant();
+            return await _context.Users
+                .OfType<Employer>()
+                .AnyAsync(e => e.PublicSlug == normalizedSlug && e.Id != excludeEmployerId);
         }
 
         public async Task<IEnumerable<User>> GetUsersByRoleAsync(UserRolesEnum role)
@@ -57,6 +84,15 @@ namespace Infrastructure.Persistence.Database.Repositories
 
         public async Task<T> GetByIdAsync<T>(Guid id) where T : class
         {
+            if (typeof(T) == typeof(Employer))
+            {
+                var employer = await _context.Users
+                    .OfType<Employer>()
+                    .FirstOrDefaultAsync(e => e.Id == id);
+
+                return employer == null ? default! : (T)(object)employer;
+            }
+
             return await _context.Set<T>().FindAsync(id);
         }
 

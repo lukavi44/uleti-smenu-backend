@@ -100,7 +100,17 @@ namespace API.Controllers
             if (roleName.Equals("employer", StringComparison.OrdinalIgnoreCase))
             {
                 var employers = await _userService.GetEmployersAsync(city);
-                return Ok(employers);
+                var response = employers.Select(employer => new EmployerDTO
+                {
+                    Id = employer.Id,
+                    Name = employer.Name,
+                    Email = employer.Email ?? string.Empty,
+                    PhoneNumber = employer.PhoneNumber ?? string.Empty,
+                    ProfilePhoto = employer.ProfilePhoto ?? string.Empty,
+                    PublicSlug = employer.PublicSlug,
+                });
+
+                return Ok(response);
             }
 
             var users = await _userService.GetUsersByRoleAsync(roleName);
@@ -179,6 +189,7 @@ namespace API.Controllers
         {
             var employer = user as Employer ?? await _userService.GetUserByIdAsync(user.Id) as Employer;
             var response = _mapper.Map<EmployerDTO>(employer ?? user);
+            response.ProfilePhoto = employer?.ProfilePhoto ?? user.ProfilePhoto ?? string.Empty;
             if (employer != null)
                 response.Subscription = await _billingService.GetSubscriptionStatusAsync(employer.Id);
 
@@ -222,6 +233,7 @@ namespace API.Controllers
                 Id = x.EmployerId,
                 Name = x.Name,
                 ProfilePhoto = x.ProfilePhoto ?? string.Empty,
+                PublicSlug = x.PublicSlug,
                 IsFavourite = x.IsFavourite
             });
 

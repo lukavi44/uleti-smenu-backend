@@ -1,4 +1,5 @@
 using Core.DTOs;
+using Core.Helpers;
 using Core.Interfaces;
 using Core.Models;
 using Core.Models.Entities;
@@ -61,6 +62,10 @@ namespace Infrastructure.Persistence.Services
                 var trialResult = _billingService.AssignTrialToEmployer(employer);
                 if (trialResult.IsFailure)
                     return Result.Failure(trialResult.Error);
+
+                var slugResult = await AssignUniquePublicSlugAsync(employer);
+                if (slugResult.IsFailure)
+                    return Result.Failure(slugResult.Error);
 
                 var identityResult = await _userManager.CreateAsync(employer, password);
                 if (!identityResult.Succeeded)
@@ -231,8 +236,14 @@ namespace Infrastructure.Persistence.Services
 
         public async Task<IEnumerable<Employer>> GetEmployersAsync(string? city = null)
         {
-            var employers = await _userRepository.GetAllEmployersAsync();
-            return await FilterEmployersByCityAsync(employers, city);
+            var employers = (await FilterEmployersByCityAsync(await _userRepository.GetAllEmployersAsync(), city)).ToList();
+
+            foreach (var employer in employers)
+            {
+                await EnsurePublicSlugAsync(employer);
+            }
+
+            return employers;
         }
 
         public async Task<IEnumerable<Employer>> GetAllEmployersAsync(string? city = null)
@@ -301,6 +312,7 @@ namespace Infrastructure.Persistence.Services
                 EmployerId = e.Id,
                 Name = e.Name,
                 ProfilePhoto = e.ProfilePhoto,
+                PublicSlug = e.PublicSlug,
                 IsFavourite = favouritedEmployerIds.Contains(e.Id)
             }).ToList();
         }
@@ -395,6 +407,38 @@ namespace Infrastructure.Persistence.Services
                     _logger.LogWarning(ex, "Confirmation email was not sent to {Email}.", email);
                 }
             });
+        }
+
+        private async Task<Result> AssignUniquePublicSlugAsync(Employer employer)
+        {
+            if (!string.IsNullOrWhiteSpace(employer.PublicSlug))
+                return Result.Success();
+
+            var baseSlug = EmployerSlugHelper.Slugify(employer.Name);
+            var slug = baseSlug;
+            var suffix = 2;
+
+            while (await _userRepository.PublicSlugExistsAsync(slug, employer.Id))
+            {
+                slug = $"{baseSlug}-{suffix}";
+                suffix++;
+            }
+
+            var setSlugResult = employer.SetPublicSlug(slug);
+            return setSlugResult.IsFailure ? Result.Failure(setSlugResult.Error) : Result.Success();
+        }
+
+        private async Task EnsurePublicSlugAsync(Employer employer)
+        {
+            if (!string.IsNullOrWhiteSpace(employer.PublicSlug))
+                return;
+
+            var slugResult = await AssignUniquePublicSlugAsync(employer);
+            if (slugResult.IsFailure)
+                throw new InvalidOperationException(slugResult.Error);
+
+            await _userManager.UpdateAsync(employer);
+            await _applicationUnitOfWork.SaveChangesAsync();
         }
 
     }

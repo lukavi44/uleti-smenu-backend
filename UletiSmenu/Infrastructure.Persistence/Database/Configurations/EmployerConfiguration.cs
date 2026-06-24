@@ -14,6 +14,13 @@ namespace Infrastructure.Persistence.Database.Configurations
                    .IsRequired()
                    .HasMaxLength(255);
 
+            builder.Property(e => e.PublicSlug)
+                   .IsRequired()
+                   .HasMaxLength(160);
+
+            builder.HasIndex(e => e.PublicSlug)
+                   .IsUnique();
+
             builder.Property(e => e.PIB)
                     .HasConversion(
                     pib => pib.Value,

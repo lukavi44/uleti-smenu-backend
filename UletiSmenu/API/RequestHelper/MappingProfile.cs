@@ -44,9 +44,11 @@ namespace API.RequestHelper
              .ForMember(dest => dest.MB, opt => opt.MapFrom(src => src.MB.Value))
              .IncludeBase<User, EmployerDTO>();
 
-            CreateMap<User, EmployerDTO>();
+            CreateMap<User, EmployerDTO>()
+                .ForMember(dest => dest.ProfilePhoto, opt => opt.MapFrom(src => src.ProfilePhoto ?? string.Empty));
 
-            CreateMap<Employee, EmployeeDTO>();
+            CreateMap<Employee, EmployeeDTO>()
+                .ForMember(dest => dest.ProfilePhoto, opt => opt.MapFrom(src => src.ProfilePhoto ?? string.Empty));
 
             CreateMap<RegisterEmployeeDTO, Employee>()
                 .ForMember(dest => dest.Applications, opt => opt.Ignore())

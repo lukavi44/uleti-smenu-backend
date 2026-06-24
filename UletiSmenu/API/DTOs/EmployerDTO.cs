@@ -9,6 +9,7 @@ namespace API.DTOs
         public string Email { get; set; } = string.Empty;
         public string PhoneNumber { get; set; } = string.Empty;
         public string ProfilePhoto { get; set; } = string.Empty;
+        public string PublicSlug { get; set; } = string.Empty;
         public string PIB { get; set; } = string.Empty;
         public string MB { get; set; } = string.Empty;
         public bool IsFavourite { get; set; }

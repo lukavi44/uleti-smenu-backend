@@ -7,6 +7,7 @@ namespace Core.Models.Entities
     public class Employer : User
     {
         public string Name { get; private set; }
+        public string PublicSlug { get; private set; } = string.Empty;
         public PIB PIB { get; private set; }
         public MB MB { get; private set; }
         public Guid? SubscriptionId { get; private set; }
@@ -58,6 +59,15 @@ namespace Core.Models.Entities
 
             var employer = new Employer(id, name, email, username, phoneNumber, profilePhoto, pib, mb, subscriptionId, subscriptionStart, subscriptionStop, address);
             return Result.Success(employer);
+        }
+
+        public Result SetPublicSlug(string slug)
+        {
+            if (string.IsNullOrWhiteSpace(slug))
+                return Result.Failure("Slug cannot be empty.");
+
+            PublicSlug = slug.Trim().ToLowerInvariant();
+            return Result.Success();
         }
 
         public Result AssignSubscription(Guid subscriptionId, DateTime subscriptionStart, DateTime subscriptionStop)
