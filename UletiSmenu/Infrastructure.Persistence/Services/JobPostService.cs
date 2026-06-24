@@ -102,7 +102,11 @@ namespace Infrastructure.Persistence.Services
             string? lifecycle = null,
             string? sortBy = null,
             string? sortDirection = null,
-            bool? hasApplicants = null)
+            bool? hasApplicants = null,
+            string? city = null,
+            Guid? restaurantLocationId = null,
+            int? minSalary = null,
+            int? maxSalary = null)
         {
             var safePage = page < 1 ? 1 : page;
             var safePageSize = pageSize < 1 ? 6 : Math.Min(pageSize, 50);
@@ -117,7 +121,11 @@ namespace Infrastructure.Persistence.Services
                 lifecycle,
                 sortBy,
                 sortDirection,
-                hasApplicants);
+                hasApplicants,
+                city,
+                restaurantLocationId,
+                minSalary,
+                maxSalary);
 
             return new PagedResultDTO<JobPost>
             {

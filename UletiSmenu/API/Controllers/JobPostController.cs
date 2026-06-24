@@ -112,7 +112,11 @@ namespace API.Controllers
             [FromQuery] string? lifecycle = null,
             [FromQuery] string? sortBy = null,
             [FromQuery] string? sortDirection = null,
-            [FromQuery] bool? hasApplicants = null)
+            [FromQuery] bool? hasApplicants = null,
+            [FromQuery] string? city = null,
+            [FromQuery] Guid? restaurantLocationId = null,
+            [FromQuery] int? minSalary = null,
+            [FromQuery] int? maxSalary = null)
         {
             var employerIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!Guid.TryParse(employerIdClaim, out var employerId))
@@ -133,7 +137,11 @@ namespace API.Controllers
                     lifecycle,
                     sortBy,
                     sortDirection,
-                    hasApplicants);
+                    hasApplicants,
+                    city,
+                    restaurantLocationId,
+                    minSalary,
+                    maxSalary);
 
                 var jobPostDtos = _mapper.Map<List<JobPostDTO>>(pagedJobPosts.Items);
                 await EnrichApplicantCountsAsync(jobPostDtos);

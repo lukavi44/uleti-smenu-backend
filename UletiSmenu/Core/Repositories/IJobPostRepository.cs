@@ -19,7 +19,11 @@ namespace Core.Repositories
             string? lifecycle = null,
             string? sortBy = null,
             string? sortDirection = null,
-            bool? hasApplicants = null);
+            bool? hasApplicants = null,
+            string? city = null,
+            Guid? restaurantLocationId = null,
+            int? minSalary = null,
+            int? maxSalary = null);
         Task<EmployerDashboardSummaryDTO> GetEmployerDashboardSummaryAsync(Guid employerId);
         Task DeleteJobPostAsync(JobPost jobPost);
         Task<IEnumerable<JobPost>> GetAllJobPostsAsync();

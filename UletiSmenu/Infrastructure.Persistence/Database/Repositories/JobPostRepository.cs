@@ -57,7 +57,11 @@ namespace Infrastructure.Persistence.Database.Repositories
             string? lifecycle = null,
             string? sortBy = null,
             string? sortDirection = null,
-            bool? hasApplicants = null)
+            bool? hasApplicants = null,
+            string? city = null,
+            Guid? restaurantLocationId = null,
+            int? minSalary = null,
+            int? maxSalary = null)
         {
             var query = _context.JobPosts
                 .Include(jp => jp.Employer)
@@ -97,6 +101,29 @@ namespace Infrastructure.Persistence.Database.Repositories
             if (hasApplicants == true)
             {
                 query = query.Where(jp => _context.Applications.Any(application => application.JobPostId == jp.Id));
+            }
+
+            if (!string.IsNullOrWhiteSpace(city))
+            {
+                var normalizedCity = city.Trim();
+                query = query.Where(jp =>
+                    jp.RestaurantLocation != null
+                    && jp.RestaurantLocation.City == normalizedCity);
+            }
+
+            if (restaurantLocationId.HasValue)
+            {
+                query = query.Where(jp => jp.RestaurantLocationId == restaurantLocationId.Value);
+            }
+
+            if (minSalary.HasValue)
+            {
+                query = query.Where(jp => jp.Salary >= minSalary.Value);
+            }
+
+            if (maxSalary.HasValue)
+            {
+                query = query.Where(jp => jp.Salary <= maxSalary.Value);
             }
 
             var isAscending = string.Equals(sortDirection, "asc", StringComparison.OrdinalIgnoreCase);
