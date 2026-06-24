@@ -28,6 +28,21 @@ namespace Core.Repositories
         Task DeleteJobPostAsync(JobPost jobPost);
         Task<IEnumerable<JobPost>> GetAllJobPostsAsync();
         Task<IEnumerable<JobPost>> GetVisibleJobPostsAsync(DateTime utcNow, string? sortBy = null, string? sortDirection = null);
+        Task<(List<JobPost> Items, int TotalCount)> GetVisibleJobPostsPagedAsync(
+            DateTime utcNow,
+            int page,
+            int pageSize,
+            string? sortBy = null,
+            string? sortDirection = null,
+            string? city = null,
+            Guid? restaurantLocationId = null,
+            string? position = null,
+            int? minSalary = null,
+            int? maxSalary = null,
+            Guid? employeeId = null,
+            string? applicationFilter = null,
+            bool? favouritesOnly = null);
+        Task<VisibleJobPostFilterOptionsDTO> GetVisibleJobPostFilterOptionsAsync(DateTime utcNow, string? city = null);
         Task<int> CountActiveByEmployerIdAsync(Guid employerId);
     }
 }

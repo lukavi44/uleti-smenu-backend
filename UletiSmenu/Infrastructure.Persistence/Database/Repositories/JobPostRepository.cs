@@ -224,6 +224,155 @@ namespace Infrastructure.Persistence.Database.Repositories
             return await query.ToListAsync();
         }
 
+        public async Task<(List<JobPost> Items, int TotalCount)> GetVisibleJobPostsPagedAsync(
+            DateTime utcNow,
+            int page,
+            int pageSize,
+            string? sortBy = null,
+            string? sortDirection = null,
+            string? city = null,
+            Guid? restaurantLocationId = null,
+            string? position = null,
+            int? minSalary = null,
+            int? maxSalary = null,
+            Guid? employeeId = null,
+            string? applicationFilter = null,
+            bool? favouritesOnly = null)
+        {
+            var query = _context.JobPosts
+                .Include(jp => jp.Employer)
+                .Include(jp => jp.RestaurantLocation)
+                .Where(jp =>
+                    jp.Status == JobStatusEnum.Active
+                    && (jp.VisibleUntil >= utcNow || jp.StartingDate.AddHours(1) >= utcNow));
+
+            if (!string.IsNullOrWhiteSpace(city))
+            {
+                var normalizedCity = city.Trim();
+                query = query.Where(jp =>
+                    jp.RestaurantLocation != null
+                    && jp.RestaurantLocation.City == normalizedCity);
+            }
+
+            if (restaurantLocationId.HasValue)
+            {
+                query = query.Where(jp => jp.RestaurantLocationId == restaurantLocationId.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(position))
+            {
+                var normalizedPosition = position.Trim();
+                query = query.Where(jp => jp.Position == normalizedPosition);
+            }
+
+            if (minSalary.HasValue)
+            {
+                query = query.Where(jp => jp.Salary >= minSalary.Value);
+            }
+
+            if (maxSalary.HasValue)
+            {
+                query = query.Where(jp => jp.Salary <= maxSalary.Value);
+            }
+
+            if (employeeId.HasValue)
+            {
+                var normalizedApplicationFilter = applicationFilter?.Trim().ToLowerInvariant();
+                if (normalizedApplicationFilter == "applied")
+                {
+                    query = query.Where(jp =>
+                        _context.Applications.Any(application =>
+                            application.JobPostId == jp.Id
+                            && application.UserId == employeeId.Value));
+                }
+                else if (normalizedApplicationFilter == "notapplied")
+                {
+                    query = query.Where(jp =>
+                        !_context.Applications.Any(application =>
+                            application.JobPostId == jp.Id
+                            && application.UserId == employeeId.Value));
+                }
+
+                if (favouritesOnly == true)
+                {
+                    query = query.Where(jp =>
+                        _context.Favourites.Any(favourite =>
+                            favourite.EmployeeId == employeeId.Value
+                            && favourite.EmployerId == jp.EmployerId));
+                }
+            }
+
+            var isAscending = string.Equals(sortDirection, "asc", StringComparison.OrdinalIgnoreCase);
+            var normalizedSortBy = sortBy?.Trim().ToLowerInvariant();
+
+            query = normalizedSortBy switch
+            {
+                "salary" => isAscending
+                    ? query.OrderBy(jp => jp.Salary).ThenBy(jp => jp.CreatedAtUtc)
+                    : query.OrderByDescending(jp => jp.Salary).ThenByDescending(jp => jp.CreatedAtUtc),
+                _ => isAscending
+                    ? query.OrderBy(jp => jp.CreatedAtUtc).ThenBy(jp => jp.StartingDate)
+                    : query.OrderByDescending(jp => jp.CreatedAtUtc).ThenByDescending(jp => jp.StartingDate)
+            };
+
+            var totalCount = await query.CountAsync();
+            var items = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (items, totalCount);
+        }
+
+        public async Task<VisibleJobPostFilterOptionsDTO> GetVisibleJobPostFilterOptionsAsync(DateTime utcNow, string? city = null)
+        {
+            var baseQuery = _context.JobPosts
+                .Include(jp => jp.RestaurantLocation)
+                .Where(jp =>
+                    jp.Status == JobStatusEnum.Active
+                    && (jp.VisibleUntil >= utcNow || jp.StartingDate.AddHours(1) >= utcNow)
+                    && jp.RestaurantLocation != null);
+
+            var cities = await baseQuery
+                .Select(jp => jp.RestaurantLocation!.City)
+                .Where(locationCity => locationCity != null && locationCity != "")
+                .Distinct()
+                .OrderBy(locationCity => locationCity)
+                .ToListAsync();
+
+            var locationsQuery = baseQuery.Where(jp => jp.RestaurantLocationId.HasValue);
+            if (!string.IsNullOrWhiteSpace(city))
+            {
+                var normalizedCity = city.Trim();
+                locationsQuery = locationsQuery.Where(jp => jp.RestaurantLocation!.City == normalizedCity);
+            }
+
+            var locations = await locationsQuery
+                .Select(jp => new VisibleJobPostLocationOptionDTO
+                {
+                    Id = jp.RestaurantLocationId!.Value,
+                    Name = jp.RestaurantLocation!.Name,
+                    City = jp.RestaurantLocation.City
+                })
+                .Distinct()
+                .OrderBy(location => location.Name)
+                .ThenBy(location => location.City)
+                .ToListAsync();
+
+            var positions = await baseQuery
+                .Select(jp => jp.Position)
+                .Distinct()
+                .OrderBy(jobPosition => jobPosition)
+                .ToListAsync();
+
+            return new VisibleJobPostFilterOptionsDTO
+            {
+                Cities = cities,
+                Locations = locations,
+                Positions = positions
+            };
+        }
+
         public async Task<JobPost?> GetJobPostByIdAsync(Guid id)
         {
             return await _context.JobPosts

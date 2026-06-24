@@ -19,6 +19,20 @@ namespace Core.Services
             DateTime? visibleUntil,
             Guid restaurantLocationId);
         Task<IEnumerable<JobPost>> GetVisibleJobPostsAsync(string? sortBy = null, string? sortDirection = null);
+        Task<PagedResultDTO<JobPost>> GetVisibleJobPostsPagedAsync(
+            int page,
+            int pageSize,
+            string? sortBy = null,
+            string? sortDirection = null,
+            string? city = null,
+            Guid? restaurantLocationId = null,
+            string? position = null,
+            int? minSalary = null,
+            int? maxSalary = null,
+            Guid? employeeId = null,
+            string? applicationFilter = null,
+            bool? favouritesOnly = null);
+        Task<VisibleJobPostFilterOptionsDTO> GetVisibleJobPostFilterOptionsAsync(string? city = null);
         Task<IEnumerable<JobPost>> GetMyJobPostsAsync(Guid employerId);
         Task<List<string>> GetMyJobPostPositionsAsync(Guid employerId);
         Task<PagedResultDTO<JobPost>> GetMyJobPostsPagedAsync(

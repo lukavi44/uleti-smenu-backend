@@ -83,6 +83,52 @@ namespace Infrastructure.Persistence.Services
             return await _jobPostRepository.GetVisibleJobPostsAsync(DateTime.UtcNow, sortBy, sortDirection);
         }
 
+        public async Task<PagedResultDTO<JobPost>> GetVisibleJobPostsPagedAsync(
+            int page,
+            int pageSize,
+            string? sortBy = null,
+            string? sortDirection = null,
+            string? city = null,
+            Guid? restaurantLocationId = null,
+            string? position = null,
+            int? minSalary = null,
+            int? maxSalary = null,
+            Guid? employeeId = null,
+            string? applicationFilter = null,
+            bool? favouritesOnly = null)
+        {
+            var safePage = page < 1 ? 1 : page;
+            var safePageSize = pageSize < 1 ? 6 : Math.Min(pageSize, 50);
+
+            var (items, totalCount) = await _jobPostRepository.GetVisibleJobPostsPagedAsync(
+                DateTime.UtcNow,
+                safePage,
+                safePageSize,
+                sortBy,
+                sortDirection,
+                city,
+                restaurantLocationId,
+                position,
+                minSalary,
+                maxSalary,
+                employeeId,
+                applicationFilter,
+                favouritesOnly);
+
+            return new PagedResultDTO<JobPost>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = safePage,
+                PageSize = safePageSize
+            };
+        }
+
+        public async Task<VisibleJobPostFilterOptionsDTO> GetVisibleJobPostFilterOptionsAsync(string? city = null)
+        {
+            return await _jobPostRepository.GetVisibleJobPostFilterOptionsAsync(DateTime.UtcNow, city);
+        }
+
         public async Task<IEnumerable<JobPost>> GetMyJobPostsAsync(Guid employerId)
         {
             return await _jobPostRepository.GetAllByEmployerIdAsync(employerId);

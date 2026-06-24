@@ -93,13 +93,69 @@ namespace API.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAllJobPosts([FromQuery] string? sortBy = null, [FromQuery] string? sortDirection = null)
+        public async Task<IActionResult> GetAllJobPosts(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 6,
+            [FromQuery] string? sortBy = null,
+            [FromQuery] string? sortDirection = null,
+            [FromQuery] string? city = null,
+            [FromQuery] Guid? restaurantLocationId = null,
+            [FromQuery] string? position = null,
+            [FromQuery] int? minSalary = null,
+            [FromQuery] int? maxSalary = null,
+            [FromQuery] string? applicationFilter = null,
+            [FromQuery] bool? favouritesOnly = null)
         {
-            var jobPosts = await _jobPostService.GetVisibleJobPostsAsync(sortBy, sortDirection);
+            Guid? employeeId = null;
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (Guid.TryParse(userIdClaim, out var userId))
+                {
+                    var user = await _userService.GetUserByIdAsync(userId);
+                    if (user is Employee)
+                    {
+                        employeeId = userId;
+                    }
+                }
+            }
 
-            var jobPostDtos = _mapper.Map<List<JobPostDTO>>(jobPosts);
+            var normalizedApplicationFilter = applicationFilter?.Trim().ToLowerInvariant();
+            if (normalizedApplicationFilter is not ("applied" or "notapplied"))
+            {
+                normalizedApplicationFilter = null;
+            }
 
-            return Ok(jobPostDtos);
+            var pagedJobPosts = await _jobPostService.GetVisibleJobPostsPagedAsync(
+                page,
+                pageSize,
+                sortBy,
+                sortDirection,
+                city,
+                restaurantLocationId,
+                position,
+                minSalary,
+                maxSalary,
+                employeeId,
+                normalizedApplicationFilter,
+                favouritesOnly);
+
+            var jobPostDtos = _mapper.Map<List<JobPostDTO>>(pagedJobPosts.Items);
+
+            return Ok(new PagedResultDTO<JobPostDTO>
+            {
+                Items = jobPostDtos,
+                TotalCount = pagedJobPosts.TotalCount,
+                Page = pagedJobPosts.Page,
+                PageSize = pagedJobPosts.PageSize
+            });
+        }
+
+        [HttpGet("filter-options")]
+        public async Task<IActionResult> GetVisibleJobPostFilterOptions([FromQuery] string? city = null)
+        {
+            var options = await _jobPostService.GetVisibleJobPostFilterOptionsAsync(city);
+            return Ok(options);
         }
 
         [Authorize]
