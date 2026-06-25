@@ -101,8 +101,11 @@ namespace API.Controllers
             [FromQuery] string? city = null,
             [FromQuery] Guid? restaurantLocationId = null,
             [FromQuery] string? position = null,
+            [FromQuery] List<string>? positions = null,
             [FromQuery] int? minSalary = null,
             [FromQuery] int? maxSalary = null,
+            [FromQuery] DateTime? shiftDateFrom = null,
+            [FromQuery] DateTime? shiftDateTo = null,
             [FromQuery] string? applicationFilter = null,
             [FromQuery] bool? favouritesOnly = null)
         {
@@ -134,8 +137,11 @@ namespace API.Controllers
                 city,
                 restaurantLocationId,
                 position,
+                positions,
                 minSalary,
                 maxSalary,
+                shiftDateFrom,
+                shiftDateTo,
                 employeeId,
                 normalizedApplicationFilter,
                 favouritesOnly);

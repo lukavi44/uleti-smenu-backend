@@ -17,6 +17,9 @@ namespace Infrastructure.Persistence.Database.Configurations
             builder.Property(e => e.LastName)
                  .IsRequired()
                  .HasMaxLength(255);
+
+            builder.Property(e => e.City)
+                .HasMaxLength(100);
         }
     }
 }

@@ -111,6 +111,13 @@ if ($existingWeb) {
         serviceDetails = @{
             buildCommand = "npm ci && npm run build"
             publishPath = "dist"
+            routes = @(
+                @{
+                    type = "rewrite"
+                    source = "/*"
+                    destination = "/index.html"
+                }
+            )
         }
         envVars = @(
             @{ key = "VITE_API_BASE_URL"; value = "https://uletismenu-api-staging.onrender.com" }

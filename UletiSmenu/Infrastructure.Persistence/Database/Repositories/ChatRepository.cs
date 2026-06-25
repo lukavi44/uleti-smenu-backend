@@ -44,6 +44,8 @@ namespace Infrastructure.Persistence.Database.Repositories
                     conversation.JobPostId,
                     jobPost.Title,
                     employee.FirstName + " " + employee.LastName,
+                    employee.Id,
+                    employee.ProfilePhoto,
                     conversation.CreatedAtUtc)).ToListAsync();
 
             return await MapConversationRowsAsync(rows, employerId);
@@ -62,6 +64,8 @@ namespace Infrastructure.Persistence.Database.Repositories
                     conversation.JobPostId,
                     jobPost.Title,
                     employer.Name,
+                    employer.Id,
+                    employer.ProfilePhoto,
                     conversation.CreatedAtUtc)).ToListAsync();
 
             return await MapConversationRowsAsync(rows, employeeId);
@@ -153,6 +157,8 @@ namespace Infrastructure.Persistence.Database.Repositories
                         JobPostId = row.JobPostId,
                         JobPostTitle = row.JobPostTitle,
                         OtherPartyName = row.OtherPartyName,
+                        OtherPartyId = row.OtherPartyId,
+                        OtherPartyProfilePhoto = row.OtherPartyProfilePhoto,
                         LastMessagePreview = lastMessage?.Content,
                         LastMessageAtUtc = lastMessage?.SentAtUtc ?? row.CreatedAtUtc,
                         UnreadCount = unreadCounts.GetValueOrDefault(row.Id)
@@ -195,6 +201,8 @@ namespace Infrastructure.Persistence.Database.Repositories
             Guid JobPostId,
             string JobPostTitle,
             string OtherPartyName,
+            Guid OtherPartyId,
+            string? OtherPartyProfilePhoto,
             DateTime CreatedAtUtc);
     }
 }

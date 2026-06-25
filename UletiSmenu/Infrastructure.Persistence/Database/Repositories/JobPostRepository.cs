@@ -233,8 +233,11 @@ namespace Infrastructure.Persistence.Database.Repositories
             string? city = null,
             Guid? restaurantLocationId = null,
             string? position = null,
+            IReadOnlyList<string>? positions = null,
             int? minSalary = null,
             int? maxSalary = null,
+            DateTime? shiftDateFrom = null,
+            DateTime? shiftDateTo = null,
             Guid? employeeId = null,
             string? applicationFilter = null,
             bool? favouritesOnly = null)
@@ -259,7 +262,20 @@ namespace Infrastructure.Persistence.Database.Repositories
                 query = query.Where(jp => jp.RestaurantLocationId == restaurantLocationId.Value);
             }
 
-            if (!string.IsNullOrWhiteSpace(position))
+            if (positions is { Count: > 0 })
+            {
+                var normalizedPositions = positions
+                    .Select(jobPosition => jobPosition.Trim())
+                    .Where(jobPosition => !string.IsNullOrWhiteSpace(jobPosition))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (normalizedPositions.Count > 0)
+                {
+                    query = query.Where(jp => normalizedPositions.Contains(jp.Position));
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(position))
             {
                 var normalizedPosition = position.Trim();
                 query = query.Where(jp => jp.Position == normalizedPosition);
@@ -273,6 +289,16 @@ namespace Infrastructure.Persistence.Database.Repositories
             if (maxSalary.HasValue)
             {
                 query = query.Where(jp => jp.Salary <= maxSalary.Value);
+            }
+
+            if (shiftDateFrom.HasValue)
+            {
+                query = query.Where(jp => jp.StartingDate >= shiftDateFrom.Value);
+            }
+
+            if (shiftDateTo.HasValue)
+            {
+                query = query.Where(jp => jp.StartingDate <= shiftDateTo.Value);
             }
 
             if (employeeId.HasValue)
@@ -365,11 +391,22 @@ namespace Infrastructure.Persistence.Database.Repositories
                 .OrderBy(jobPosition => jobPosition)
                 .ToListAsync();
 
+            var salaryBounds = await baseQuery
+                .GroupBy(_ => 1)
+                .Select(group => new
+                {
+                    MinSalary = group.Min(jp => jp.Salary),
+                    MaxSalary = group.Max(jp => jp.Salary)
+                })
+                .FirstOrDefaultAsync();
+
             return new VisibleJobPostFilterOptionsDTO
             {
                 Cities = cities,
                 Locations = locations,
-                Positions = positions
+                Positions = positions,
+                MinSalary = salaryBounds?.MinSalary,
+                MaxSalary = salaryBounds?.MaxSalary
             };
         }
 

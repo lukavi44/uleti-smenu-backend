@@ -6,6 +6,7 @@ namespace Core.Models.Entities
     {
         public string FirstName { get; private set; }
         public string LastName { get; private set; }
+        public string? City { get; private set; }
         //public ICollection<Employer> FavouriteEmployers { get; private set; } = new List<Employer>();
         public string? CvFileName { get; private set; }
         public ICollection<Application>? Applications { get; private set; } = new List<Application>();
@@ -37,6 +38,25 @@ namespace Core.Models.Entities
 
             var employee = new Employee(id, email, username, phoneNumber, profilePhoto, applications, firstName, lastName, cvFileName);
             return Result.Success(employee);
+        }
+
+        public Result UpdateProfile(string firstName, string lastName, string phoneNumber, string? city)
+        {
+            if (string.IsNullOrWhiteSpace(firstName))
+                return Result.Failure("First name cannot be empty.");
+
+            if (string.IsNullOrWhiteSpace(lastName))
+                return Result.Failure("Last name cannot be empty.");
+
+            if (string.IsNullOrWhiteSpace(phoneNumber))
+                return Result.Failure("Phone number cannot be empty.");
+
+            FirstName = firstName.Trim();
+            LastName = lastName.Trim();
+            PhoneNumber = phoneNumber.Trim();
+            City = string.IsNullOrWhiteSpace(city) ? null : city.Trim();
+
+            return Result.Success();
         }
 
         //public void AddFavouriteEmployer(Employer employer)

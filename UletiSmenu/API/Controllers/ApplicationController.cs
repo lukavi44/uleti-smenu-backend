@@ -41,7 +41,11 @@ namespace API.Controllers
             if (!Guid.TryParse(userIdClaim, out var employerId))
                 return Unauthorized("Invalid user claim.");
 
-            var result = await _applicationService.GetApplicantsForEmployerJobPostAsync(employerId, jobPostId);
+            var includeContactInfo = User.IsInRole("Admin");
+            var result = await _applicationService.GetApplicantsForEmployerJobPostAsync(
+                employerId,
+                jobPostId,
+                includeContactInfo);
             if (result.IsFailure)
                 return BadRequest(result.Error);
 

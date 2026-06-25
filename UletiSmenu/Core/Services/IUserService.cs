@@ -17,6 +17,12 @@ namespace Core.Services
 
         // Employee
         Task<Result> RegisterEmployeeAsync(Employee employee, string password);
+        Task<Result<Employee>> UpdateEmployeeProfileAsync(
+            Guid employeeId,
+            string firstName,
+            string lastName,
+            string phoneNumber,
+            string? city);
         Task<Result> UpdateEmployeeAsync(Guid employeeId, Employee employee);
         Task<Result> ToggleFavouriteEmployerAsync(Guid employeId, Guid employerId);
         Task<List<string>> GetEmployerCitiesAsync();

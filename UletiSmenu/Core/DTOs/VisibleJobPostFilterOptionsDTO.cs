@@ -5,6 +5,8 @@ namespace Core.DTOs
         public List<string> Cities { get; set; } = [];
         public List<VisibleJobPostLocationOptionDTO> Locations { get; set; } = [];
         public List<string> Positions { get; set; } = [];
+        public int? MinSalary { get; set; }
+        public int? MaxSalary { get; set; }
     }
 
     public class VisibleJobPostLocationOptionDTO

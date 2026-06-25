@@ -116,7 +116,11 @@ namespace API.Controllers
             if (employerId == null)
                 return Unauthorized();
 
-            var result = await _employeeProfileService.GetEmployeeProfileForEmployerAsync(employerId.Value, employeeId);
+            var includeContactInfo = User.IsInRole("Admin");
+            var result = await _employeeProfileService.GetEmployeeProfileForEmployerAsync(
+                employerId.Value,
+                employeeId,
+                includeContactInfo);
             if (result.IsFailure)
                 return BadRequest(result.Error);
 

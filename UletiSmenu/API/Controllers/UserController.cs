@@ -14,6 +14,7 @@ namespace API.Controllers
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly IEmployerProfileService _employerProfileService;
         private readonly IBillingService _billingService;
         private readonly IMapper _mapper;
         private readonly IFileService _fileService;
@@ -21,12 +22,14 @@ namespace API.Controllers
 
         public UserController(
             IUserService userService,
+            IEmployerProfileService employerProfileService,
             IBillingService billingService,
             IMapper mapper,
             IFileService fileService,
             UserManager<User> userManager)
         {
             _userService = userService;
+            _employerProfileService = employerProfileService;
             _billingService = billingService;
             _mapper = mapper;
             _fileService = fileService;
@@ -197,6 +200,27 @@ namespace API.Controllers
         }
 
         [Authorize(Roles = "Employee")]
+        [HttpPatch("me/profile")]
+        public async Task<IActionResult> UpdateMyEmployeeProfile([FromBody] UpdateEmployeeProfileDTO request)
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdClaim, out var employeeId))
+                return Unauthorized();
+
+            var result = await _userService.UpdateEmployeeProfileAsync(
+                employeeId,
+                request.FirstName,
+                request.LastName,
+                request.PhoneNumber,
+                request.City);
+
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(_mapper.Map<EmployeeDTO>(result.Value));
+        }
+
+        [Authorize(Roles = "Employee")]
         [HttpPost("favourite/{employerId:guid}")]
         public async Task<IActionResult> ToggleFavourite(Guid employerId)
         {
@@ -217,6 +241,31 @@ namespace API.Controllers
         {
             var cities = await _userService.GetEmployerCitiesAsync();
             return Ok(cities);
+        }
+
+        [HttpGet("employers/directory")]
+        public async Task<IActionResult> GetEmployerDirectory(
+            [FromQuery] string? city = null,
+            [FromQuery] string? search = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 9)
+        {
+            Guid? employeeId = null;
+            if (User.Identity?.IsAuthenticated == true && User.IsInRole("Employee"))
+            {
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (Guid.TryParse(userIdClaim, out var employeeIdValue))
+                    employeeId = employeeIdValue;
+            }
+
+            var result = await _employerProfileService.GetEmployerDirectoryPagedAsync(
+                city,
+                search,
+                page,
+                pageSize,
+                employeeId);
+
+            return Ok(result);
         }
 
         [Authorize(Roles = "Employee")]

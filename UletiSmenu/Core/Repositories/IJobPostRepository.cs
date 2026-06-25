@@ -37,8 +37,11 @@ namespace Core.Repositories
             string? city = null,
             Guid? restaurantLocationId = null,
             string? position = null,
+            IReadOnlyList<string>? positions = null,
             int? minSalary = null,
             int? maxSalary = null,
+            DateTime? shiftDateFrom = null,
+            DateTime? shiftDateTo = null,
             Guid? employeeId = null,
             string? applicationFilter = null,
             bool? favouritesOnly = null);

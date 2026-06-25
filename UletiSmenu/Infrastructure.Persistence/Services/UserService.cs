@@ -213,6 +213,31 @@ namespace Infrastructure.Persistence.Services
             throw new NotImplementedException();
         }
 
+        public async Task<Result<Employee>> UpdateEmployeeProfileAsync(
+            Guid employeeId,
+            string firstName,
+            string lastName,
+            string phoneNumber,
+            string? city)
+        {
+            var employee = await _userRepository.GetByIdAsync<Employee>(employeeId);
+            if (employee == null)
+                return Result.Failure<Employee>("Employee not found.");
+
+            var updateResult = employee.UpdateProfile(firstName, lastName, phoneNumber, city);
+            if (updateResult.IsFailure)
+                return Result.Failure<Employee>(updateResult.Error);
+
+            var identityResult = await _userManager.UpdateAsync(employee);
+            if (!identityResult.Succeeded)
+            {
+                return Result.Failure<Employee>(
+                    string.Join(", ", identityResult.Errors.Select(error => error.Description)));
+            }
+
+            return Result.Success(employee);
+        }
+
         public Task<Result> UpdateEmployerAsync(Guid employerId, Employer employer)
         {
             throw new NotImplementedException();

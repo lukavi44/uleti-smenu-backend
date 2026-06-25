@@ -1,4 +1,5 @@
 using Core.DTOs;
+using Core.Helpers;
 using Core.Models.Entities;
 using Core.Models.Enums;
 using Core.Repositories;
@@ -77,7 +78,10 @@ namespace Infrastructure.Persistence.Services
             }
         }
 
-        public async Task<Result<List<ApplicationApplicantDTO>>> GetApplicantsForEmployerJobPostAsync(Guid employerId, Guid jobPostId)
+        public async Task<Result<List<ApplicationApplicantDTO>>> GetApplicantsForEmployerJobPostAsync(
+            Guid employerId,
+            Guid jobPostId,
+            bool includeContactInfo = false)
         {
             var jobPost = await _jobPostRepository.GetJobPostByIdAsync(jobPostId);
             if (jobPost == null)
@@ -87,6 +91,13 @@ namespace Infrastructure.Persistence.Services
                 return Result.Failure<List<ApplicationApplicantDTO>>("You can view applicants only for your own job posts.");
 
             var applicants = await _applicationRepository.GetApplicantsForJobPostAsync(jobPostId);
+
+            if (!includeContactInfo)
+            {
+                foreach (var applicant in applicants)
+                    CandidateContactPrivacy.RedactApplicantContactInfo(applicant);
+            }
+
             return Result.Success(applicants);
         }
 

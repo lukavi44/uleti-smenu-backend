@@ -201,5 +201,92 @@ namespace Infrastructure.Persistence.Services
                 RestaurantLocationCity = jobPost.RestaurantLocation?.City
             };
         }
+
+        public async Task<PagedResultDTO<EmployerDirectoryListItemDTO>> GetEmployerDirectoryPagedAsync(
+            string? city,
+            string? search,
+            int page,
+            int pageSize,
+            Guid? employeeId)
+        {
+            var safePage = page < 1 ? 1 : page;
+            var safePageSize = pageSize < 1 ? 9 : Math.Min(pageSize, 50);
+
+            var employers = (await _userRepository.GetAllEmployersAsync()).ToList();
+            employers = (await FilterEmployersByCityAsync(employers, city)).ToList();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var normalizedSearch = search.Trim();
+                employers = employers
+                    .Where(employer =>
+                        employer.Name.Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+
+            employers = employers
+                .OrderBy(employer => employer.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var totalCount = employers.Count;
+            var pagedEmployers = employers
+                .Skip((safePage - 1) * safePageSize)
+                .Take(safePageSize)
+                .ToList();
+
+            var favouriteEmployerIds = employeeId.HasValue
+                ? (await _applicationUnitOfWork.Favourites
+                    .GetEmployerIdsFavouritedByEmployeeAsync(employeeId.Value))
+                    .ToHashSet()
+                : new HashSet<Guid>();
+
+            var items = new List<EmployerDirectoryListItemDTO>();
+            foreach (var employer in pagedEmployers)
+            {
+                var previewResult = await BuildEmployerDirectoryPreviewAsync(employer.Id);
+                if (previewResult.IsFailure)
+                {
+                    continue;
+                }
+
+                var preview = previewResult.Value;
+                items.Add(new EmployerDirectoryListItemDTO
+                {
+                    EmployerId = preview.EmployerId,
+                    Name = preview.Name,
+                    ProfilePhoto = preview.ProfilePhoto,
+                    PublicSlug = preview.PublicSlug,
+                    City = preview.City,
+                    ReviewSummary = preview.ReviewSummary,
+                    ActiveJobPostsCount = preview.ActiveJobPostsCount,
+                    IsFavourite = favouriteEmployerIds.Contains(preview.EmployerId)
+                });
+            }
+
+            return new PagedResultDTO<EmployerDirectoryListItemDTO>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = safePage,
+                PageSize = safePageSize
+            };
+        }
+
+        private async Task<IEnumerable<Employer>> FilterEmployersByCityAsync(IEnumerable<Employer> employers, string? city)
+        {
+            if (string.IsNullOrWhiteSpace(city))
+            {
+                return employers;
+            }
+
+            var normalizedCity = city.Trim();
+            var employerIdsWithBranch = (await _restaurantLocationRepository
+                .GetEmployerIdsByCityAsync(normalizedCity))
+                .ToHashSet();
+
+            return employers.Where(employer =>
+                employerIdsWithBranch.Contains(employer.Id) ||
+                string.Equals(employer.Address?.City?.Name, normalizedCity, StringComparison.OrdinalIgnoreCase));
+        }
     }
 }

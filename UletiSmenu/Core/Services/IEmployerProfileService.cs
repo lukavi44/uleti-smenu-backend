@@ -10,5 +10,11 @@ namespace Core.Services
         Task<Result<EmployerDirectoryPreviewDTO>> GetEmployerDirectoryPreviewAsync(Guid employerId);
         Task<Result<EmployerDirectoryPreviewDTO>> GetEmployerDirectoryPreviewBySlugAsync(string slug);
         Task<Result<string>> ResolveEmployerSlugAsync(Guid employerId);
+        Task<PagedResultDTO<EmployerDirectoryListItemDTO>> GetEmployerDirectoryPagedAsync(
+            string? city,
+            string? search,
+            int page,
+            int pageSize,
+            Guid? employeeId);
     }
 }

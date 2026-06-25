@@ -1,4 +1,5 @@
 using Core.DTOs;
+using Core.Helpers;
 using Core.Models.Entities;
 using Core.Repositories;
 using Core.Services;
@@ -96,7 +97,10 @@ namespace Infrastructure.Persistence.Services
             return Result.Success(await BuildPlatformShiftsAsync(employeeId));
         }
 
-        public async Task<Result<EmployeePublicProfileDTO>> GetEmployeeProfileForEmployerAsync(Guid employerId, Guid employeeId)
+        public async Task<Result<EmployeePublicProfileDTO>> GetEmployeeProfileForEmployerAsync(
+            Guid employerId,
+            Guid employeeId,
+            bool includeContactInfo = false)
         {
             if (!await _applicationRepository.EmployerCanViewEmployeeAsync(employerId, employeeId))
                 return Result.Failure<EmployeePublicProfileDTO>("You do not have access to this employee profile.");
@@ -110,7 +114,7 @@ namespace Infrastructure.Persistence.Services
             var reviewSummary = await _reviewRepository.GetEmployeeReviewSummaryAsync(employeeId);
             var reviews = await _reviewRepository.GetReviewsForEmployeeAsync(employeeId);
 
-            return Result.Success(new EmployeePublicProfileDTO
+            var profile = new EmployeePublicProfileDTO
             {
                 EmployeeId = employee.Id,
                 FirstName = employee.FirstName,
@@ -122,7 +126,12 @@ namespace Infrastructure.Persistence.Services
                 PlatformShifts = platformShifts,
                 ReviewSummary = reviewSummary,
                 Reviews = reviews
-            });
+            };
+
+            if (!includeContactInfo)
+                CandidateContactPrivacy.RedactPublicProfileContactInfo(profile);
+
+            return Result.Success(profile);
         }
 
         private async Task<List<EmployeePlatformShiftDTO>> BuildPlatformShiftsAsync(Guid employeeId)
