@@ -44,6 +44,8 @@ namespace UletiSmenu.Tests.Services
                 otherEmployerId,
                 "Branch B",
                 "0600000000",
+                "123456789",
+                "12345678",
                 "Street",
                 "1",
                 "Novi Sad",

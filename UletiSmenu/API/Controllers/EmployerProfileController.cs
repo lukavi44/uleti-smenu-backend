@@ -41,6 +41,17 @@ namespace API.Controllers
             return Ok(result);
         }
 
+        [AllowAnonymous]
+        [HttpGet("public/slug/{slug}")]
+        public async Task<IActionResult> GetEmployerPublicPreviewBySlug(string slug)
+        {
+            var result = await _employerProfileService.GetEmployerDirectoryPreviewBySlugAsync(slug);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Value);
+        }
+
         [Authorize(Roles = "Employee")]
         [HttpGet("slug/{slug}")]
         public async Task<IActionResult> GetEmployerProfileBySlug(string slug)
@@ -124,4 +135,4 @@ namespace API.Controllers
         }
     }
 }
-
+

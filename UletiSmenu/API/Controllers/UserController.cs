@@ -220,6 +220,31 @@ namespace API.Controllers
             return Ok(_mapper.Map<EmployeeDTO>(result.Value));
         }
 
+        [Authorize(Roles = "Employer")]
+        [HttpPatch("me/employer-profile")]
+        public async Task<IActionResult> UpdateMyEmployerProfile([FromBody] UpdateEmployerProfileDTO request)
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdClaim, out var employerId))
+                return Unauthorized();
+
+            var result = await _userService.UpdateEmployerProfileAsync(
+                employerId,
+                request.Name,
+                request.PhoneNumber,
+                request.StreetName,
+                request.StreetNumber,
+                request.City,
+                request.PostalCode,
+                request.Country,
+                request.Region);
+
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(await BuildEmployerResponseAsync(result.Value));
+        }
+
         [Authorize(Roles = "Employee")]
         [HttpPost("favourite/{employerId:guid}")]
         public async Task<IActionResult> ToggleFavourite(Guid employerId)
@@ -301,8 +326,20 @@ namespace API.Controllers
             if (user is not Employer)
                 return Forbid();
 
+            var employer = (Employer)user;
+
             var locations = await _userService.GetEmployerLocationsAsync(employerId);
             var response = _mapper.Map<List<RestaurantLocationDTO>>(locations);
+
+            foreach (var location in response)
+            {
+                if (string.IsNullOrWhiteSpace(location.PIB))
+                    location.PIB = employer.PIB.Value;
+
+                if (string.IsNullOrWhiteSpace(location.MB))
+                    location.MB = employer.MB.Value;
+            }
+
             return Ok(response);
         }
 

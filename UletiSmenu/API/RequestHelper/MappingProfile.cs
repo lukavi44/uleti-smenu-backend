@@ -42,6 +42,7 @@ namespace API.RequestHelper
             CreateMap<Employer, EmployerDTO>()
              .ForMember(dest => dest.PIB, opt => opt.MapFrom(src => src.PIB.Value))
              .ForMember(dest => dest.MB, opt => opt.MapFrom(src => src.MB.Value))
+             .ForMember(dest => dest.Address, opt => opt.MapFrom(src => src.Address))
              .IncludeBase<User, EmployerDTO>();
 
             CreateMap<User, EmployerDTO>()
@@ -68,6 +69,7 @@ namespace API.RequestHelper
 
             CreateMap<Address, AddressDTO>()
                 .ForMember(dest => dest.Street, opt => opt.MapFrom(src => src.Street.Name))
+                .ForMember(dest => dest.StreetNumber, opt => opt.MapFrom(src => src.Street.Number))
                 .ForMember(dest => dest.City, opt => opt.MapFrom(src => src.City.Name))
                 .ForMember(dest => dest.PostalCode, opt => opt.MapFrom(src => src.City.PostalCode.Value))
                 .ForMember(dest => dest.Country, opt => opt.MapFrom(src => src.City.Country.Name))

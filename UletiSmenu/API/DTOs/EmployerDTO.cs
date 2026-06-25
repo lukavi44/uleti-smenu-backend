@@ -12,6 +12,7 @@ namespace API.DTOs
         public string PublicSlug { get; set; } = string.Empty;
         public string PIB { get; set; } = string.Empty;
         public string MB { get; set; } = string.Empty;
+        public AddressDTO? Address { get; set; }
         public bool IsFavourite { get; set; }
         public EmployerSubscriptionDTO? Subscription { get; set; }
     }

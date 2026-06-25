@@ -36,6 +36,16 @@ namespace Core.Services
         Task<Employer> GetEmployerByCityAsync(string city);
         Task<Employer> GetEmployerByNameAsync(string name);
 
+        Task<Result<Employer>> UpdateEmployerProfileAsync(
+            Guid employerId,
+            string name,
+            string phoneNumber,
+            string streetName,
+            string streetNumber,
+            string city,
+            string postalCode,
+            string country,
+            string region);
         Task<Result> UpdateEmployerAsync(Guid employerId, Employer employer);
         Task<Result> RegisterEmployerAsync(Employer employer, string password);
     }

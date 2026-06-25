@@ -80,6 +80,7 @@ namespace API.Controllers
             return Ok(result.Value);
         }
 
+        [AllowAnonymous]
         [HttpGet("employers/{employerId:guid}/summary")]
         public async Task<IActionResult> GetEmployerReviewSummary(Guid employerId)
         {
@@ -90,6 +91,7 @@ namespace API.Controllers
             return Ok(result.Value);
         }
 
+        [AllowAnonymous]
         [HttpGet("employers/{employerId:guid}/page")]
         public async Task<IActionResult> GetEmployerReviewPage(Guid employerId)
         {

@@ -49,6 +49,24 @@ namespace Infrastructure.Persistence.Database.Repositories
             return await _context.Applications.FirstOrDefaultAsync(x => x.Id == applicationId);
         }
 
+        public async Task<List<Application>> GetPendingApplicationsByJobPostIdAsync(Guid jobPostId)
+        {
+            return await _context.Applications
+                .Where(application =>
+                    application.JobPostId == jobPostId &&
+                    application.Status == ApplicationStatusEnum.Applied)
+                .ToListAsync();
+        }
+
+        public async Task<List<Application>> GetPendingApplicationsForEmployeeAsync(Guid employeeId)
+        {
+            return await _context.Applications
+                .Where(application =>
+                    application.UserId == employeeId &&
+                    application.Status == ApplicationStatusEnum.Applied)
+                .ToListAsync();
+        }
+
         public async Task<List<ApplicationApplicantDTO>> GetApplicantsForJobPostAsync(Guid jobPostId)
         {
             var applicants = await (from application in _context.Applications

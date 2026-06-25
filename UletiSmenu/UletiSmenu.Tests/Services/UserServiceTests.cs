@@ -85,7 +85,46 @@ namespace UletiSmenu.Tests.Services
         }
 
         [Fact]
-        public async Task CreateEmployerLocationAsync_ShouldFail_WhenPibDoesNotMatchEmployer()
+        public async Task CreateEmployerLocationAsync_ShouldSucceed_WhenPibAndMbDifferFromEmployerAccount()
+        {
+            // Arrange
+            var employerId = Guid.NewGuid();
+            var employer = TestDataFactory.CreateFakeRegisterEmployer();
+
+            _userRepositoryMock
+                .Setup(repo => repo.GetByIdAsync<Employer>(employerId))
+                .ReturnsAsync(employer);
+
+            RestaurantLocation? savedLocation = null;
+            _restaurantLocationRepositoryMock
+                .Setup(repo => repo.AddAsync(It.IsAny<RestaurantLocation>()))
+                .Callback<RestaurantLocation>(location => savedLocation = location)
+                .Returns(Task.CompletedTask);
+
+            // Act
+            var result = await _userService.CreateEmployerLocationAsync(
+                employerId,
+                "Branch 2",
+                "0609990000",
+                "123456789",
+                "87654321",
+                "Street",
+                "1",
+                "City",
+                "21000",
+                "Country",
+                "Region");
+
+            // Assert
+            Assert.True(result.IsSuccess);
+            Assert.NotNull(savedLocation);
+            Assert.Equal("123456789", savedLocation!.PIB);
+            Assert.Equal("87654321", savedLocation.MB);
+            _restaurantLocationRepositoryMock.Verify(repo => repo.AddAsync(It.IsAny<RestaurantLocation>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task CreateEmployerLocationAsync_ShouldFail_WhenPibIsInvalid()
         {
             // Arrange
             var employerId = Guid.NewGuid();
@@ -100,7 +139,7 @@ namespace UletiSmenu.Tests.Services
                 employerId,
                 "Branch 2",
                 "0609990000",
-                "000000000",
+                "12345",
                 employer.MB.Value,
                 "Street",
                 "1",
@@ -111,38 +150,7 @@ namespace UletiSmenu.Tests.Services
 
             // Assert
             Assert.True(result.IsFailure);
-            Assert.Equal("PIB must match your employer account.", result.Error);
-            _restaurantLocationRepositoryMock.Verify(repo => repo.AddAsync(It.IsAny<RestaurantLocation>()), Times.Never);
-        }
-
-        [Fact]
-        public async Task CreateEmployerLocationAsync_ShouldFail_WhenMbDoesNotMatchEmployer()
-        {
-            // Arrange
-            var employerId = Guid.NewGuid();
-            var employer = TestDataFactory.CreateFakeRegisterEmployer();
-
-            _userRepositoryMock
-                .Setup(repo => repo.GetByIdAsync<Employer>(employerId))
-                .ReturnsAsync(employer);
-
-            // Act
-            var result = await _userService.CreateEmployerLocationAsync(
-                employerId,
-                "Branch 2",
-                "0609990000",
-                employer.PIB.Value,
-                "00000000",
-                "Street",
-                "1",
-                "City",
-                "21000",
-                "Country",
-                "Region");
-
-            // Assert
-            Assert.True(result.IsFailure);
-            Assert.Equal("MB must match your employer account.", result.Error);
+            Assert.Equal("PIB is invalid.", result.Error);
             _restaurantLocationRepositoryMock.Verify(repo => repo.AddAsync(It.IsAny<RestaurantLocation>()), Times.Never);
         }
     }

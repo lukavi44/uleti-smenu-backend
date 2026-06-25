@@ -71,5 +71,14 @@ namespace Core.Models.Entities
             Status = ApplicationStatusEnum.Cancelled;
             return Result.Success();
         }
+
+        public Result ExpireDueToInactiveJobPost()
+        {
+            if (Status != ApplicationStatusEnum.Applied)
+                return Result.Failure("Only pending applications can expire.");
+
+            Status = ApplicationStatusEnum.Expired;
+            return Result.Success();
+        }
     }
 }

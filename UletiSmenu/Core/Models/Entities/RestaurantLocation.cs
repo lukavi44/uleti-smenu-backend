@@ -9,6 +9,8 @@ namespace Core.Models.Entities
         public Employer Employer { get; private set; }
         public string Name { get; private set; }
         public string PhoneNumber { get; private set; }
+        public string PIB { get; private set; } = string.Empty;
+        public string MB { get; private set; } = string.Empty;
         public string StreetName { get; private set; }
         public string StreetNumber { get; private set; }
         public string City { get; private set; }
@@ -23,6 +25,8 @@ namespace Core.Models.Entities
             Guid employerId,
             string name,
             string phoneNumber,
+            string pib,
+            string mb,
             string streetName,
             string streetNumber,
             string city,
@@ -34,6 +38,8 @@ namespace Core.Models.Entities
             EmployerId = employerId;
             Name = name;
             PhoneNumber = phoneNumber;
+            PIB = pib;
+            MB = mb;
             StreetName = streetName;
             StreetNumber = streetNumber;
             City = city;
@@ -47,6 +53,8 @@ namespace Core.Models.Entities
             Guid employerId,
             string name,
             string phoneNumber,
+            string pib,
+            string mb,
             string streetName,
             string streetNumber,
             string city,
@@ -65,6 +73,12 @@ namespace Core.Models.Entities
 
             if (string.IsNullOrWhiteSpace(phoneNumber))
                 return Result.Failure<RestaurantLocation>("Phone number cannot be empty.");
+
+            if (global::PIB.Create(pib).IsFailure)
+                return Result.Failure<RestaurantLocation>("PIB is invalid.");
+
+            if (global::MB.Create(mb).IsFailure)
+                return Result.Failure<RestaurantLocation>("MB is invalid.");
 
             if (string.IsNullOrWhiteSpace(streetName))
                 return Result.Failure<RestaurantLocation>("Street name cannot be empty.");
@@ -85,7 +99,7 @@ namespace Core.Models.Entities
                 return Result.Failure<RestaurantLocation>("Region cannot be empty.");
 
             return Result.Success(new RestaurantLocation(
-                id, employerId, name, phoneNumber, streetName, streetNumber, city, postalCode, country, region));
+                id, employerId, name, phoneNumber, pib.Trim(), mb.Trim(), streetName, streetNumber, city, postalCode, country, region));
         }
     }
 }

@@ -80,6 +80,8 @@ namespace Infrastructure.Persistence.Services
                     employer.Id,
                     $"{employer.Name} - Main location",
                     employer.PhoneNumber ?? "N/A",
+                    employer.PIB.Value,
+                    employer.MB.Value,
                     employer.Address.Street.Name,
                     employer.Address.Street.Number,
                     employer.Address.City.Name,
@@ -243,6 +245,44 @@ namespace Infrastructure.Persistence.Services
             throw new NotImplementedException();
         }
 
+        public async Task<Result<Employer>> UpdateEmployerProfileAsync(
+            Guid employerId,
+            string name,
+            string phoneNumber,
+            string streetName,
+            string streetNumber,
+            string city,
+            string postalCode,
+            string country,
+            string region)
+        {
+            var employer = await _userRepository.GetByIdAsync<Employer>(employerId);
+            if (employer == null)
+                return Result.Failure<Employer>("Employer not found.");
+
+            var updateResult = employer.UpdateProfile(
+                name,
+                phoneNumber,
+                streetName,
+                streetNumber,
+                city,
+                postalCode,
+                country,
+                region);
+
+            if (updateResult.IsFailure)
+                return Result.Failure<Employer>(updateResult.Error);
+
+            var identityResult = await _userManager.UpdateAsync(employer);
+            if (!identityResult.Succeeded)
+            {
+                return Result.Failure<Employer>(
+                    string.Join(", ", identityResult.Errors.Select(error => error.Description)));
+            }
+
+            return Result.Success(employer);
+        }
+
         public async Task<List<string>> GetEmployerCitiesAsync()
         {
             var branchCities = await _restaurantLocationRepository.GetDistinctCitiesAsync();
@@ -372,17 +412,13 @@ namespace Infrastructure.Persistence.Services
             if (employer == null)
                 return Result.Failure<RestaurantLocation>("Employer not found.");
 
-            if (!string.Equals(employer.PIB.Value, pib, StringComparison.Ordinal))
-                return Result.Failure<RestaurantLocation>("PIB must match your employer account.");
-
-            if (!string.Equals(employer.MB.Value, mb, StringComparison.Ordinal))
-                return Result.Failure<RestaurantLocation>("MB must match your employer account.");
-
             var createLocationResult = RestaurantLocation.Create(
                 Guid.NewGuid(),
                 employerId,
                 name,
                 phoneNumber,
+                pib,
+                mb,
                 streetName,
                 streetNumber,
                 city,

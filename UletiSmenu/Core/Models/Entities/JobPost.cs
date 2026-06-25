@@ -163,5 +163,19 @@ namespace Core.Models.Entities
 
             return Result.Success();
         }
+
+        public bool AcceptsEmployerApplicationDecisions(DateTime utcNow)
+        {
+            if (Status != JobStatusEnum.Active)
+                return false;
+
+            if (IsArchived(utcNow))
+                return false;
+
+            if (utcNow >= StartingDate)
+                return false;
+
+            return true;
+        }
     }
 }

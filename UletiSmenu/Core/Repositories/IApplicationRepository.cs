@@ -10,6 +10,8 @@ namespace Core.Repositories
         Task<Dictionary<Guid, int>> GetApplicantCountsByJobPostIdsAsync(IEnumerable<Guid> jobPostIds);
         Task AddAsync(Application application);
         Task<Application?> GetByIdAsync(Guid applicationId);
+        Task<List<Application>> GetPendingApplicationsByJobPostIdAsync(Guid jobPostId);
+        Task<List<Application>> GetPendingApplicationsForEmployeeAsync(Guid employeeId);
         Task<List<ApplicationApplicantDTO>> GetApplicantsForJobPostAsync(Guid jobPostId);
         Task<List<EmployeeApplicationDTO>> GetEmployeeApplicationsAsync(Guid employeeId);
         Task<bool> EmployerCanViewEmployeeAsync(Guid employerId, Guid employeeId);

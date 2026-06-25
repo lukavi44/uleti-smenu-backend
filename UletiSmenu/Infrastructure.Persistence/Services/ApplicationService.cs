@@ -90,6 +90,8 @@ namespace Infrastructure.Persistence.Services
             if (jobPost.EmployerId != employerId)
                 return Result.Failure<List<ApplicationApplicantDTO>>("You can view applicants only for your own job posts.");
 
+            await ExpirePendingApplicationsForJobPostIfNeededAsync(jobPost);
+
             var applicants = await _applicationRepository.GetApplicantsForJobPostAsync(jobPostId);
 
             if (!includeContactInfo)
@@ -107,6 +109,8 @@ namespace Infrastructure.Persistence.Services
             if (employee == null)
                 return Result.Failure<List<EmployeeApplicationDTO>>("Employee not found.");
 
+            await ExpirePendingApplicationsForEmployeeIfNeededAsync(employeeId);
+
             var applications = await _applicationRepository.GetEmployeeApplicationsAsync(employeeId);
             return Result.Success(applications);
         }
@@ -123,6 +127,15 @@ namespace Infrastructure.Persistence.Services
 
             if (jobPost.EmployerId != employerId)
                 return Result.Failure("You can update applications only for your own job posts.");
+
+            await ExpirePendingApplicationsForJobPostIfNeededAsync(jobPost);
+
+            application = await _applicationRepository.GetByIdAsync(applicationId);
+            if (application == null)
+                return Result.Failure("Application not found.");
+
+            if (!jobPost.AcceptsEmployerApplicationDecisions(DateTime.UtcNow))
+                return Result.Failure("Applications for this job post can no longer be accepted or rejected.");
 
             var statusResult = application.SetEmployerDecision(newStatus);
             if (statusResult.IsFailure)
@@ -203,6 +216,47 @@ namespace Infrastructure.Persistence.Services
                 message);
 
             await _applicationUnitOfWork.Notifications.AddRangeAsync(new[] { notification });
+        }
+
+        private async Task ExpirePendingApplicationsForJobPostIfNeededAsync(JobPost jobPost)
+        {
+            if (jobPost.AcceptsEmployerApplicationDecisions(DateTime.UtcNow))
+                return;
+
+            var pendingApplications = await _applicationRepository.GetPendingApplicationsByJobPostIdAsync(jobPost.Id);
+            if (pendingApplications.Count == 0)
+                return;
+
+            var hasChanges = false;
+            foreach (var pendingApplication in pendingApplications)
+            {
+                if (pendingApplication.ExpireDueToInactiveJobPost().IsSuccess)
+                    hasChanges = true;
+            }
+
+            if (hasChanges)
+                await _applicationUnitOfWork.SaveChangesAsync();
+        }
+
+        private async Task ExpirePendingApplicationsForEmployeeIfNeededAsync(Guid employeeId)
+        {
+            var pendingApplications = await _applicationRepository.GetPendingApplicationsForEmployeeAsync(employeeId);
+            if (pendingApplications.Count == 0)
+                return;
+
+            var hasChanges = false;
+            foreach (var pendingApplication in pendingApplications)
+            {
+                var jobPost = await _jobPostRepository.GetJobPostByIdAsync(pendingApplication.JobPostId);
+                if (jobPost == null || jobPost.AcceptsEmployerApplicationDecisions(DateTime.UtcNow))
+                    continue;
+
+                if (pendingApplication.ExpireDueToInactiveJobPost().IsSuccess)
+                    hasChanges = true;
+            }
+
+            if (hasChanges)
+                await _applicationUnitOfWork.SaveChangesAsync();
         }
     }
 }

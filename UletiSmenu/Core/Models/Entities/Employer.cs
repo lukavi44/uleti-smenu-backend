@@ -193,5 +193,74 @@ namespace Core.Models.Entities
             BillingStatus == BillingStatus.PastDue &&
             IsWithinGracePeriod(utcNow) &&
             !string.IsNullOrWhiteSpace(StripeSubscriptionId);
+
+        public Result UpdateProfile(
+            string name,
+            string phoneNumber,
+            string streetName,
+            string streetNumber,
+            string city,
+            string postalCode,
+            string country,
+            string region)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return Result.Failure("Name cannot be empty.");
+
+            if (string.IsNullOrWhiteSpace(phoneNumber))
+                return Result.Failure("Phone number cannot be empty.");
+
+            if (string.IsNullOrWhiteSpace(streetName))
+                return Result.Failure("Street name cannot be empty.");
+
+            if (string.IsNullOrWhiteSpace(streetNumber))
+                return Result.Failure("Street number cannot be empty.");
+
+            if (string.IsNullOrWhiteSpace(city))
+                return Result.Failure("City cannot be empty.");
+
+            if (string.IsNullOrWhiteSpace(postalCode))
+                return Result.Failure("Postal code cannot be empty.");
+
+            if (string.IsNullOrWhiteSpace(country))
+                return Result.Failure("Country cannot be empty.");
+
+            if (string.IsNullOrWhiteSpace(region))
+                return Result.Failure("Region cannot be empty.");
+
+            var streetResult = Street.Create(streetName.Trim(), streetNumber.Trim());
+            if (streetResult.IsFailure)
+                return Result.Failure(streetResult.Error);
+
+            var postalCodeResult = PostalCode.Create(postalCode.Trim());
+            if (postalCodeResult.IsFailure)
+                return Result.Failure(postalCodeResult.Error);
+
+            var countryResult = Country.Create(country.Trim());
+            if (countryResult.IsFailure)
+                return Result.Failure(countryResult.Error);
+
+            var regionResult = Region.Create(region.Trim());
+            if (regionResult.IsFailure)
+                return Result.Failure(regionResult.Error);
+
+            var cityResult = City.Create(
+                city.Trim(),
+                postalCodeResult.Value,
+                countryResult.Value,
+                regionResult.Value);
+            if (cityResult.IsFailure)
+                return Result.Failure(cityResult.Error);
+
+            var addressResult = Address.Create(streetResult.Value, cityResult.Value);
+            if (addressResult.IsFailure)
+                return Result.Failure(addressResult.Error);
+
+            Name = name.Trim();
+            PhoneNumber = phoneNumber.Trim();
+            Address = addressResult.Value;
+
+            return Result.Success();
+        }
     }
 }

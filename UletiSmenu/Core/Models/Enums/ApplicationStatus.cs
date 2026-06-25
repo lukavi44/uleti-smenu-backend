@@ -5,6 +5,7 @@ namespace Core.Models.Enums
         Applied,
         Accepted,
         Denied,
-        Cancelled
+        Cancelled,
+        Expired
     }
 }

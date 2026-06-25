@@ -6,6 +6,8 @@ namespace API.DTOs
         public Guid EmployerId { get; set; }
         public string Name { get; set; } = string.Empty;
         public string PhoneNumber { get; set; } = string.Empty;
+        public string PIB { get; set; } = string.Empty;
+        public string MB { get; set; } = string.Empty;
         public string StreetName { get; set; } = string.Empty;
         public string StreetNumber { get; set; } = string.Empty;
         public string City { get; set; } = string.Empty;
