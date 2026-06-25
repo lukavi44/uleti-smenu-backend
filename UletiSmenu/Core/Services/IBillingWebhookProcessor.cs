@@ -13,6 +13,12 @@ namespace Core.Services
             string? priceId,
             DateTime? periodEndUtc);
 
+        Task<Result> ProcessWalletTopUpCompletedAsync(
+            Guid employerId,
+            decimal amount,
+            string checkoutSessionId,
+            string customerId);
+
         Task<Result> ProcessSubscriptionUpdatedAsync(
             string subscriptionId,
             BillingStatus status,

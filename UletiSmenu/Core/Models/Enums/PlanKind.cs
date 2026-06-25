@@ -4,6 +4,7 @@ namespace Core.Models.Enums
     {
         Trial = 0,
         Basic = 1,
-        Pro = 2
+        Pro = 2,
+        Unlimited = 3
     }
 }

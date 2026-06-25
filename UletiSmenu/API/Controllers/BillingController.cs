@@ -38,16 +38,32 @@ namespace API.Controllers
             var subscription = await _billingService.GetSubscriptionStatusAsync(employerId.Value);
             var plans = await _billingService.GetAvailablePaidPlansAsync();
             var paymentsEnabled = _billingService.IsPaymentsEnabled();
+            var suggestedTopUpAmounts = _billingService.GetSuggestedTopUpAmounts();
+            var registrationFreeCredits = _billingService.GetRegistrationFreeCredits();
 
             return Ok(new
             {
                 subscription,
                 plans,
                 paymentsEnabled,
+                suggestedTopUpAmounts,
+                registrationFreeCredits,
                 message = paymentsEnabled
                     ? string.Empty
-                    : "Online checkout is not active yet. Contact support@uletismenu.com to upgrade your plan manually."
+                    : "Onlajn plaćanje još nije aktivirano. Za ručnu nadogradnju paketa kontaktirajte support@uletismenu.com."
             });
+        }
+
+        [HttpGet("wallet/transactions")]
+        [Authorize(Roles = "Employer")]
+        public async Task<IActionResult> GetWalletTransactions([FromQuery] int limit = 50)
+        {
+            var employerId = GetCurrentUserId();
+            if (employerId == null)
+                return Unauthorized();
+
+            var transactions = await _billingService.GetWalletTransactionsAsync(employerId.Value, limit);
+            return Ok(transactions);
         }
 
         [HttpPost("checkout")]
@@ -61,6 +77,26 @@ namespace API.Controllers
             var result = await _billingService.CreateCheckoutSessionAsync(
                 employerId.Value,
                 request.PlanId,
+                request.SuccessUrl,
+                request.CancelUrl);
+
+            if (result.IsFailure)
+                return BadRequest(new { message = result.Error });
+
+            return Ok(new { checkoutUrl = result.Value });
+        }
+
+        [HttpPost("wallet/topup")]
+        [Authorize(Roles = "Employer")]
+        public async Task<IActionResult> CreateWalletTopUp([FromBody] BillingWalletTopUpRequest request)
+        {
+            var employerId = GetCurrentUserId();
+            if (employerId == null)
+                return Unauthorized();
+
+            var result = await _billingService.CreateWalletTopUpCheckoutSessionAsync(
+                employerId.Value,
+                request.Amount,
                 request.SuccessUrl,
                 request.CancelUrl);
 

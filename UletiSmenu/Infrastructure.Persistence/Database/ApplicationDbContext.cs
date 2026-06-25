@@ -26,6 +26,7 @@ namespace Infrastructure.Persistence.Database
         public DbSet<WorkExperience> WorkExperiences { get; set; }
         public DbSet<MatchReview> MatchReviews { get; set; }
         public DbSet<PaymentEvent> PaymentEvents { get; set; }
+        public DbSet<WalletTransaction> WalletTransactions { get; set; }
         public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

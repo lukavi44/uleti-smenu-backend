@@ -19,6 +19,13 @@ namespace Infrastructure.Persistence.Services
             string cancelUrl) =>
             Task.FromResult(Result.Failure<string>("Online payments are not configured."));
 
+        public Task<Result<string>> CreateWalletTopUpCheckoutSessionAsync(
+            Guid employerId,
+            decimal amount,
+            string successUrl,
+            string cancelUrl) =>
+            Task.FromResult(Result.Failure<string>("Online payments are not configured."));
+
         public Task<Result<string>> CreateCustomerPortalSessionAsync(Guid employerId, string returnUrl) =>
             Task.FromResult(Result.Failure<string>("Online payments are not configured."));
 

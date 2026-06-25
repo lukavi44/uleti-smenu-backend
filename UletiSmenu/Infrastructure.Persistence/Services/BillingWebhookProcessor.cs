@@ -13,21 +13,27 @@ namespace Infrastructure.Persistence.Services
         private readonly IUserRepository _userRepository;
         private readonly ISubscriptionRepository _subscriptionRepository;
         private readonly IPaymentEventRepository _paymentEventRepository;
+        private readonly IWalletLedgerService _walletLedgerService;
         private readonly IApplicationUnitOfWork _unitOfWork;
         private readonly BillingSettings _billingSettings;
+        private readonly StripeSettings _stripeSettings;
 
         public BillingWebhookProcessor(
             IUserRepository userRepository,
             ISubscriptionRepository subscriptionRepository,
             IPaymentEventRepository paymentEventRepository,
+            IWalletLedgerService walletLedgerService,
             IApplicationUnitOfWork unitOfWork,
-            IOptions<BillingSettings> billingSettings)
+            IOptions<BillingSettings> billingSettings,
+            IOptions<StripeSettings> stripeSettings)
         {
             _userRepository = userRepository;
             _subscriptionRepository = subscriptionRepository;
             _paymentEventRepository = paymentEventRepository;
+            _walletLedgerService = walletLedgerService;
             _unitOfWork = unitOfWork;
             _billingSettings = billingSettings.Value;
+            _stripeSettings = stripeSettings.Value;
         }
 
         public async Task<bool> HasProcessedEventAsync(string providerEventId) =>
@@ -68,14 +74,12 @@ namespace Infrastructure.Persistence.Services
 
             employer.UpdateStripeCustomerId(customerId);
 
-            if (plan.PlanKind == PlanKind.Basic)
-            {
-                employer.AddPostCredits(plan.NumberOfPosts);
-            }
-            else if (plan.PlanKind == PlanKind.Pro)
+            if (plan.PlanKind is PlanKind.Basic or PlanKind.Pro or PlanKind.Unlimited)
             {
                 var start = DateTime.UtcNow;
-                var end = periodEndUtc ?? start.AddDays(plan.DurationInDays);
+                var end = periodEndUtc ?? start.AddDays(
+                    plan.DurationInDays > 0 ? plan.DurationInDays : BillingConstants.MonthlyDurationDays);
+
                 employer.ActivatePaidPlan(
                     planId,
                     start,
@@ -85,6 +89,34 @@ namespace Infrastructure.Persistence.Services
                     subscriptionId,
                     priceId);
             }
+
+            await _unitOfWork.SaveChangesAsync();
+            return Result.Success();
+        }
+
+        public async Task<Result> ProcessWalletTopUpCompletedAsync(
+            Guid employerId,
+            decimal amount,
+            string checkoutSessionId,
+            string customerId)
+        {
+            var employer = await _userRepository.GetByIdAsync<Employer>(employerId);
+            if (employer == null)
+                return Result.Failure("Employer not found.");
+
+            employer.UpdateStripeCustomerId(customerId);
+
+            var creditResult = await _walletLedgerService.CreditAsync(
+                employerId,
+                amount,
+                WalletTransactionType.TopUp,
+                "Wallet top-up via Stripe",
+                checkoutSessionId,
+                null,
+                null);
+
+            if (creditResult.IsFailure)
+                return Result.Failure(creditResult.Error);
 
             await _unitOfWork.SaveChangesAsync();
             return Result.Success();
@@ -109,13 +141,15 @@ namespace Infrastructure.Persistence.Services
 
             if (status == BillingStatus.Active && priceId != null)
             {
-                var proPlan = await _subscriptionRepository.GetByIdAsync(BillingConstants.ProMonthlyPlanId);
-                if (proPlan != null)
+                var plan = await ResolvePlanByPriceIdAsync(priceId);
+                if (plan != null)
                 {
                     var start = employer.SubscriptionStart ?? DateTime.UtcNow;
-                    var end = periodEndUtc ?? start.AddDays(proPlan.DurationInDays);
+                    var end = periodEndUtc ?? start.AddDays(
+                        plan.DurationInDays > 0 ? plan.DurationInDays : BillingConstants.MonthlyDurationDays);
+
                     employer.ActivatePaidPlan(
-                        proPlan.Id,
+                        plan.Id,
                         start,
                         end,
                         "Stripe",
@@ -184,5 +218,28 @@ namespace Infrastructure.Persistence.Services
         {
             return await _userRepository.FindEmployerByStripeSubscriptionIdAsync(subscriptionId);
         }
+
+        private async Task<Subscription?> ResolvePlanByPriceIdAsync(string priceId)
+        {
+            var plans = await _subscriptionRepository.GetPaidPlansAsync();
+            foreach (var plan in plans)
+            {
+                var configuredPriceId = ResolveStripePriceId(plan);
+                if (!string.IsNullOrWhiteSpace(configuredPriceId) &&
+                    string.Equals(configuredPriceId, priceId, StringComparison.Ordinal))
+                {
+                    return plan;
+                }
+            }
+
+            return null;
+        }
+
+        private string ResolveStripePriceId(Subscription plan) => plan.PlanKind switch
+        {
+            PlanKind.Basic => _stripeSettings.PriceIds.BasicMonthly,
+            PlanKind.Pro or PlanKind.Unlimited => _stripeSettings.PriceIds.UnlimitedMonthly,
+            _ => string.Empty
+        };
     }
 }

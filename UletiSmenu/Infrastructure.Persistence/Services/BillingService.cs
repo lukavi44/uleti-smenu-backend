@@ -14,7 +14,9 @@ namespace Infrastructure.Persistence.Services
         private readonly IUserRepository _userRepository;
         private readonly ISubscriptionRepository _subscriptionRepository;
         private readonly IJobPostRepository _jobPostRepository;
+        private readonly IWalletTransactionRepository _walletTransactionRepository;
         private readonly IPaymentProvider _paymentProvider;
+        private readonly IWalletLedgerService _walletLedgerService;
         private readonly IApplicationUnitOfWork _unitOfWork;
         private readonly BillingSettings _billingSettings;
 
@@ -22,23 +24,26 @@ namespace Infrastructure.Persistence.Services
             IUserRepository userRepository,
             ISubscriptionRepository subscriptionRepository,
             IJobPostRepository jobPostRepository,
+            IWalletTransactionRepository walletTransactionRepository,
             IPaymentProvider paymentProvider,
+            IWalletLedgerService walletLedgerService,
             IApplicationUnitOfWork unitOfWork,
             IOptions<BillingSettings> billingSettings)
         {
             _userRepository = userRepository;
             _subscriptionRepository = subscriptionRepository;
             _jobPostRepository = jobPostRepository;
+            _walletTransactionRepository = walletTransactionRepository;
             _paymentProvider = paymentProvider;
+            _walletLedgerService = walletLedgerService;
             _unitOfWork = unitOfWork;
             _billingSettings = billingSettings.Value;
         }
 
-        public Result AssignTrialToEmployer(Employer employer)
+        public Result GrantRegistrationBonus(Employer employer)
         {
-            var start = DateTime.UtcNow;
-            var end = start.AddDays(BillingConstants.TrialDurationDays);
-            return employer.AssignTrial(BillingConstants.TrialPlanId, start, end);
+            employer.GrantRegistrationBonus(_billingSettings.RegistrationFreeCredits);
+            return Result.Success();
         }
 
         public async Task<EmployerSubscriptionDTO> GetSubscriptionStatusAsync(Guid employerId)
@@ -49,7 +54,10 @@ namespace Infrastructure.Persistence.Services
                 return new EmployerSubscriptionDTO
                 {
                     Status = "None",
-                    IsActive = false
+                    Currency = _billingSettings.Currency,
+                    JobPostPrice = _billingSettings.JobPostPrice,
+                    IsActive = false,
+                    CanPost = false
                 };
             }
 
@@ -62,7 +70,25 @@ namespace Infrastructure.Persistence.Services
             return plans.Select(MapPlan).ToList();
         }
 
+        public async Task<List<WalletTransactionDTO>> GetWalletTransactionsAsync(Guid employerId, int limit = 50)
+        {
+            var transactions = await _walletTransactionRepository.GetByEmployerIdAsync(employerId, limit);
+            return transactions.Select(transaction => new WalletTransactionDTO
+            {
+                Id = transaction.Id,
+                Amount = transaction.Amount,
+                BalanceAfter = transaction.BalanceAfter,
+                Type = transaction.Type.ToString(),
+                Description = transaction.Description,
+                CreatedAtUtc = transaction.CreatedAtUtc
+            }).ToList();
+        }
+
         public bool IsPaymentsEnabled() => _paymentProvider.IsEnabled;
+
+        public decimal[] GetSuggestedTopUpAmounts() => _billingSettings.SuggestedTopUpAmounts;
+
+        public int GetRegistrationFreeCredits() => _billingSettings.RegistrationFreeCredits;
 
         public Task<Result<string>> CreateCheckoutSessionAsync(
             Guid employerId,
@@ -70,6 +96,13 @@ namespace Infrastructure.Persistence.Services
             string successUrl,
             string cancelUrl) =>
             _paymentProvider.CreateCheckoutSessionAsync(employerId, planId, successUrl, cancelUrl);
+
+        public Task<Result<string>> CreateWalletTopUpCheckoutSessionAsync(
+            Guid employerId,
+            decimal amount,
+            string successUrl,
+            string cancelUrl) =>
+            _paymentProvider.CreateWalletTopUpCheckoutSessionAsync(employerId, amount, successUrl, cancelUrl);
 
         public Task<Result<string>> CreateCustomerPortalSessionAsync(Guid employerId, string returnUrl) =>
             _paymentProvider.CreateCustomerPortalSessionAsync(employerId, returnUrl);
@@ -80,68 +113,122 @@ namespace Infrastructure.Persistence.Services
             if (employer == null)
                 return Result.Failure("Employer not found.");
 
-            if (!employer.SubscriptionId.HasValue)
-                return Result.Failure("No active subscription. Start your free trial or subscribe to post shifts.");
-
-            var plan = await _subscriptionRepository.GetByIdAsync(employer.SubscriptionId.Value);
-            if (plan == null)
-                return Result.Failure("Subscription plan not found.");
-
-            var now = DateTime.UtcNow;
-            await ExpireTrialIfNeededAsync(employer, now);
-
-            var access = EvaluatePostingAccess(employer, plan, now);
-            if (!access.CanPost)
-                return Result.Failure(access.Reason);
-
-            var activePosts = await CountActivePostsAsync(employerId);
-            var maxActive = GetMaxActivePosts(plan.PlanKind);
-            if (activePosts >= maxActive)
-                return Result.Failure($"You have reached the limit of {maxActive} active job posts for your plan.");
-
-            if (plan.PlanKind == PlanKind.Basic)
-            {
-                var creditsRequired = GetCreditsPerPost(plan.PlanKind);
-                if (employer.PostCredits < creditsRequired)
-                    return Result.Failure("You need post credits to publish. Buy a credit pack on the billing page.");
-            }
+            var decision = await ResolvePostingChargeAsync(employer);
+            if (!decision.CanPost)
+                return Result.Failure(decision.Reason);
 
             return Result.Success();
         }
 
-        public async Task<Result> OnJobPostCreatedAsync(Guid employerId)
+        public async Task<Result> OnJobPostCreatedAsync(Guid employerId, Guid jobPostId)
         {
             var employer = await _userRepository.GetByIdAsync<Employer>(employerId);
             if (employer == null)
                 return Result.Failure("Employer not found.");
 
-            if (!employer.SubscriptionId.HasValue)
-                return Result.Success();
+            var decision = await ResolvePostingChargeAsync(employer);
+            if (!decision.CanPost)
+                return Result.Failure(decision.Reason);
 
-            var plan = await _subscriptionRepository.GetByIdAsync(employer.SubscriptionId.Value);
-            if (plan?.PlanKind != PlanKind.Basic)
-                return Result.Success();
+            Result chargeResult = decision.Source switch
+            {
+                PostingChargeSource.FreeCredit => employer.ConsumePostCredit(1),
+                PostingChargeSource.Wallet => await ChargeWalletForJobPostAsync(employerId, jobPostId),
+                PostingChargeSource.UnlimitedSubscription or PostingChargeSource.BasicSubscription => Result.Success(),
+                _ => Result.Failure("Unable to determine posting charge.")
+            };
 
-            var creditsRequired = GetCreditsPerPost(PlanKind.Basic);
-            return employer.ConsumePostCredit(creditsRequired);
+            if (chargeResult.IsFailure)
+                return chargeResult;
+
+            await _unitOfWork.SaveChangesAsync();
+            return Result.Success();
         }
 
-        private Task<int> CountActivePostsAsync(Guid employerId) =>
-            _jobPostRepository.CountActiveByEmployerIdAsync(employerId);
-
-        private async Task<EmployerSubscriptionDTO> BuildSubscriptionStatusAsync(Employer employer)
+        private async Task<Result> ChargeWalletForJobPostAsync(Guid employerId, Guid jobPostId)
         {
-            var now = DateTime.UtcNow;
-            await ExpireTrialIfNeededAsync(employer, now);
+            var debitResult = await _walletLedgerService.DebitAsync(
+                employerId,
+                _billingSettings.JobPostPrice,
+                WalletTransactionType.JobPostCharge,
+                "Job post publication",
+                null,
+                "JobPost",
+                jobPostId);
+
+            if (debitResult.IsFailure)
+                return Result.Failure(debitResult.Error);
+
+            return Result.Success();
+        }
+
+        private async Task<PostingChargeDecision> ResolvePostingChargeAsync(Employer employer)
+        {
+            if (employer.PostCredits > 0)
+            {
+                return new PostingChargeDecision(
+                    true,
+                    PostingChargeSource.FreeCredit,
+                    string.Empty);
+            }
 
             var plan = employer.SubscriptionId.HasValue
                 ? await _subscriptionRepository.GetByIdAsync(employer.SubscriptionId.Value)
                 : null;
 
+            var now = DateTime.UtcNow;
+            var activePosts = await CountActivePostsAsync(employer.Id);
+
+            if (plan != null && IsUnlimitedPlan(plan.PlanKind) && HasSubscriptionPostingAccess(employer, now))
+            {
+                return new PostingChargeDecision(
+                    true,
+                    PostingChargeSource.UnlimitedSubscription,
+                    string.Empty);
+            }
+
+            if (plan != null && plan.PlanKind == PlanKind.Basic && HasSubscriptionPostingAccess(employer, now))
+            {
+                var maxActive = GetMaxActivePosts(PlanKind.Basic);
+                if (activePosts >= maxActive)
+                {
+                    return new PostingChargeDecision(
+                        false,
+                        null,
+                        $"You have reached the limit of {maxActive} active job posts for your Basic plan.");
+                }
+
+                return new PostingChargeDecision(
+                    true,
+                    PostingChargeSource.BasicSubscription,
+                    string.Empty);
+            }
+
+            if (employer.WalletBalance >= _billingSettings.JobPostPrice)
+            {
+                return new PostingChargeDecision(
+                    true,
+                    PostingChargeSource.Wallet,
+                    string.Empty);
+            }
+
+            return new PostingChargeDecision(
+                false,
+                null,
+                "You need free credits, an active subscription, or sufficient wallet balance to post. Visit billing to top up or subscribe.");
+        }
+
+        private async Task<EmployerSubscriptionDTO> BuildSubscriptionStatusAsync(Employer employer)
+        {
+            var now = DateTime.UtcNow;
+            var plan = employer.SubscriptionId.HasValue
+                ? await _subscriptionRepository.GetByIdAsync(employer.SubscriptionId.Value)
+                : null;
+
+            var activePosts = await CountActivePostsAsync(employer.Id);
+            var decision = await ResolvePostingChargeAsync(employer);
             var status = ResolveDisplayStatus(employer, plan, now);
-            var access = plan != null
-                ? EvaluatePostingAccess(employer, plan, now)
-                : new PostingAccess(false, string.Empty);
+            var subscriptionActive = plan != null && HasSubscriptionPostingAccess(employer, now);
 
             var periodEnd = employer.CurrentPeriodEndUtc ?? employer.SubscriptionStop;
             var daysRemaining = 0;
@@ -149,7 +236,7 @@ namespace Infrastructure.Persistence.Services
                 daysRemaining = Math.Max(0, (int)Math.Ceiling((periodEnd.Value - now).TotalDays));
 
             var needsAttention = employer.BillingStatus is BillingStatus.PastDue or BillingStatus.Canceled
-                || (employer.BillingStatus == BillingStatus.Trialing && daysRemaining <= 14);
+                && subscriptionActive;
 
             return new EmployerSubscriptionDTO
             {
@@ -160,10 +247,16 @@ namespace Infrastructure.Persistence.Services
                 SubscriptionStop = employer.SubscriptionStop,
                 GracePeriodEndsAtUtc = employer.GracePeriodEndsAtUtc,
                 DaysRemaining = daysRemaining,
+                FreePostingCredits = employer.PostCredits,
                 PostCredits = employer.PostCredits,
-                MaxActivePosts = plan != null ? GetMaxActivePosts(plan.PlanKind) : 0,
-                IsActive = access.CanPost || employer.BillingStatus is BillingStatus.Trialing or BillingStatus.Active or BillingStatus.PastDue,
-                CanPost = access.CanPost,
+                WalletBalance = employer.WalletBalance,
+                Currency = _billingSettings.Currency,
+                JobPostPrice = _billingSettings.JobPostPrice,
+                ActiveJobPostsCount = activePosts,
+                MaxActivePosts = plan != null ? GetMaxActivePosts(NormalizePlanKind(plan.PlanKind)) : 0,
+                NextPostingChargeSource = decision.Source?.ToString(),
+                IsActive = subscriptionActive || employer.PostCredits > 0 || employer.WalletBalance > 0,
+                CanPost = decision.CanPost,
                 NeedsAttention = needsAttention,
                 CanManageBilling = !string.IsNullOrWhiteSpace(employer.StripeCustomerId) && _paymentProvider.IsEnabled
             };
@@ -171,15 +264,7 @@ namespace Infrastructure.Persistence.Services
 
         private static BillingPlanDTO MapPlan(Subscription plan)
         {
-            var interval = plan.PlanKind switch
-            {
-                PlanKind.Basic => "pack",
-                PlanKind.Pro when plan.DurationInDays >= 360 => "year",
-                PlanKind.Pro => "month",
-                _ => "trial"
-            };
-
-            var checkoutMode = plan.PlanKind == PlanKind.Basic ? "payment" : "subscription";
+            var normalizedKind = NormalizePlanKind(plan.PlanKind);
 
             return new BillingPlanDTO
             {
@@ -188,51 +273,40 @@ namespace Infrastructure.Persistence.Services
                 Description = plan.Description,
                 Cost = plan.Cost,
                 DurationInDays = plan.DurationInDays,
-                CreditsIncluded = plan.NumberOfPosts,
-                BillingInterval = interval,
-                PlanKind = plan.PlanKind.ToString(),
-                CheckoutMode = checkoutMode,
-                Currency = "EUR"
+                CreditsIncluded = 0,
+                BillingInterval = "month",
+                PlanKind = normalizedKind.ToString(),
+                CheckoutMode = "subscription",
+                Currency = "RSD"
             };
         }
 
-        private PostingAccess EvaluatePostingAccess(Employer employer, Subscription plan, DateTime now)
+        private static bool IsUnlimitedPlan(PlanKind planKind) =>
+            planKind is PlanKind.Unlimited or PlanKind.Pro;
+
+        private static PlanKind NormalizePlanKind(PlanKind planKind) =>
+            planKind == PlanKind.Pro ? PlanKind.Unlimited : planKind;
+
+        private bool HasSubscriptionPostingAccess(Employer employer, DateTime now)
         {
-            switch (employer.BillingStatus)
+            if (!employer.SubscriptionId.HasValue)
+                return false;
+
+            return employer.BillingStatus switch
             {
-                case BillingStatus.Trialing:
-                    if (employer.TrialEndsAtUtc.HasValue && now > employer.TrialEndsAtUtc.Value)
-                        return new PostingAccess(false, "Your free trial has expired. Please upgrade to continue posting.");
-                    if (!employer.HasActiveSubscription(now))
-                        return new PostingAccess(false, "Your free trial has expired. Please upgrade to continue posting.");
-                    return new PostingAccess(true, string.Empty);
-
-                case BillingStatus.Active:
-                    if (plan.PlanKind == PlanKind.Pro && employer.CurrentPeriodEndUtc.HasValue && now > employer.CurrentPeriodEndUtc.Value)
-                        return new PostingAccess(false, "Your subscription period has ended. Please renew to post new shifts.");
-                    return new PostingAccess(true, string.Empty);
-
-                case BillingStatus.PastDue:
-                    if (employer.CanPostDuringPastDue(now))
-                        return new PostingAccess(true, string.Empty);
-                    return new PostingAccess(false, "Your subscription needs attention. Update billing to post new shifts.");
-
-                case BillingStatus.Canceled:
-                    var accessUntil = employer.CurrentPeriodEndUtc ?? employer.SubscriptionStop;
-                    if (accessUntil.HasValue && now <= accessUntil.Value)
-                        return new PostingAccess(true, string.Empty);
-                    return new PostingAccess(false, "Your subscription has ended. Please subscribe again to post new shifts.");
-
-                case BillingStatus.Expired:
-                case BillingStatus.Incomplete:
-                default:
-                    return new PostingAccess(false, "Your free trial or subscription has expired. Please subscribe to continue posting.");
-            }
+                BillingStatus.Active => employer.HasActiveSubscription(now) ||
+                                        (employer.CurrentPeriodEndUtc.HasValue && now <= employer.CurrentPeriodEndUtc.Value),
+                BillingStatus.PastDue => employer.CanPostDuringPastDue(now),
+                BillingStatus.Canceled =>
+                    (employer.CurrentPeriodEndUtc ?? employer.SubscriptionStop).HasValue &&
+                    now <= (employer.CurrentPeriodEndUtc ?? employer.SubscriptionStop)!.Value,
+                _ => false
+            };
         }
 
         private static string ResolveDisplayStatus(Employer employer, Subscription? plan, DateTime now)
         {
-            if (!employer.SubscriptionId.HasValue)
+            if (!employer.SubscriptionId.HasValue || plan == null)
                 return "None";
 
             if (employer.BillingStatus == BillingStatus.PastDue)
@@ -247,48 +321,37 @@ namespace Infrastructure.Persistence.Services
             if (employer.BillingStatus == BillingStatus.Expired)
                 return "Expired";
 
-            if (employer.BillingStatus == BillingStatus.Trialing)
-                return "Trialing";
-
             if (employer.BillingStatus == BillingStatus.Active)
                 return "Active";
 
             if (!employer.HasActiveSubscription(now))
                 return "Expired";
 
-            if (plan != null && plan.PlanKind == PlanKind.Trial)
-                return "Trialing";
-
             return "Active";
         }
 
-        private int GetMaxActivePosts(PlanKind planKind) => planKind switch
+        private int GetMaxActivePosts(PlanKind planKind)
         {
-            PlanKind.Trial => _billingSettings.Trial.MaxActivePosts,
-            PlanKind.Basic => _billingSettings.Basic.MaxActivePosts,
-            PlanKind.Pro => _billingSettings.Pro.MaxActivePosts,
-            _ => 0
-        };
+            var normalized = NormalizePlanKind(planKind);
+            var settings = normalized switch
+            {
+                PlanKind.Basic => _billingSettings.Basic,
+                PlanKind.Unlimited => _billingSettings.Unlimited,
+                _ => null
+            };
 
-        private int GetCreditsPerPost(PlanKind planKind) => planKind switch
-        {
-            PlanKind.Basic => _billingSettings.Basic.CreditsPerPost,
-            _ => 0
-        };
+            if (settings == null || settings.MaxActivePosts < 0)
+                return int.MaxValue;
 
-        private async Task ExpireTrialIfNeededAsync(Employer employer, DateTime now)
-        {
-            if (employer.BillingStatus != BillingStatus.Trialing)
-                return;
-
-            var trialEnded = employer.TrialEndsAtUtc.HasValue && now > employer.TrialEndsAtUtc.Value;
-            if (!trialEnded && employer.HasActiveSubscription(now))
-                return;
-
-            employer.MarkExpired();
-            await _unitOfWork.SaveChangesAsync();
+            return settings.MaxActivePosts;
         }
 
-        private sealed record PostingAccess(bool CanPost, string Reason);
+        private Task<int> CountActivePostsAsync(Guid employerId) =>
+            _jobPostRepository.CountActiveByEmployerIdAsync(employerId);
+
+        private sealed record PostingChargeDecision(
+            bool CanPost,
+            PostingChargeSource? Source,
+            string Reason);
     }
 }

@@ -21,6 +21,7 @@ namespace Core.Models.Entities
         public DateTime? TrialEndsAtUtc { get; private set; }
         public DateTime? GracePeriodEndsAtUtc { get; private set; }
         public int PostCredits { get; private set; }
+        public decimal WalletBalance { get; private set; }
         public string BillingProvider { get; private set; } = "None";
         public Address Address { get; private set; }
         public ICollection<JobPost> Posts { get; private set; } = new List<JobPost>();
@@ -163,18 +164,61 @@ namespace Core.Models.Entities
             GracePeriodEndsAtUtc = null;
         }
 
+        public void ClearSubscription()
+        {
+            SubscriptionId = null;
+            SubscriptionStart = null;
+            SubscriptionStop = null;
+            BillingStatus = BillingStatus.Incomplete;
+            TrialEndsAtUtc = null;
+            CurrentPeriodEndUtc = null;
+            GracePeriodEndsAtUtc = null;
+            StripeSubscriptionId = null;
+            StripePriceId = null;
+        }
+
         public void AddPostCredits(int credits)
         {
             if (credits > 0)
                 PostCredits += credits;
         }
 
+        public void GrantRegistrationBonus(int credits)
+        {
+            if (credits > 0)
+                PostCredits += credits;
+
+            if (!SubscriptionId.HasValue)
+                BillingStatus = BillingStatus.Incomplete;
+        }
+
         public Result ConsumePostCredit(int creditsRequired = 1)
         {
             if (PostCredits < creditsRequired)
-                return Result.Failure("Insufficient post credits.");
+                return Result.Failure("Insufficient free posting credits.");
 
             PostCredits -= creditsRequired;
+            return Result.Success();
+        }
+
+        public Result CreditWallet(decimal amount)
+        {
+            if (amount <= 0)
+                return Result.Failure("Credit amount must be positive.");
+
+            WalletBalance += amount;
+            return Result.Success();
+        }
+
+        public Result DebitWallet(decimal amount)
+        {
+            if (amount <= 0)
+                return Result.Failure("Debit amount must be positive.");
+
+            if (WalletBalance < amount)
+                return Result.Failure("Insufficient wallet balance.");
+
+            WalletBalance -= amount;
             return Result.Success();
         }
 

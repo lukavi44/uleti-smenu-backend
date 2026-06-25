@@ -71,6 +71,11 @@ namespace Infrastructure.Persistence.Database.Configurations
                    .IsRequired()
                    .HasDefaultValue(0);
 
+            builder.Property(e => e.WalletBalance)
+                   .IsRequired()
+                   .HasPrecision(18, 2)
+                   .HasDefaultValue(0m);
+
             builder.Property(e => e.BillingProvider)
                    .IsRequired()
                    .HasMaxLength(32)

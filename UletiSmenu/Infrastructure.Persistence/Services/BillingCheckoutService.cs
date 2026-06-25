@@ -14,15 +14,18 @@ namespace Infrastructure.Persistence.Services
         private readonly IUserRepository _userRepository;
         private readonly ISubscriptionRepository _subscriptionRepository;
         private readonly StripeSettings _stripeSettings;
+        private readonly BillingSettings _billingSettings;
 
         public BillingCheckoutService(
             IUserRepository userRepository,
             ISubscriptionRepository subscriptionRepository,
-            IOptions<StripeSettings> stripeSettings)
+            IOptions<StripeSettings> stripeSettings,
+            IOptions<BillingSettings> billingSettings)
         {
             _userRepository = userRepository;
             _subscriptionRepository = subscriptionRepository;
             _stripeSettings = stripeSettings.Value;
+            _billingSettings = billingSettings.Value;
         }
 
         public async Task<Result<EmployerCheckoutContext>> GetCheckoutContextAsync(Guid employerId, Guid planId)
@@ -47,8 +50,8 @@ namespace Infrastructure.Persistence.Services
                 PlanId = planId,
                 PlanKind = plan.PlanKind,
                 StripePriceId = priceId,
-                CreditsIncluded = plan.NumberOfPosts,
-                CheckoutMode = plan.PlanKind == PlanKind.Basic ? "payment" : "subscription"
+                CreditsIncluded = 0,
+                CheckoutMode = "subscription"
             });
         }
 
@@ -74,10 +77,29 @@ namespace Infrastructure.Persistence.Services
             return Result.Success(employer.StripeCustomerId);
         }
 
+        public async Task<Result<EmployerWalletTopUpContext>> GetWalletTopUpContextAsync(Guid employerId, decimal amount)
+        {
+            if (amount <= 0)
+                return Result.Failure<EmployerWalletTopUpContext>("Top-up amount must be positive.");
+
+            var employer = await _userRepository.GetByIdAsync<Employer>(employerId);
+            if (employer == null)
+                return Result.Failure<EmployerWalletTopUpContext>("Employer not found.");
+
+            return Result.Success(new EmployerWalletTopUpContext
+            {
+                EmployerId = employerId,
+                EmployerEmail = employer.Email ?? string.Empty,
+                StripeCustomerId = employer.StripeCustomerId,
+                Amount = amount,
+                Currency = _billingSettings.Currency
+            });
+        }
+
         private string ResolveStripePriceId(Subscription plan) => plan.PlanKind switch
         {
-            PlanKind.Basic => _stripeSettings.PriceIds.BasicCreditPack,
-            PlanKind.Pro => _stripeSettings.PriceIds.ProMonthly,
+            PlanKind.Basic => _stripeSettings.PriceIds.BasicMonthly,
+            PlanKind.Pro or PlanKind.Unlimited => _stripeSettings.PriceIds.UnlimitedMonthly,
             _ => string.Empty
         };
     }

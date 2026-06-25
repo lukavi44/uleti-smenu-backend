@@ -1,5 +1,5 @@
-using Core.Models.Enums;
 using CSharpFunctionalExtensions;
+using Core.Models.Enums;
 
 namespace Core.Services
 {
@@ -11,6 +11,12 @@ namespace Core.Services
         Task<Result<string>> CreateCheckoutSessionAsync(
             Guid employerId,
             Guid planId,
+            string successUrl,
+            string cancelUrl);
+
+        Task<Result<string>> CreateWalletTopUpCheckoutSessionAsync(
+            Guid employerId,
+            decimal amount,
             string successUrl,
             string cancelUrl);
 

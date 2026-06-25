@@ -45,7 +45,7 @@ namespace UletiSmenu.Tests.Services
             _loggerMock = new Mock<ILogger<UserService>>();
 
             _billingServiceMock
-                .Setup(service => service.AssignTrialToEmployer(It.IsAny<Employer>()))
+                .Setup(service => service.GrantRegistrationBonus(It.IsAny<Employer>()))
                 .Returns(CSharpFunctionalExtensions.Result.Success());
 
             _userService = new UserService(
@@ -99,7 +99,7 @@ namespace UletiSmenu.Tests.Services
             _restaurantLocationRepositoryMock
                 .Setup(repo => repo.AddAsync(It.IsAny<RestaurantLocation>()))
                 .Callback<RestaurantLocation>(location => savedLocation = location)
-                .Returns(Task.CompletedTask);
+                .ReturnsAsync(CSharpFunctionalExtensions.Result.Success());
 
             // Act
             var result = await _userService.CreateEmployerLocationAsync(

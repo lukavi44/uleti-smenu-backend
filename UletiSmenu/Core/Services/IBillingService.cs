@@ -6,13 +6,17 @@ namespace Core.Services
 {
     public interface IBillingService
     {
-        Result AssignTrialToEmployer(Employer employer);
+        Result GrantRegistrationBonus(Employer employer);
         Task<EmployerSubscriptionDTO> GetSubscriptionStatusAsync(Guid employerId);
         Task<List<BillingPlanDTO>> GetAvailablePaidPlansAsync();
+        Task<List<WalletTransactionDTO>> GetWalletTransactionsAsync(Guid employerId, int limit = 50);
         Task<Result> ValidateEmployerCanCreatePostAsync(Guid employerId);
-        Task<Result> OnJobPostCreatedAsync(Guid employerId);
+        Task<Result> OnJobPostCreatedAsync(Guid employerId, Guid jobPostId);
         Task<Result<string>> CreateCheckoutSessionAsync(Guid employerId, Guid planId, string successUrl, string cancelUrl);
+        Task<Result<string>> CreateWalletTopUpCheckoutSessionAsync(Guid employerId, decimal amount, string successUrl, string cancelUrl);
         Task<Result<string>> CreateCustomerPortalSessionAsync(Guid employerId, string returnUrl);
         bool IsPaymentsEnabled();
+        decimal[] GetSuggestedTopUpAmounts();
+        int GetRegistrationFreeCredits();
     }
 }

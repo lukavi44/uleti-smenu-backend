@@ -12,7 +12,7 @@ namespace Core.Billing
 
     public class StripePriceIds
     {
-        public string BasicCreditPack { get; set; } = string.Empty;
-        public string ProMonthly { get; set; } = string.Empty;
+        public string BasicMonthly { get; set; } = string.Empty;
+        public string UnlimitedMonthly { get; set; } = string.Empty;
     }
 }

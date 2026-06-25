@@ -49,5 +49,21 @@ namespace Core.Models.Entities
 
             return Result.Success(new Subscription(id, title, description, cost, durationInDays, numberOfPosts, planKind));
         }
+
+        public void UpdatePlan(
+            string title,
+            string description,
+            decimal cost,
+            int durationInDays,
+            int numberOfPosts,
+            PlanKind planKind)
+        {
+            Title = title;
+            Description = description;
+            Cost = cost;
+            DurationInDays = durationInDays;
+            NumberOfPosts = numberOfPosts;
+            PlanKind = planKind;
+        }
     }
 }

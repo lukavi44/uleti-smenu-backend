@@ -66,6 +66,7 @@ builder.Services.AddScoped<IRestaurantLocationRepository, RestaurantLocationRepo
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
 builder.Services.AddScoped<IPaymentEventRepository, PaymentEventRepository>();
+builder.Services.AddScoped<IWalletTransactionRepository, WalletTransactionRepository>();
 
 builder.Services.AddScoped<RoleManager<IdentityRole<Guid>>>();
 builder.Services.AddScoped<IApplicationUnitOfWork, ApplicationUnitOfWork>();
@@ -85,6 +86,7 @@ builder.Services.AddSignalR();
 builder.Services.AddScoped<IBillingService, BillingService>();
 builder.Services.AddScoped<IBillingCheckoutService, BillingCheckoutService>();
 builder.Services.AddScoped<IBillingWebhookProcessor, BillingWebhookProcessor>();
+builder.Services.AddScoped<IWalletLedgerService, WalletLedgerService>();
 builder.Services.Configure<BillingSettings>(builder.Configuration.GetSection(BillingSettings.SectionName));
 builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection(StripeSettings.SectionName));
 
@@ -308,76 +310,70 @@ static async Task EnsureSubscriptionsSeededAsync(IServiceProvider services)
     using var scope = services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     var billingService = scope.ServiceProvider.GetRequiredService<IBillingService>();
+    var billingSettings = scope.ServiceProvider.GetRequiredService<IOptions<BillingSettings>>().Value;
 
-    var trialPlanExists = await dbContext.Subscriptions
-        .AnyAsync(plan => plan.Id == Core.Billing.BillingConstants.TrialPlanId);
-
-    if (!trialPlanExists)
-    {
-        var trialPlan = Subscription.Create(
-            BillingConstants.TrialPlanId,
-            "Free Trial",
-            "90-day trial for new restaurant accounts. Post shifts during the pilot period.",
-            0,
-            BillingConstants.TrialDurationDays,
-            0,
-            PlanKind.Trial).Value;
-
-        await dbContext.Subscriptions.AddAsync(trialPlan);
-    }
-
-    if (!await dbContext.Subscriptions.AnyAsync(plan => plan.Id == BillingConstants.BasicCreditPackPlanId))
+    if (!await dbContext.Subscriptions.AnyAsync(plan => plan.Id == BillingConstants.BasicSubscriptionPlanId))
     {
         var basicPlan = Subscription.Create(
-            BillingConstants.BasicCreditPackPlanId,
-            "Basic Credit Pack",
-            "Buy post credits for small cafés. Each credit publishes one active job post.",
-            BillingConstants.BasicCreditPackPriceEur,
+            BillingConstants.BasicSubscriptionPlanId,
+            "Basic",
+            "Monthly subscription with up to 10 job posts per month.",
+            billingSettings.BasicMonthlyPrice,
+            BillingConstants.MonthlyDurationDays,
             0,
-            BillingConstants.BasicCreditPackCredits,
             PlanKind.Basic).Value;
 
         await dbContext.Subscriptions.AddAsync(basicPlan);
     }
 
-    if (!await dbContext.Subscriptions.AnyAsync(plan => plan.Id == BillingConstants.ProMonthlyPlanId))
+    if (!await dbContext.Subscriptions.AnyAsync(plan => plan.Id == BillingConstants.UnlimitedSubscriptionPlanId))
     {
-        var proPlan = Subscription.Create(
-            BillingConstants.ProMonthlyPlanId,
-            "Pro Monthly",
-            "Monthly subscription for restaurants that hire often. Higher active post limits.",
-            BillingConstants.ProMonthlyPriceEur,
-            BillingConstants.ProMonthlyDurationDays,
+        var unlimitedPlan = Subscription.Create(
+            BillingConstants.UnlimitedSubscriptionPlanId,
+            "Unlimited",
+            "Monthly subscription with unlimited active job posts.",
+            billingSettings.UnlimitedMonthlyPrice,
+            BillingConstants.MonthlyDurationDays,
             0,
-            PlanKind.Pro).Value;
+            PlanKind.Unlimited).Value;
 
-        await dbContext.Subscriptions.AddAsync(proPlan);
+        await dbContext.Subscriptions.AddAsync(unlimitedPlan);
     }
 
     await dbContext.SaveChangesAsync();
 
-    var employersWithoutSubscription = await dbContext.Users
+    var basicPlanEntity = await dbContext.Subscriptions
+        .FirstAsync(plan => plan.Id == BillingConstants.BasicSubscriptionPlanId);
+    basicPlanEntity.UpdatePlan(
+        "Basic",
+        "Monthly subscription with up to 10 job posts per month.",
+        billingSettings.BasicMonthlyPrice,
+        BillingConstants.MonthlyDurationDays,
+        0,
+        PlanKind.Basic);
+
+    var unlimitedPlanEntity = await dbContext.Subscriptions
+        .FirstAsync(plan => plan.Id == BillingConstants.UnlimitedSubscriptionPlanId);
+    unlimitedPlanEntity.UpdatePlan(
+        "Unlimited",
+        "Monthly subscription with unlimited active job posts.",
+        billingSettings.UnlimitedMonthlyPrice,
+        BillingConstants.MonthlyDurationDays,
+        0,
+        PlanKind.Unlimited);
+
+    var trialEmployers = await dbContext.Users
         .OfType<Employer>()
-        .Where(employer => employer.SubscriptionId == null)
+        .Where(employer =>
+            employer.SubscriptionId == BillingConstants.TrialPlanId ||
+            employer.BillingStatus == BillingStatus.Trialing)
         .ToListAsync();
 
-    if (employersWithoutSubscription.Count == 0)
-        return;
-
-    foreach (var employer in employersWithoutSubscription)
+    foreach (var employer in trialEmployers)
     {
-        billingService.AssignTrialToEmployer(employer);
-    }
-
-    var employersNeedingStatus = await dbContext.Users
-        .OfType<Employer>()
-        .Where(e => e.SubscriptionId != null && e.BillingStatus == BillingStatus.Incomplete)
-        .ToListAsync();
-
-    foreach (var employer in employersNeedingStatus)
-    {
-        if (employer.SubscriptionId == BillingConstants.TrialPlanId)
-            employer.AssignTrial(employer.SubscriptionId.Value, employer.SubscriptionStart ?? DateTime.UtcNow, employer.SubscriptionStop ?? DateTime.UtcNow);
+        employer.ClearSubscription();
+        if (employer.PostCredits <= 0)
+            billingService.GrantRegistrationBonus(employer);
     }
 
     await dbContext.SaveChangesAsync();

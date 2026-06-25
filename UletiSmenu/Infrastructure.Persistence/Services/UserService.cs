@@ -59,9 +59,9 @@ namespace Infrastructure.Persistence.Services
                     return Result.Failure("Email already exists");
                 }
 
-                var trialResult = _billingService.AssignTrialToEmployer(employer);
-                if (trialResult.IsFailure)
-                    return Result.Failure(trialResult.Error);
+                var bonusResult = _billingService.GrantRegistrationBonus(employer);
+                if (bonusResult.IsFailure)
+                    return Result.Failure(bonusResult.Error);
 
                 var slugResult = await AssignUniquePublicSlugAsync(employer);
                 if (slugResult.IsFailure)

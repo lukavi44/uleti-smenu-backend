@@ -44,23 +44,7 @@ namespace Infrastructure.Stripe
                 return Result.Failure<string>(contextResult.Error);
 
             var context = contextResult.Value;
-            var customerId = context.StripeCustomerId;
-
-            if (string.IsNullOrWhiteSpace(customerId))
-            {
-                var customerService = new CustomerService();
-                var customer = await customerService.CreateAsync(new CustomerCreateOptions
-                {
-                    Email = context.EmployerEmail,
-                    Metadata = new Dictionary<string, string>
-                    {
-                        ["employerId"] = employerId.ToString()
-                    }
-                });
-
-                customerId = customer.Id;
-                await _checkoutService.RecordStripeCustomerIdAsync(employerId, customerId);
-            }
+            var customerId = await EnsureStripeCustomerAsync(employerId, context.EmployerEmail, context.StripeCustomerId);
 
             var sessionOptions = new SessionCreateOptions
             {
@@ -71,21 +55,72 @@ namespace Infrastructure.Stripe
                 Metadata = new Dictionary<string, string>
                 {
                     ["employerId"] = employerId.ToString(),
-                    ["planId"] = planId.ToString()
-                }
+                    ["planId"] = planId.ToString(),
+                    ["checkoutType"] = "subscription"
+                },
+                LineItems =
+                [
+                    new SessionLineItemOptions
+                    {
+                        Price = context.StripePriceId,
+                        Quantity = 1
+                    }
+                ]
             };
 
-            sessionOptions.LineItems = new List<SessionLineItemOptions>
+            var session = await new SessionService().CreateAsync(sessionOptions);
+            return Result.Success(session.Url ?? string.Empty);
+        }
+
+        public async Task<Result<string>> CreateWalletTopUpCheckoutSessionAsync(
+            Guid employerId,
+            decimal amount,
+            string successUrl,
+            string cancelUrl)
+        {
+            if (!IsEnabled)
+                return Result.Failure<string>("Stripe is not configured.");
+
+            var contextResult = await _checkoutService.GetWalletTopUpContextAsync(employerId, amount);
+            if (contextResult.IsFailure)
+                return Result.Failure<string>(contextResult.Error);
+
+            var context = contextResult.Value;
+            var customerId = await EnsureStripeCustomerAsync(employerId, context.EmployerEmail, context.StripeCustomerId);
+            var currency = context.Currency.ToLowerInvariant();
+
+            var sessionOptions = new SessionCreateOptions
             {
-                new()
+                Customer = customerId,
+                SuccessUrl = successUrl,
+                CancelUrl = cancelUrl,
+                Mode = "payment",
+                Metadata = new Dictionary<string, string>
                 {
-                    Price = context.StripePriceId,
-                    Quantity = 1
-                }
+                    ["employerId"] = employerId.ToString(),
+                    ["checkoutType"] = "wallet_topup",
+                    ["amount"] = context.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    ["currency"] = context.Currency
+                },
+                LineItems =
+                [
+                    new SessionLineItemOptions
+                    {
+                        PriceData = new SessionLineItemPriceDataOptions
+                        {
+                            Currency = currency,
+                            UnitAmount = ToStripeUnitAmount(context.Amount, context.Currency),
+                            ProductData = new SessionLineItemPriceDataProductDataOptions
+                            {
+                                Name = "Wallet top-up"
+                            }
+                        },
+                        Quantity = 1
+                    }
+                ]
             };
 
-            var sessionService = new SessionService();
-            var session = await sessionService.CreateAsync(sessionOptions);
+            var session = await new SessionService().CreateAsync(sessionOptions);
             return Result.Success(session.Url ?? string.Empty);
         }
 
@@ -98,14 +133,12 @@ namespace Infrastructure.Stripe
             if (customerResult.IsFailure)
                 return Result.Failure<string>(customerResult.Error);
 
-            var customerId = customerResult.Value;
-
-            var portalService = new global::Stripe.BillingPortal.SessionService();
-            var portalSession = await portalService.CreateAsync(new global::Stripe.BillingPortal.SessionCreateOptions
-            {
-                Customer = customerId,
-                ReturnUrl = returnUrl
-            });
+            var portalSession = await new global::Stripe.BillingPortal.SessionService().CreateAsync(
+                new global::Stripe.BillingPortal.SessionCreateOptions
+                {
+                    Customer = customerResult.Value,
+                    ReturnUrl = returnUrl
+                });
 
             return Result.Success(portalSession.Url);
         }
@@ -158,6 +191,33 @@ namespace Infrastructure.Stripe
             _ => BillingStatus.Incomplete
         };
 
+        private async Task<string> EnsureStripeCustomerAsync(Guid employerId, string email, string? existingCustomerId)
+        {
+            if (!string.IsNullOrWhiteSpace(existingCustomerId))
+                return existingCustomerId;
+
+            var customer = await new CustomerService().CreateAsync(new CustomerCreateOptions
+            {
+                Email = email,
+                Metadata = new Dictionary<string, string>
+                {
+                    ["employerId"] = employerId.ToString()
+                }
+            });
+
+            await _checkoutService.RecordStripeCustomerIdAsync(employerId, customer.Id);
+            return customer.Id;
+        }
+
+        private static long ToStripeUnitAmount(decimal amount, string currency)
+        {
+            var normalized = currency.ToUpperInvariant();
+            if (normalized is "RSD" or "JPY" or "KRW" or "VND")
+                return (long)Math.Round(amount, 0, MidpointRounding.AwayFromZero);
+
+            return (long)Math.Round(amount * 100m, 0, MidpointRounding.AwayFromZero);
+        }
+
         private async Task<Result> HandleCheckoutCompletedAsync(Event stripeEvent)
         {
             if (stripeEvent.Data.Object is not Session session)
@@ -166,6 +226,22 @@ namespace Infrastructure.Stripe
             if (!session.Metadata.TryGetValue("employerId", out var employerIdRaw) ||
                 !Guid.TryParse(employerIdRaw, out var employerId))
                 return Result.Failure("Checkout session missing employerId metadata.");
+
+            if (session.Metadata.TryGetValue("checkoutType", out var checkoutType) &&
+                checkoutType == "wallet_topup")
+            {
+                if (!session.Metadata.TryGetValue("amount", out var amountRaw) ||
+                    !decimal.TryParse(amountRaw, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var amount))
+                {
+                    return Result.Failure("Checkout session missing wallet top-up amount metadata.");
+                }
+
+                return await _webhookProcessor.ProcessWalletTopUpCompletedAsync(
+                    employerId,
+                    amount,
+                    session.Id,
+                    session.CustomerId ?? string.Empty);
+            }
 
             if (!session.Metadata.TryGetValue("planId", out var planIdRaw) ||
                 !Guid.TryParse(planIdRaw, out var planId))
@@ -176,8 +252,7 @@ namespace Infrastructure.Stripe
 
             if (!string.IsNullOrWhiteSpace(session.SubscriptionId))
             {
-                var subscriptionService = new SubscriptionService();
-                var subscription = await subscriptionService.GetAsync(session.SubscriptionId);
+                var subscription = await new SubscriptionService().GetAsync(session.SubscriptionId);
                 periodEnd = subscription.CurrentPeriodEnd;
                 priceId = subscription.Items.Data.FirstOrDefault()?.Price?.Id;
             }
