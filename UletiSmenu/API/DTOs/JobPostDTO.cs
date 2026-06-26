@@ -1,3 +1,5 @@
+using Core.DTOs;
+
 namespace API.DTOs
 {
     public class JobPostDTO
@@ -16,6 +18,7 @@ namespace API.DTOs
         public string? RestaurantLocationCity { get; set; }
         public bool IsArchived { get; set; }
         public int ApplicantCount { get; set; }
+        public List<RecentApplicantPreviewDTO> RecentApplicants { get; set; } = new();
         public EmployerDTO Employer { get; set; }
     }
 }

@@ -39,6 +39,46 @@ namespace Infrastructure.Persistence.Database.Repositories
                 .ToDictionaryAsync(x => x.JobPostId, x => x.Count);
         }
 
+        public async Task<Dictionary<Guid, List<RecentApplicantPreviewDTO>>> GetRecentApplicantsByJobPostIdsAsync(
+            IEnumerable<Guid> jobPostIds,
+            int limitPerPost = 3)
+        {
+            var ids = jobPostIds.Distinct().ToList();
+            if (ids.Count == 0)
+                return new Dictionary<Guid, List<RecentApplicantPreviewDTO>>();
+
+            var rows = await (
+                from application in _context.Applications
+                join user in _context.Users.OfType<Employee>() on application.UserId equals user.Id
+                where ids.Contains(application.JobPostId)
+                orderby application.DateTime descending
+                select new
+                {
+                    application.JobPostId,
+                    UserId = user.Id,
+                    user.ProfilePhoto,
+                    user.FirstName,
+                    user.LastName,
+                    application.DateTime
+                }).ToListAsync();
+
+            return rows
+                .GroupBy(row => row.JobPostId)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group
+                        .OrderByDescending(row => row.DateTime)
+                        .Take(limitPerPost)
+                        .Select(row => new RecentApplicantPreviewDTO
+                        {
+                            UserId = row.UserId,
+                            ProfilePhoto = row.ProfilePhoto,
+                            FirstName = row.FirstName,
+                            LastName = row.LastName
+                        })
+                        .ToList());
+        }
+
         public async Task AddAsync(Application application)
         {
             await _context.Applications.AddAsync(application);
@@ -81,6 +121,7 @@ namespace Infrastructure.Persistence.Database.Repositories
                               Email = user.Email!,
                               PhoneNumber = user.PhoneNumber!,
                               ProfilePhoto = user.ProfilePhoto,
+                              City = user.City,
                               Status = application.Status.ToString(),
                               AppliedAt = application.DateTime
                           }).ToListAsync();

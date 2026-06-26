@@ -2,6 +2,7 @@
 {
     public enum JobStatusEnum
     {
+        Draft,
         Active,
         Expired,
         Completed,

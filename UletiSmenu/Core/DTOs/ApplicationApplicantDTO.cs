@@ -9,6 +9,7 @@ namespace Core.DTOs
         public string Email { get; set; } = string.Empty;
         public string PhoneNumber { get; set; } = string.Empty;
         public string? ProfilePhoto { get; set; }
+        public string? City { get; set; }
         public string Status { get; set; } = string.Empty;
         public DateTime AppliedAt { get; set; }
         public double AverageRating { get; set; }

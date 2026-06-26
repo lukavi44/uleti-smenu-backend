@@ -155,6 +155,9 @@ namespace Core.Models.Entities
 
         public Result ValidateCanApply(DateTime utcNow)
         {
+            if (Status == JobStatusEnum.Draft)
+                return Result.Failure("You can only apply to active job posts.");
+
             if (Status != JobStatusEnum.Active)
                 return Result.Failure("You can only apply to active job posts.");
 

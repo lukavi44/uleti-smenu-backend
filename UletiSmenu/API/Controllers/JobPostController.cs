@@ -206,7 +206,7 @@ namespace API.Controllers
                     maxSalary);
 
                 var jobPostDtos = _mapper.Map<List<JobPostDTO>>(pagedJobPosts.Items);
-                await EnrichApplicantCountsAsync(jobPostDtos);
+                await EnrichApplicantDataAsync(jobPostDtos);
 
                 return Ok(new PagedResultDTO<JobPostDTO>
                 {
@@ -219,7 +219,7 @@ namespace API.Controllers
 
             var jobPosts = await _jobPostService.GetMyJobPostsAsync(employerId);
             var allJobPostDtos = _mapper.Map<List<JobPostDTO>>(jobPosts);
-            await EnrichApplicantCountsAsync(allJobPostDtos);
+            await EnrichApplicantDataAsync(allJobPostDtos);
 
             return Ok(allJobPostDtos);
         }
@@ -240,17 +240,19 @@ namespace API.Controllers
             return Ok(summary);
         }
 
-        private async Task EnrichApplicantCountsAsync(List<JobPostDTO> jobPostDtos)
+        private async Task EnrichApplicantDataAsync(List<JobPostDTO> jobPostDtos)
         {
             if (jobPostDtos.Count == 0)
                 return;
 
-            var counts = await _applicationRepository.GetApplicantCountsByJobPostIdsAsync(
-                jobPostDtos.Select(jobPost => jobPost.Id));
+            var jobPostIds = jobPostDtos.Select(jobPost => jobPost.Id).ToList();
+            var counts = await _applicationRepository.GetApplicantCountsByJobPostIdsAsync(jobPostIds);
+            var recentApplicants = await _applicationRepository.GetRecentApplicantsByJobPostIdsAsync(jobPostIds);
 
             foreach (var jobPostDto in jobPostDtos)
             {
                 jobPostDto.ApplicantCount = counts.GetValueOrDefault(jobPostDto.Id);
+                jobPostDto.RecentApplicants = recentApplicants.GetValueOrDefault(jobPostDto.Id) ?? new List<RecentApplicantPreviewDTO>();
             }
         }
 
