@@ -169,10 +169,11 @@ namespace Infrastructure.Persistence.Database.Repositories
 
             var activeJobPostsCount = await activePostsQuery.CountAsync();
 
-            var totalApplicantsCount = await (
+            var pendingApplicantsCount = await (
                 from application in _context.Applications
                 join jobPost in _context.JobPosts on application.JobPostId equals jobPost.Id
                 where jobPost.EmployerId == employerId
+                    && application.Status == ApplicationStatusEnum.Applied
                 select application).CountAsync();
 
             var activePostsByLocationId = await activePostsQuery
@@ -184,7 +185,7 @@ namespace Infrastructure.Persistence.Database.Repositories
             return new EmployerDashboardSummaryDTO
             {
                 ActiveJobPostsCount = activeJobPostsCount,
-                TotalApplicantsCount = totalApplicantsCount,
+                PendingApplicantsCount = pendingApplicantsCount,
                 ActivePostsByLocationId = activePostsByLocationId
             };
         }
