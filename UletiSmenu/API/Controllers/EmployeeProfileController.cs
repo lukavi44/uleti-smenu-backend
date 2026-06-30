@@ -127,6 +127,81 @@ namespace API.Controllers
             return Ok(result.Value);
         }
 
+        [Authorize(Roles = "Employer")]
+        [HttpGet("{employeeId:guid}/reviews")]
+        public async Task<IActionResult> GetEmployeeReviews(
+            Guid employeeId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 5)
+        {
+            var employerId = GetCurrentUserId();
+            if (employerId == null)
+                return Unauthorized();
+
+            if (page < 1 || pageSize < 1 || pageSize > 50)
+                return BadRequest("Invalid pagination parameters.");
+
+            var result = await _employeeProfileService.GetEmployeeReviewsForEmployerAsync(
+                employerId.Value,
+                employeeId,
+                page,
+                pageSize);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Value);
+        }
+
+        [Authorize(Roles = "Employer")]
+        [HttpGet("{employeeId:guid}/work-experiences")]
+        public async Task<IActionResult> GetEmployeeWorkExperiences(
+            Guid employeeId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 5)
+        {
+            var employerId = GetCurrentUserId();
+            if (employerId == null)
+                return Unauthorized();
+
+            if (page < 1 || pageSize < 1 || pageSize > 50)
+                return BadRequest("Invalid pagination parameters.");
+
+            var result = await _employeeProfileService.GetEmployeeWorkExperiencesForEmployerAsync(
+                employerId.Value,
+                employeeId,
+                page,
+                pageSize);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Value);
+        }
+
+        [Authorize(Roles = "Employer")]
+        [HttpGet("{employeeId:guid}/platform-shifts")]
+        public async Task<IActionResult> GetEmployeePlatformShifts(
+            Guid employeeId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 5)
+        {
+            var employerId = GetCurrentUserId();
+            if (employerId == null)
+                return Unauthorized();
+
+            if (page < 1 || pageSize < 1 || pageSize > 50)
+                return BadRequest("Invalid pagination parameters.");
+
+            var result = await _employeeProfileService.GetEmployeePlatformShiftsForEmployerAsync(
+                employerId.Value,
+                employeeId,
+                page,
+                pageSize);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Value);
+        }
+
         private Guid? GetCurrentUserId()
         {
             var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);

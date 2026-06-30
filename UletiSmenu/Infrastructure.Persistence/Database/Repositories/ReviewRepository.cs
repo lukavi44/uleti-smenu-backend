@@ -65,6 +65,54 @@ namespace Infrastructure.Persistence.Database.Repositories
                 .ToList();
         }
 
+        public async Task<(List<ReviewDTO> Items, int TotalCount)> GetReviewsForEmployeePagedAsync(
+            Guid employeeId,
+            int page,
+            int pageSize)
+        {
+            var query =
+                from review in _context.MatchReviews
+                join application in _context.Applications on review.ApplicationId equals application.Id
+                join jobPost in _context.JobPosts on application.JobPostId equals jobPost.Id
+                join reviewerEmployer in _context.Users.OfType<Employer>() on review.ReviewerId equals reviewerEmployer.Id into employerReviewers
+                from reviewerEmployer in employerReviewers.DefaultIfEmpty()
+                join reviewerEmployee in _context.Users.OfType<Employee>() on review.ReviewerId equals reviewerEmployee.Id into employeeReviewers
+                from reviewerEmployee in employeeReviewers.DefaultIfEmpty()
+                where review.RevieweeId == employeeId
+                orderby review.CreatedAtUtc descending
+                select new
+                {
+                    review,
+                    jobPost.Title,
+                    ReviewerName = reviewerEmployer != null
+                        ? reviewerEmployer.Name
+                        : reviewerEmployee != null
+                            ? reviewerEmployee.FirstName + " " + reviewerEmployee.LastName
+                            : "Unknown"
+                };
+
+            var totalCount = await query.CountAsync();
+            var reviews = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (
+                reviews
+                    .Select(item => new ReviewDTO
+                    {
+                        Id = item.review.Id,
+                        ApplicationId = item.review.ApplicationId,
+                        ReviewerName = item.ReviewerName,
+                        Rating = item.review.Rating,
+                        Comment = item.review.Comment,
+                        JobPostTitle = item.Title,
+                        CreatedAtUtc = item.review.CreatedAtUtc
+                    })
+                    .ToList(),
+                totalCount);
+        }
+
         public async Task<List<ReviewDTO>> GetReviewsForEmployerAsync(Guid employerId)
         {
             var reviews = await (

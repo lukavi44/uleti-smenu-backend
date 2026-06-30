@@ -183,7 +183,14 @@ namespace API.Controllers
             {
                 "Employer" => Ok(await BuildEmployerResponseAsync(user)),
                 "Employee" => Ok(_mapper.Map<EmployeeDTO>(user)),
-                //"Admin" => Ok(_mapper.Map<AdminDTO>(user)),
+                "Admin" => Ok(new AdminDTO
+                {
+                    Id = user.Id,
+                    Email = user.Email ?? string.Empty,
+                    PhoneNumber = user.PhoneNumber ?? string.Empty,
+                    ProfilePhoto = user.ProfilePhoto,
+                    Role = "Admin"
+                }),
                 _ => BadRequest("Unknown role")
             };
         }

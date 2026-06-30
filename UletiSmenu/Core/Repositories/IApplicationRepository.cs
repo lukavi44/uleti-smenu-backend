@@ -19,5 +19,12 @@ namespace Core.Repositories
         Task<List<EmployeeApplicationDTO>> GetEmployeeApplicationsAsync(Guid employeeId);
         Task<bool> EmployerCanViewEmployeeAsync(Guid employerId, Guid employeeId);
         Task<List<(Application Application, JobPost JobPost, Employer Employer, RestaurantLocation? Location)>> GetAcceptedApplicationsWithDetailsAsync(Guid employeeId);
+        Task<int> CountArchivedPlatformShiftsForEmployeeAsync(Guid employeeId, DateTime utcNow);
+        Task<DateTime?> GetEmployeeMemberSinceAsync(Guid employeeId);
+        Task<List<(Application Application, JobPost JobPost, Employer Employer, RestaurantLocation? Location)>> GetArchivedPlatformShiftsForEmployeePagedAsync(
+            Guid employeeId,
+            DateTime utcNow,
+            int page,
+            int pageSize);
     }
 }

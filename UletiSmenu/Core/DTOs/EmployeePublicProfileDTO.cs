@@ -8,9 +8,13 @@ namespace Core.DTOs
         public string Email { get; set; } = string.Empty;
         public string PhoneNumber { get; set; } = string.Empty;
         public string? ProfilePhoto { get; set; }
-        public List<WorkExperienceDTO> WorkExperiences { get; set; } = new();
-        public List<EmployeePlatformShiftDTO> PlatformShifts { get; set; } = new();
+        public string? City { get; set; }
+        public string? Country { get; set; }
+        public DateTime? MemberSinceUtc { get; set; }
+        public int? Age { get; set; }
+        public double? TotalExperienceYears { get; set; }
         public ReviewSummaryDTO ReviewSummary { get; set; } = new();
-        public List<ReviewDTO> Reviews { get; set; } = new();
+        public int WorkExperienceCount { get; set; }
+        public int PlatformShiftCount { get; set; }
     }
 }

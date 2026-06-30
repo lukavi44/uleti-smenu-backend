@@ -3,6 +3,7 @@ using API.Middlewares;
 using API.Services;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.DataProtection;
+using Core.Admin;
 using Core.Billing;
 using Core.Interfaces;
 using Core.Models.Entities;
@@ -78,6 +79,7 @@ builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IEmployeeProfileService, EmployeeProfileService>();
 builder.Services.AddScoped<IEmployerProfileService, EmployerProfileService>();
 builder.Services.AddScoped<IPlatformStatsService, PlatformStatsService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IReviewReminderService, ReviewReminderService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
@@ -88,6 +90,7 @@ builder.Services.AddScoped<IBillingCheckoutService, BillingCheckoutService>();
 builder.Services.AddScoped<IBillingWebhookProcessor, BillingWebhookProcessor>();
 builder.Services.AddScoped<IWalletLedgerService, WalletLedgerService>();
 builder.Services.Configure<BillingSettings>(builder.Configuration.GetSection(BillingSettings.SectionName));
+builder.Services.Configure<AdminSeedSettings>(builder.Configuration.GetSection(AdminSeedSettings.SectionName));
 builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection(StripeSettings.SectionName));
 
 var stripeEnabled = builder.Configuration.GetValue<bool>($"{StripeSettings.SectionName}:Enabled");
@@ -210,6 +213,7 @@ Directory.CreateDirectory(uploadPath);
 
 await EnsureDatabaseMigratedAsync(app.Services);
 await EnsureRolesSeededAsync(app.Services);
+await EnsureAdminUserSeededAsync(app.Services);
 await EnsureSubscriptionsSeededAsync(app.Services);
 
 app.UseStaticFiles(new StaticFileOptions
@@ -303,6 +307,65 @@ static async Task EnsureRolesSeededAsync(IServiceProvider services)
         if (!await roleManager.RoleExistsAsync(role))
             await roleManager.CreateAsync(new IdentityRole<Guid>(role));
     }
+}
+
+static async Task EnsureAdminUserSeededAsync(IServiceProvider services)
+{
+    using var scope = services.CreateScope();
+    var settings = scope.ServiceProvider.GetRequiredService<IOptions<AdminSeedSettings>>().Value;
+    if (!settings.Enabled)
+        return;
+
+    if (string.IsNullOrWhiteSpace(settings.Email) || string.IsNullOrWhiteSpace(settings.Password))
+        return;
+
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("AdminSeed");
+
+    var normalizedEmail = settings.Email.Trim();
+    var existingUser = await userManager.FindByEmailAsync(normalizedEmail);
+    if (existingUser != null)
+    {
+        if (!await userManager.IsInRoleAsync(existingUser, UserRolesEnum.Admin.ToString()))
+            await userManager.AddToRoleAsync(existingUser, UserRolesEnum.Admin.ToString());
+
+        return;
+    }
+
+    var adminResult = User.Create(
+        Guid.NewGuid(),
+        normalizedEmail,
+        normalizedEmail,
+        settings.PhoneNumber.Trim());
+
+    if (adminResult.IsFailure)
+    {
+        logger.LogWarning("Admin seed skipped: {Error}", adminResult.Error);
+        return;
+    }
+
+    var admin = adminResult.Value;
+    admin.EmailConfirmed = true;
+
+    var createResult = await userManager.CreateAsync(admin, settings.Password);
+    if (!createResult.Succeeded)
+    {
+        logger.LogWarning(
+            "Admin seed failed: {Errors}",
+            string.Join(", ", createResult.Errors.Select(error => error.Description)));
+        return;
+    }
+
+    var roleResult = await userManager.AddToRoleAsync(admin, UserRolesEnum.Admin.ToString());
+    if (!roleResult.Succeeded)
+    {
+        logger.LogWarning(
+            "Admin role assignment failed: {Errors}",
+            string.Join(", ", roleResult.Errors.Select(error => error.Description)));
+        return;
+    }
+
+    logger.LogInformation("Development admin user seeded for {Email}", normalizedEmail);
 }
 
 static async Task EnsureSubscriptionsSeededAsync(IServiceProvider services)

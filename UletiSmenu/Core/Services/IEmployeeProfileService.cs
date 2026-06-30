@@ -14,5 +14,20 @@ namespace Core.Services
             Guid employerId,
             Guid employeeId,
             bool includeContactInfo = false);
+        Task<Result<PagedResultDTO<ReviewDTO>>> GetEmployeeReviewsForEmployerAsync(
+            Guid employerId,
+            Guid employeeId,
+            int page,
+            int pageSize);
+        Task<Result<PagedResultDTO<WorkExperienceDTO>>> GetEmployeeWorkExperiencesForEmployerAsync(
+            Guid employerId,
+            Guid employeeId,
+            int page,
+            int pageSize);
+        Task<Result<PagedResultDTO<EmployeePlatformShiftDTO>>> GetEmployeePlatformShiftsForEmployerAsync(
+            Guid employerId,
+            Guid employeeId,
+            int page,
+            int pageSize);
     }
 }

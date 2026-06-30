@@ -7,6 +7,7 @@ namespace Core.Models.Entities
         public string FirstName { get; private set; }
         public string LastName { get; private set; }
         public string? City { get; private set; }
+        public DateTime? DateOfBirth { get; private set; }
         //public ICollection<Employer> FavouriteEmployers { get; private set; } = new List<Employer>();
         public string? CvFileName { get; private set; }
         public ICollection<Application>? Applications { get; private set; } = new List<Application>();
@@ -57,6 +58,11 @@ namespace Core.Models.Entities
             City = string.IsNullOrWhiteSpace(city) ? null : city.Trim();
 
             return Result.Success();
+        }
+
+        public void SetDateOfBirth(DateTime? dateOfBirth)
+        {
+            DateOfBirth = dateOfBirth?.Date;
         }
 
         //public void AddFavouriteEmployer(Employer employer)

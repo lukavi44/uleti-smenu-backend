@@ -8,6 +8,10 @@ namespace Core.Repositories
         Task<MatchReview?> GetByApplicationAndReviewerAsync(Guid applicationId, Guid reviewerId);
         Task AddAsync(MatchReview review);
         Task<List<ReviewDTO>> GetReviewsForEmployeeAsync(Guid employeeId);
+        Task<(List<ReviewDTO> Items, int TotalCount)> GetReviewsForEmployeePagedAsync(
+            Guid employeeId,
+            int page,
+            int pageSize);
         Task<List<ReviewDTO>> GetReviewsForEmployerAsync(Guid employerId);
         Task<ReviewSummaryDTO> GetEmployeeReviewSummaryAsync(Guid employeeId);
         Task<ReviewSummaryDTO> GetEmployerReviewSummaryAsync(Guid employerId);

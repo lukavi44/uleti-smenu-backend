@@ -81,6 +81,16 @@ namespace Infrastructure.Persistence.Database.Configurations
                    .HasMaxLength(32)
                    .HasDefaultValue("None");
 
+            builder.Property(e => e.IsVerifiedEmployer)
+                   .IsRequired()
+                   .HasDefaultValue(false);
+
+            builder.Property(e => e.VerifiedAtUtc)
+                   .IsRequired(false);
+
+            builder.Property(e => e.VerifiedByUserId)
+                   .IsRequired(false);
+
             builder.OwnsOne(c => c.Address, address =>
             {
                 // Configure Street

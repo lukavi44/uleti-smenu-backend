@@ -23,6 +23,9 @@ namespace Core.Models.Entities
         public int PostCredits { get; private set; }
         public decimal WalletBalance { get; private set; }
         public string BillingProvider { get; private set; } = "None";
+        public bool IsVerifiedEmployer { get; private set; }
+        public DateTime? VerifiedAtUtc { get; private set; }
+        public Guid? VerifiedByUserId { get; private set; }
         public Address Address { get; private set; }
         public ICollection<JobPost> Posts { get; private set; } = new List<JobPost>();
         public ICollection<RestaurantLocation> Locations { get; private set; } = new List<RestaurantLocation>();
@@ -304,6 +307,25 @@ namespace Core.Models.Entities
             PhoneNumber = phoneNumber.Trim();
             Address = addressResult.Value;
 
+            return Result.Success();
+        }
+
+        public Result SetVerification(bool isVerified, Guid? verifiedByUserId, DateTime utcNow)
+        {
+            if (isVerified)
+            {
+                if (verifiedByUserId == null || verifiedByUserId == Guid.Empty)
+                    return Result.Failure("Verifier is required when marking employer as verified.");
+
+                IsVerifiedEmployer = true;
+                VerifiedAtUtc = utcNow;
+                VerifiedByUserId = verifiedByUserId;
+                return Result.Success();
+            }
+
+            IsVerifiedEmployer = false;
+            VerifiedAtUtc = null;
+            VerifiedByUserId = null;
             return Result.Success();
         }
     }

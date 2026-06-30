@@ -205,5 +205,61 @@ namespace Infrastructure.Persistence.Database.Repositories
                 .Select(row => (row.application, row.jobPost, row.employer, row.location))
                 .ToList();
         }
+
+        public async Task<int> CountArchivedPlatformShiftsForEmployeeAsync(Guid employeeId, DateTime utcNow)
+        {
+            var archiveCutoff = utcNow.AddHours(-1);
+
+            return await (
+                from application in _context.Applications
+                join jobPost in _context.JobPosts on application.JobPostId equals jobPost.Id
+                where application.UserId == employeeId
+                      && application.Status == ApplicationStatusEnum.Accepted
+                      && (jobPost.Status == JobStatusEnum.Cancelled
+                          || jobPost.Status == JobStatusEnum.Completed
+                          || jobPost.Status == JobStatusEnum.Expired
+                          || jobPost.StartingDate < archiveCutoff)
+                select application.Id).CountAsync();
+        }
+
+        public async Task<DateTime?> GetEmployeeMemberSinceAsync(Guid employeeId)
+        {
+            return await _context.Applications
+                .Where(application => application.UserId == employeeId)
+                .OrderBy(application => application.DateTime)
+                .Select(application => (DateTime?)application.DateTime)
+                .FirstOrDefaultAsync();
+        }
+
+        public async Task<List<(Application Application, JobPost JobPost, Employer Employer, RestaurantLocation? Location)>> GetArchivedPlatformShiftsForEmployeePagedAsync(
+            Guid employeeId,
+            DateTime utcNow,
+            int page,
+            int pageSize)
+        {
+            var archiveCutoff = utcNow.AddHours(-1);
+
+            var rows = await (
+                from application in _context.Applications
+                join jobPost in _context.JobPosts on application.JobPostId equals jobPost.Id
+                join employer in _context.Users.OfType<Employer>() on jobPost.EmployerId equals employer.Id
+                join location in _context.RestaurantLocations on jobPost.RestaurantLocationId equals location.Id into locationGroup
+                from location in locationGroup.DefaultIfEmpty()
+                where application.UserId == employeeId
+                      && application.Status == ApplicationStatusEnum.Accepted
+                      && (jobPost.Status == JobStatusEnum.Cancelled
+                          || jobPost.Status == JobStatusEnum.Completed
+                          || jobPost.Status == JobStatusEnum.Expired
+                          || jobPost.StartingDate < archiveCutoff)
+                orderby jobPost.StartingDate descending
+                select new { application, jobPost, employer, location })
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return rows
+                .Select(row => (row.application, row.jobPost, row.employer, row.location))
+                .ToList();
+        }
     }
 }

@@ -109,10 +109,14 @@ namespace Infrastructure.Persistence.Services
             if (employee == null)
                 return Result.Failure<EmployeePublicProfileDTO>("Employee not found.");
 
-            var workExperiences = await _workExperienceRepository.GetByEmployeeIdAsync(employeeId);
-            var platformShifts = await BuildPlatformShiftsAsync(employeeId);
+            var workExperienceCount = await _workExperienceRepository.CountByEmployeeIdAsync(employeeId);
+            var platformShiftCount = await _applicationRepository.CountArchivedPlatformShiftsForEmployeeAsync(
+                employeeId,
+                DateTime.UtcNow);
             var reviewSummary = await _reviewRepository.GetEmployeeReviewSummaryAsync(employeeId);
-            var reviews = await _reviewRepository.GetReviewsForEmployeeAsync(employeeId);
+            var earliestExperienceStart = await _workExperienceRepository.GetEarliestStartDateAsync(employeeId);
+            var memberSinceUtc = await _applicationRepository.GetEmployeeMemberSinceAsync(employeeId);
+            var utcNow = DateTime.UtcNow;
 
             var profile = new EmployeePublicProfileDTO
             {
@@ -122,16 +126,90 @@ namespace Infrastructure.Persistence.Services
                 Email = employee.Email ?? string.Empty,
                 PhoneNumber = employee.PhoneNumber ?? string.Empty,
                 ProfilePhoto = employee.ProfilePhoto,
-                WorkExperiences = workExperiences.Select(MapWorkExperience).ToList(),
-                PlatformShifts = platformShifts,
+                City = employee.City,
+                Country = "Srbija",
+                MemberSinceUtc = memberSinceUtc,
+                Age = CalculateAge(employee.DateOfBirth, utcNow),
+                TotalExperienceYears = CalculateTotalExperienceYears(earliestExperienceStart, utcNow),
                 ReviewSummary = reviewSummary,
-                Reviews = reviews
+                WorkExperienceCount = workExperienceCount,
+                PlatformShiftCount = platformShiftCount
             };
 
             if (!includeContactInfo)
                 CandidateContactPrivacy.RedactPublicProfileContactInfo(profile);
 
             return Result.Success(profile);
+        }
+
+        public async Task<Result<PagedResultDTO<ReviewDTO>>> GetEmployeeReviewsForEmployerAsync(
+            Guid employerId,
+            Guid employeeId,
+            int page,
+            int pageSize)
+        {
+            if (!await _applicationRepository.EmployerCanViewEmployeeAsync(employerId, employeeId))
+                return Result.Failure<PagedResultDTO<ReviewDTO>>("You do not have access to this employee profile.");
+
+            var (items, totalCount) = await _reviewRepository.GetReviewsForEmployeePagedAsync(
+                employeeId,
+                page,
+                pageSize);
+
+            return Result.Success(new PagedResultDTO<ReviewDTO>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize
+            });
+        }
+
+        public async Task<Result<PagedResultDTO<WorkExperienceDTO>>> GetEmployeeWorkExperiencesForEmployerAsync(
+            Guid employerId,
+            Guid employeeId,
+            int page,
+            int pageSize)
+        {
+            if (!await _applicationRepository.EmployerCanViewEmployeeAsync(employerId, employeeId))
+                return Result.Failure<PagedResultDTO<WorkExperienceDTO>>("You do not have access to this employee profile.");
+
+            var experiences = await _workExperienceRepository.GetByEmployeeIdPagedAsync(employeeId, page, pageSize);
+            var totalCount = await _workExperienceRepository.CountByEmployeeIdAsync(employeeId);
+
+            return Result.Success(new PagedResultDTO<WorkExperienceDTO>
+            {
+                Items = experiences.Select(MapWorkExperience).ToList(),
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize
+            });
+        }
+
+        public async Task<Result<PagedResultDTO<EmployeePlatformShiftDTO>>> GetEmployeePlatformShiftsForEmployerAsync(
+            Guid employerId,
+            Guid employeeId,
+            int page,
+            int pageSize)
+        {
+            if (!await _applicationRepository.EmployerCanViewEmployeeAsync(employerId, employeeId))
+                return Result.Failure<PagedResultDTO<EmployeePlatformShiftDTO>>("You do not have access to this employee profile.");
+
+            var utcNow = DateTime.UtcNow;
+            var totalCount = await _applicationRepository.CountArchivedPlatformShiftsForEmployeeAsync(employeeId, utcNow);
+            var rows = await _applicationRepository.GetArchivedPlatformShiftsForEmployeePagedAsync(
+                employeeId,
+                utcNow,
+                page,
+                pageSize);
+
+            return Result.Success(new PagedResultDTO<EmployeePlatformShiftDTO>
+            {
+                Items = rows.Select(MapPlatformShift).ToList(),
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize
+            });
         }
 
         private async Task<List<EmployeePlatformShiftDTO>> BuildPlatformShiftsAsync(Guid employeeId)
@@ -141,20 +219,26 @@ namespace Infrastructure.Persistence.Services
 
             return acceptedApplications
                 .Where(row => row.JobPost.IsArchived(utcNow))
-                .Select(row => new EmployeePlatformShiftDTO
-                {
-                    ApplicationId = row.Application.Id,
-                    JobPostId = row.JobPost.Id,
-                    JobPostTitle = row.JobPost.Title,
-                    Position = row.JobPost.Position,
-                    EmployerName = row.Employer.Name,
-                    RestaurantLocationName = row.Location?.Name,
-                    RestaurantLocationCity = row.Location?.City,
-                    StartingDate = row.JobPost.StartingDate,
-                    Salary = row.JobPost.Salary,
-                    CompletedAtUtc = row.JobPost.StartingDate.AddHours(1)
-                })
+                .Select(row => MapPlatformShift(row))
                 .ToList();
+        }
+
+        private static EmployeePlatformShiftDTO MapPlatformShift(
+            (Application Application, JobPost JobPost, Employer Employer, RestaurantLocation? Location) row)
+        {
+            return new EmployeePlatformShiftDTO
+            {
+                ApplicationId = row.Application.Id,
+                JobPostId = row.JobPost.Id,
+                JobPostTitle = row.JobPost.Title,
+                Position = row.JobPost.Position,
+                EmployerName = row.Employer.Name,
+                RestaurantLocationName = row.Location?.Name,
+                RestaurantLocationCity = row.Location?.City,
+                StartingDate = row.JobPost.StartingDate,
+                Salary = row.JobPost.Salary,
+                CompletedAtUtc = row.JobPost.StartingDate.AddHours(1)
+            };
         }
 
         private static WorkExperienceDTO MapWorkExperience(WorkExperience experience)
@@ -168,6 +252,33 @@ namespace Infrastructure.Persistence.Services
                 EndDate = experience.EndDate,
                 Description = experience.Description
             };
+        }
+
+        private static int? CalculateAge(DateTime? dateOfBirth, DateTime utcNow)
+        {
+            if (dateOfBirth == null)
+                return null;
+
+            var today = utcNow.Date;
+            var birthDate = dateOfBirth.Value.Date;
+            var age = today.Year - birthDate.Year;
+
+            if (birthDate > today.AddYears(-age))
+                age--;
+
+            return age >= 0 ? age : null;
+        }
+
+        private static double? CalculateTotalExperienceYears(DateTime? earliestStartDate, DateTime utcNow)
+        {
+            if (earliestStartDate == null)
+                return null;
+
+            var totalDays = (utcNow.Date - earliestStartDate.Value.Date).TotalDays;
+            if (totalDays < 0)
+                return null;
+
+            return totalDays / 365.25d;
         }
     }
 }
