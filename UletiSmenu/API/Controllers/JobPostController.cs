@@ -314,7 +314,7 @@ namespace API.Controllers
             if (result.IsFailure)
                 return BadRequest(result.Error);
 
-            return Ok(new { message = result.Value });
+            return Ok(new { message = "Job post archived successfully." });
         }
 
         [Authorize(Roles = "Employer")]
@@ -329,7 +329,7 @@ namespace API.Controllers
             if (result.IsFailure)
                 return BadRequest(result.Error);
 
-            return Ok(new { message = result.Value });
+            return Ok(new { message = "Job post deleted successfully." });
         }
 
         private Guid? GetEmployerId()
