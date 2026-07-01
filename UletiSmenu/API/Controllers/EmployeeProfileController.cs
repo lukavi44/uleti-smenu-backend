@@ -128,11 +128,29 @@ namespace API.Controllers
         }
 
         [Authorize(Roles = "Employer")]
+        [HttpGet("{employeeId:guid}/reviews/summary")]
+        public async Task<IActionResult> GetEmployeeReviewsSummary(Guid employeeId)
+        {
+            var employerId = GetCurrentUserId();
+            if (employerId == null)
+                return Unauthorized();
+
+            var result = await _employeeProfileService.GetCandidateReviewsSummaryForEmployerAsync(
+                employerId.Value,
+                employeeId);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Value);
+        }
+
+        [Authorize(Roles = "Employer")]
         [HttpGet("{employeeId:guid}/reviews")]
         public async Task<IActionResult> GetEmployeeReviews(
             Guid employeeId,
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 5)
+            [FromQuery] int pageSize = 5,
+            [FromQuery] string sort = "newest")
         {
             var employerId = GetCurrentUserId();
             if (employerId == null)
@@ -140,6 +158,20 @@ namespace API.Controllers
 
             if (page < 1 || pageSize < 1 || pageSize > 50)
                 return BadRequest("Invalid pagination parameters.");
+
+            if (pageSize > 5)
+            {
+                var richResult = await _employeeProfileService.GetCandidateReviewsForEmployerAsync(
+                    employerId.Value,
+                    employeeId,
+                    page,
+                    pageSize,
+                    sort);
+                if (richResult.IsFailure)
+                    return BadRequest(richResult.Error);
+
+                return Ok(richResult.Value);
+            }
 
             var result = await _employeeProfileService.GetEmployeeReviewsForEmployerAsync(
                 employerId.Value,

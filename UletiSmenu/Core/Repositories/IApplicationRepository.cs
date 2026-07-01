@@ -11,6 +11,7 @@ namespace Core.Repositories
         Task<Dictionary<Guid, List<RecentApplicantPreviewDTO>>> GetRecentApplicantsByJobPostIdsAsync(
             IEnumerable<Guid> jobPostIds,
             int limitPerPost = 3);
+        Task<JobPostApplicationStatsDTO> GetApplicationStatsByJobPostIdAsync(Guid jobPostId);
         Task AddAsync(Application application);
         Task<Application?> GetByIdAsync(Guid applicationId);
         Task<List<Application>> GetPendingApplicationsByJobPostIdAsync(Guid jobPostId);

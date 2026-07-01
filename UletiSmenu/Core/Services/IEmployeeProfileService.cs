@@ -19,6 +19,15 @@ namespace Core.Services
             Guid employeeId,
             int page,
             int pageSize);
+        Task<Result<CandidateReviewSummaryDTO>> GetCandidateReviewsSummaryForEmployerAsync(
+            Guid employerId,
+            Guid employeeId);
+        Task<Result<PagedResultDTO<CandidateReviewItemDTO>>> GetCandidateReviewsForEmployerAsync(
+            Guid employerId,
+            Guid employeeId,
+            int page,
+            int pageSize,
+            string sort);
         Task<Result<PagedResultDTO<WorkExperienceDTO>>> GetEmployeeWorkExperiencesForEmployerAsync(
             Guid employerId,
             Guid employeeId,

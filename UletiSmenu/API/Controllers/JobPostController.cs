@@ -271,5 +271,71 @@ namespace API.Controllers
             var positions = await _jobPostService.GetMyJobPostPositionsAsync(employerId);
             return Ok(positions);
         }
+
+        [Authorize(Roles = "Employer")]
+        [HttpGet("my/{jobPostId:guid}/application-stats")]
+        public async Task<IActionResult> GetMyJobPostApplicationStats(Guid jobPostId)
+        {
+            var employerId = GetEmployerId();
+            if (employerId == null)
+                return Unauthorized("Invalid user claim.");
+
+            var result = await _jobPostService.GetMyJobPostApplicationStatsAsync(employerId.Value, jobPostId);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Value);
+        }
+
+        [Authorize(Roles = "Employer")]
+        [HttpPost("my/{jobPostId:guid}/duplicate")]
+        public async Task<IActionResult> DuplicateMyJobPost(Guid jobPostId)
+        {
+            var employerId = GetEmployerId();
+            if (employerId == null)
+                return Unauthorized("Invalid user claim.");
+
+            var result = await _jobPostService.DuplicateMyJobPostAsync(employerId.Value, jobPostId);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(_mapper.Map<JobPostDTO>(result.Value));
+        }
+
+        [Authorize(Roles = "Employer")]
+        [HttpPost("my/{jobPostId:guid}/archive")]
+        public async Task<IActionResult> ArchiveMyJobPost(Guid jobPostId)
+        {
+            var employerId = GetEmployerId();
+            if (employerId == null)
+                return Unauthorized("Invalid user claim.");
+
+            var result = await _jobPostService.ArchiveMyJobPostAsync(employerId.Value, jobPostId);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(new { message = result.Value });
+        }
+
+        [Authorize(Roles = "Employer")]
+        [HttpDelete("my/{jobPostId:guid}")]
+        public async Task<IActionResult> DeleteMyJobPost(Guid jobPostId)
+        {
+            var employerId = GetEmployerId();
+            if (employerId == null)
+                return Unauthorized("Invalid user claim.");
+
+            var result = await _jobPostService.DeleteMyJobPostAsync(employerId.Value, jobPostId);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(new { message = result.Value });
+        }
+
+        private Guid? GetEmployerId()
+        {
+            var employerIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return Guid.TryParse(employerIdClaim, out var employerId) ? employerId : null;
+        }
     }
 }

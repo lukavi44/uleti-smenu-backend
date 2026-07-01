@@ -14,6 +14,7 @@ namespace Infrastructure.Persistence.Services
         private const string NewFavouriteRestaurantJobPostType = "NewFavouriteRestaurantJobPost";
         private readonly IJobPostRepository _jobPostRepository;
         private readonly IRestaurantLocationRepository _restaurantLocationRepository;
+        private readonly IApplicationRepository _applicationRepository;
         private readonly IApplicationUnitOfWork _applicationUnitOfWork;
         private readonly IBillingService _billingService;
         private readonly IEmailService _emailService;
@@ -22,6 +23,7 @@ namespace Infrastructure.Persistence.Services
         public JobPostService(
             IJobPostRepository jobPostRepository,
             IRestaurantLocationRepository restaurantLocationRepository,
+            IApplicationRepository applicationRepository,
             IApplicationUnitOfWork applicationUnitOfWork,
             IBillingService billingService,
             IEmailService emailService,
@@ -29,6 +31,7 @@ namespace Infrastructure.Persistence.Services
         {
             _jobPostRepository = jobPostRepository;
             _restaurantLocationRepository = restaurantLocationRepository;
+            _applicationRepository = applicationRepository;
             _applicationUnitOfWork = applicationUnitOfWork;
             _billingService = billingService;
             _emailService = emailService;
@@ -238,6 +241,124 @@ namespace Infrastructure.Persistence.Services
 
             await _applicationUnitOfWork.SaveChangesAsync();
             return Result.Success("Job post updated successfully.");
+        }
+
+        public async Task<Result<JobPostApplicationStatsDTO>> GetMyJobPostApplicationStatsAsync(
+            Guid employerId,
+            Guid jobPostId)
+        {
+            var jobPost = await _jobPostRepository.GetJobPostByIdAsync(jobPostId);
+            if (jobPost == null)
+                return Result.Failure<JobPostApplicationStatsDTO>("Job post not found.");
+
+            if (jobPost.EmployerId != employerId)
+                return Result.Failure<JobPostApplicationStatsDTO>("You can view only your own job posts.");
+
+            return Result.Success(await _applicationRepository.GetApplicationStatsByJobPostIdAsync(jobPostId));
+        }
+
+        public async Task<Result<JobPost>> DuplicateMyJobPostAsync(Guid employerId, Guid jobPostId)
+        {
+            var source = await _jobPostRepository.GetJobPostByIdAsync(jobPostId);
+            if (source == null)
+                return Result.Failure<JobPost>("Job post not found.");
+
+            if (source.EmployerId != employerId)
+                return Result.Failure<JobPost>("You can duplicate only your own job posts.");
+
+            if (!source.RestaurantLocationId.HasValue)
+                return Result.Failure<JobPost>("Restaurant location must be selected.");
+
+            var utcNow = DateTime.UtcNow;
+            var startingDate = ResolveDuplicateStartingDate(source.StartingDate, utcNow);
+            var visibleUntil = source.VisibleUntil < startingDate
+                ? startingDate
+                : source.VisibleUntil > startingDate.AddHours(1)
+                    ? startingDate.AddHours(1)
+                    : source.VisibleUntil;
+
+            var duplicateResult = JobPost.Create(
+                Guid.NewGuid(),
+                source.Title,
+                source.Description,
+                JobStatusEnum.Draft,
+                startingDate,
+                visibleUntil,
+                employerId,
+                source.RestaurantLocationId.Value,
+                source.Salary,
+                source.Position);
+
+            if (duplicateResult.IsFailure)
+                return Result.Failure<JobPost>(duplicateResult.Error);
+
+            var createResult = await CreateJobPostAsync(duplicateResult.Value);
+            if (createResult.IsFailure)
+                return Result.Failure<JobPost>(createResult.Error);
+
+            return Result.Success(duplicateResult.Value);
+        }
+
+        public async Task<Result> ArchiveMyJobPostAsync(Guid employerId, Guid jobPostId)
+        {
+            var jobPost = await _jobPostRepository.GetJobPostByIdAsync(jobPostId);
+            if (jobPost == null)
+                return Result.Failure("Job post not found.");
+
+            if (jobPost.EmployerId != employerId)
+                return Result.Failure("You can archive only your own job posts.");
+
+            if (jobPost.Status == JobStatusEnum.Cancelled)
+                return Result.Success("Job post is already archived.");
+
+            if (!jobPost.RestaurantLocationId.HasValue)
+                return Result.Failure("Restaurant location must be selected.");
+
+            var updateResult = jobPost.Update(
+                jobPost.Title,
+                jobPost.Description,
+                JobStatusEnum.Cancelled,
+                jobPost.StartingDate,
+                jobPost.VisibleUntil,
+                jobPost.RestaurantLocationId.Value,
+                jobPost.Salary,
+                jobPost.Position);
+
+            if (updateResult.IsFailure)
+                return Result.Failure(updateResult.Error);
+
+            await _applicationUnitOfWork.SaveChangesAsync();
+            return Result.Success("Job post archived successfully.");
+        }
+
+        public async Task<Result> DeleteMyJobPostAsync(Guid employerId, Guid jobPostId)
+        {
+            var jobPost = await _jobPostRepository.GetJobPostByIdAsync(jobPostId);
+            if (jobPost == null)
+                return Result.Failure("Job post not found.");
+
+            if (jobPost.EmployerId != employerId)
+                return Result.Failure("You can delete only your own job posts.");
+
+            var applicantCount = await _applicationRepository.GetApplicantCountByJobPostAsync(jobPostId);
+            if (applicantCount > 0)
+                return Result.Failure("Cannot delete a job post that has applications. Archive it instead.");
+
+            await _jobPostRepository.DeleteJobPostAsync(jobPost);
+            await _applicationUnitOfWork.SaveChangesAsync();
+            return Result.Success("Job post deleted successfully.");
+        }
+
+        private static DateTime ResolveDuplicateStartingDate(DateTime sourceStartingDate, DateTime utcNow)
+        {
+            if (sourceStartingDate > utcNow.AddHours(1))
+                return sourceStartingDate;
+
+            var nextWeek = utcNow.Date.AddDays(7).Add(sourceStartingDate.TimeOfDay);
+            if (nextWeek > utcNow.AddHours(1))
+                return nextWeek;
+
+            return utcNow.AddDays(1);
         }
 
         private async Task CreateInAppNotificationsAsync(JobPost jobPost)

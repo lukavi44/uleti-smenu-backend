@@ -165,6 +165,51 @@ namespace Infrastructure.Persistence.Services
             });
         }
 
+        public async Task<Result<CandidateReviewSummaryDTO>> GetCandidateReviewsSummaryForEmployerAsync(
+            Guid employerId,
+            Guid employeeId)
+        {
+            if (!await _applicationRepository.EmployerCanViewEmployeeAsync(employerId, employeeId))
+                return Result.Failure<CandidateReviewSummaryDTO>("You do not have access to this employee profile.");
+
+            return Result.Success(await _reviewRepository.GetCandidateReviewSummaryAsync(employeeId));
+        }
+
+        public async Task<Result<PagedResultDTO<CandidateReviewItemDTO>>> GetCandidateReviewsForEmployerAsync(
+            Guid employerId,
+            Guid employeeId,
+            int page,
+            int pageSize,
+            string sort)
+        {
+            if (!await _applicationRepository.EmployerCanViewEmployeeAsync(employerId, employeeId))
+                return Result.Failure<PagedResultDTO<CandidateReviewItemDTO>>("You do not have access to this employee profile.");
+
+            if (page < 1 || pageSize < 1 || pageSize > 50)
+                return Result.Failure<PagedResultDTO<CandidateReviewItemDTO>>("Invalid pagination parameters.");
+
+            var normalizedSort = sort?.Trim().ToLowerInvariant() switch
+            {
+                "highest" => "highest",
+                "lowest" => "lowest",
+                _ => "newest"
+            };
+
+            var (items, totalCount) = await _reviewRepository.GetCandidateReviewsPagedAsync(
+                employeeId,
+                page,
+                pageSize,
+                normalizedSort);
+
+            return Result.Success(new PagedResultDTO<CandidateReviewItemDTO>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize
+            });
+        }
+
         public async Task<Result<PagedResultDTO<WorkExperienceDTO>>> GetEmployeeWorkExperiencesForEmployerAsync(
             Guid employerId,
             Guid employeeId,

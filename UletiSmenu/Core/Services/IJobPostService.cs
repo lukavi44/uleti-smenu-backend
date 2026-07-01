@@ -53,5 +53,9 @@ namespace Core.Services
             int? minSalary = null,
             int? maxSalary = null);
         Task<EmployerDashboardSummaryDTO> GetEmployerDashboardSummaryAsync(Guid employerId);
+        Task<Result<JobPostApplicationStatsDTO>> GetMyJobPostApplicationStatsAsync(Guid employerId, Guid jobPostId);
+        Task<Result<JobPost>> DuplicateMyJobPostAsync(Guid employerId, Guid jobPostId);
+        Task<Result> ArchiveMyJobPostAsync(Guid employerId, Guid jobPostId);
+        Task<Result> DeleteMyJobPostAsync(Guid employerId, Guid jobPostId);
     }
 }

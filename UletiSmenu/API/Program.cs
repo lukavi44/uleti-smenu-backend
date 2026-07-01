@@ -76,6 +76,7 @@ builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IJobPostService, JobPostService>();
 builder.Services.AddScoped<IApplicationService, ApplicationService>();
 builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddScoped<IChatAccessService, ChatAccessService>();
 builder.Services.AddScoped<IEmployeeProfileService, EmployeeProfileService>();
 builder.Services.AddScoped<IEmployerProfileService, EmployerProfileService>();
 builder.Services.AddScoped<IPlatformStatsService, PlatformStatsService>();

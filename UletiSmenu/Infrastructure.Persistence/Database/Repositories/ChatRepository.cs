@@ -1,5 +1,7 @@
 using Core.DTOs;
+using Core.Helpers;
 using Core.Models.Entities;
+using Core.Models.Enums;
 using Core.Repositories;
 using Microsoft.EntityFrameworkCore;
 
@@ -31,42 +33,58 @@ namespace Infrastructure.Persistence.Database.Repositories
                 && (conversation.EmployerId == userId || conversation.EmployeeId == userId));
         }
 
-        public async Task<List<ChatConversationListItemDTO>> GetConversationsForEmployerAsync(Guid employerId)
+        public async Task<List<ChatConversationListItemDTO>> GetConversationsForEmployerAsync(
+            Guid employerId,
+            ConversationStatusEnum status)
         {
             var rows = await (
                 from conversation in _context.Conversations
-                where conversation.EmployerId == employerId
+                where conversation.EmployerId == employerId && conversation.Status == status
                 join jobPost in _context.JobPosts on conversation.JobPostId equals jobPost.Id
                 join employee in _context.Users.OfType<Employee>() on conversation.EmployeeId equals employee.Id
+                join location in _context.RestaurantLocations on jobPost.RestaurantLocationId equals location.Id into locationGroup
+                from location in locationGroup.DefaultIfEmpty()
                 select new ConversationRow(
                     conversation.Id,
                     conversation.ApplicationId,
                     conversation.JobPostId,
                     jobPost.Title,
+                    location != null ? location.Name : null,
+                    location != null ? location.City : null,
                     employee.FirstName + " " + employee.LastName,
                     employee.Id,
                     employee.ProfilePhoto,
-                    conversation.CreatedAtUtc)).ToListAsync();
+                    conversation.CreatedAtUtc,
+                    conversation.Status,
+                    conversation.LastMessageAtUtc)).ToListAsync();
 
             return await MapConversationRowsAsync(rows, employerId);
         }
 
-        public async Task<List<ChatConversationListItemDTO>> GetConversationsForEmployeeAsync(Guid employeeId)
+        public async Task<List<ChatConversationListItemDTO>> GetConversationsForEmployeeAsync(
+            Guid employeeId,
+            ConversationStatusEnum status)
         {
             var rows = await (
                 from conversation in _context.Conversations
-                where conversation.EmployeeId == employeeId
+                where conversation.EmployeeId == employeeId && conversation.Status == status
                 join jobPost in _context.JobPosts on conversation.JobPostId equals jobPost.Id
                 join employer in _context.Users.OfType<Employer>() on conversation.EmployerId equals employer.Id
+                join location in _context.RestaurantLocations on jobPost.RestaurantLocationId equals location.Id into locationGroup
+                from location in locationGroup.DefaultIfEmpty()
                 select new ConversationRow(
                     conversation.Id,
                     conversation.ApplicationId,
                     conversation.JobPostId,
                     jobPost.Title,
+                    location != null ? location.Name : null,
+                    location != null ? location.City : null,
                     employer.Name,
                     employer.Id,
                     employer.ProfilePhoto,
-                    conversation.CreatedAtUtc)).ToListAsync();
+                    conversation.CreatedAtUtc,
+                    conversation.Status,
+                    conversation.LastMessageAtUtc)).ToListAsync();
 
             return await MapConversationRowsAsync(rows, employeeId);
         }
@@ -74,12 +92,39 @@ namespace Infrastructure.Persistence.Database.Repositories
         public async Task<int> GetTotalUnreadCountAsync(Guid userId)
         {
             var conversationIds = await _context.Conversations
-                .Where(conversation => conversation.EmployerId == userId || conversation.EmployeeId == userId)
+                .Where(conversation =>
+                    (conversation.EmployerId == userId || conversation.EmployeeId == userId)
+                    && conversation.Status == ConversationStatusEnum.Active)
                 .Select(conversation => conversation.Id)
                 .ToListAsync();
 
             var unreadCounts = await GetUnreadCountsAsync(userId, conversationIds);
             return unreadCounts.Values.Sum();
+        }
+
+        public async Task ArchiveExpiredConversationsForUserAsync(Guid userId, DateTime utcNow)
+        {
+            var archiveCutoff = utcNow.AddHours(-ChatRules.ArchiveHoursAfterShiftStart);
+
+            var conversations = await (
+                from conversation in _context.Conversations
+                join jobPost in _context.JobPosts on conversation.JobPostId equals jobPost.Id
+                where (conversation.EmployerId == userId || conversation.EmployeeId == userId)
+                      && conversation.Status == ConversationStatusEnum.Active
+                      && jobPost.StartingDate <= archiveCutoff
+                select conversation).ToListAsync();
+
+            foreach (var conversation in conversations)
+            {
+                conversation.Archive(utcNow);
+                _context.Conversations.Update(conversation);
+            }
+        }
+
+        public async Task NormalizeEmptyConversationStatusesAsync()
+        {
+            await _context.Database.ExecuteSqlRawAsync(
+                "UPDATE [Conversations] SET [Status] = N'Active' WHERE [Status] = N'' OR [Status] IS NULL");
         }
 
         public async Task MarkConversationReadAsync(Guid userId, Guid conversationId, DateTime readAtUtc)
@@ -123,6 +168,11 @@ namespace Infrastructure.Persistence.Database.Repositories
             await _context.Conversations.AddAsync(conversation);
         }
 
+        public void UpdateConversation(Conversation conversation)
+        {
+            _context.Conversations.Update(conversation);
+        }
+
         public async Task AddMessageAsync(ChatMessage message)
         {
             await _context.ChatMessages.AddAsync(message);
@@ -149,6 +199,7 @@ namespace Infrastructure.Persistence.Database.Repositories
                 .Select(row =>
                 {
                     lastMessages.TryGetValue(row.Id, out var lastMessage);
+                    var isArchived = row.Status == ConversationStatusEnum.Archived;
 
                     return new ChatConversationListItemDTO
                     {
@@ -156,12 +207,17 @@ namespace Infrastructure.Persistence.Database.Repositories
                         ApplicationId = row.ApplicationId,
                         JobPostId = row.JobPostId,
                         JobPostTitle = row.JobPostTitle,
+                        RestaurantLocationName = row.RestaurantLocationName,
+                        RestaurantLocationCity = row.RestaurantLocationCity,
                         OtherPartyName = row.OtherPartyName,
                         OtherPartyId = row.OtherPartyId,
                         OtherPartyProfilePhoto = row.OtherPartyProfilePhoto,
                         LastMessagePreview = lastMessage?.Content,
-                        LastMessageAtUtc = lastMessage?.SentAtUtc ?? row.CreatedAtUtc,
-                        UnreadCount = unreadCounts.GetValueOrDefault(row.Id)
+                        LastMessageAtUtc = row.LastMessageAtUtc ?? lastMessage?.SentAtUtc ?? row.CreatedAtUtc,
+                        UnreadCount = isArchived ? 0 : unreadCounts.GetValueOrDefault(row.Id),
+                        Status = row.Status.ToString(),
+                        IsReadOnly = isArchived,
+                        CanSendMessages = !isArchived
                     };
                 })
                 .OrderByDescending(item => item.LastMessageAtUtc)
@@ -200,9 +256,13 @@ namespace Infrastructure.Persistence.Database.Repositories
             Guid ApplicationId,
             Guid JobPostId,
             string JobPostTitle,
+            string? RestaurantLocationName,
+            string? RestaurantLocationCity,
             string OtherPartyName,
             Guid OtherPartyId,
             string? OtherPartyProfilePhoto,
-            DateTime CreatedAtUtc);
+            DateTime CreatedAtUtc,
+            ConversationStatusEnum Status,
+            DateTime? LastMessageAtUtc);
     }
 }

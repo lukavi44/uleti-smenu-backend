@@ -1,4 +1,5 @@
 using Core.DTOs;
+using Core.Helpers;
 using Core.Models.Entities;
 using Core.Models.Enums;
 using Core.Repositories;
@@ -113,9 +114,47 @@ namespace Infrastructure.Persistence.Database.Repositories
                 totalCount);
         }
 
-        public async Task<List<ReviewDTO>> GetReviewsForEmployerAsync(Guid employerId)
+        public async Task<CandidateReviewSummaryDTO> GetCandidateReviewSummaryAsync(Guid employeeId)
         {
-            var reviews = await (
+            var employee = await _context.Users.OfType<Employee>()
+                .Where(item => item.Id == employeeId)
+                .Select(item => new { item.FirstName, item.LastName })
+                .FirstOrDefaultAsync();
+
+            var reviews = await _context.MatchReviews
+                .Where(review => review.RevieweeId == employeeId)
+                .Select(review => new { review.Rating, review.CreatedAtUtc })
+                .ToListAsync();
+
+            var candidateName = employee == null
+                ? string.Empty
+                : $"{employee.FirstName} {employee.LastName}".Trim();
+
+            if (reviews.Count == 0)
+            {
+                return new CandidateReviewSummaryDTO
+                {
+                    CandidateName = candidateName
+                };
+            }
+
+            return new CandidateReviewSummaryDTO
+            {
+                CandidateName = candidateName,
+                AverageRating = Math.Round((decimal)reviews.Average(item => item.Rating), 1),
+                ReviewCount = reviews.Count,
+                RecommendationsCount = reviews.Count(item => item.Rating >= ReviewRecommendationRules.MinimumRating),
+                LastReviewAtUtc = reviews.Max(item => item.CreatedAtUtc)
+            };
+        }
+
+        public async Task<(List<CandidateReviewItemDTO> Items, int TotalCount)> GetCandidateReviewsPagedAsync(
+            Guid employeeId,
+            int page,
+            int pageSize,
+            string sort)
+        {
+            var query =
                 from review in _context.MatchReviews
                 join application in _context.Applications on review.ApplicationId equals application.Id
                 join jobPost in _context.JobPosts on application.JobPostId equals jobPost.Id
@@ -123,31 +162,182 @@ namespace Infrastructure.Persistence.Database.Repositories
                 from reviewerEmployer in employerReviewers.DefaultIfEmpty()
                 join reviewerEmployee in _context.Users.OfType<Employee>() on review.ReviewerId equals reviewerEmployee.Id into employeeReviewers
                 from reviewerEmployee in employeeReviewers.DefaultIfEmpty()
+                where review.RevieweeId == employeeId
+                select new
+                {
+                    review,
+                    jobPostTitle = jobPost.Title,
+                    reviewerId = reviewerEmployer != null
+                        ? reviewerEmployer.Id
+                        : reviewerEmployee != null
+                            ? reviewerEmployee.Id
+                            : review.ReviewerId,
+                    reviewerName = reviewerEmployer != null
+                        ? reviewerEmployer.Name
+                        : reviewerEmployee != null
+                            ? reviewerEmployee.FirstName + " " + reviewerEmployee.LastName
+                            : "Unknown",
+                    reviewerProfilePhoto = reviewerEmployer != null
+                        ? reviewerEmployer.ProfilePhoto
+                        : reviewerEmployee != null
+                            ? reviewerEmployee.ProfilePhoto
+                            : null,
+                    reviewerIsVerified = reviewerEmployer != null && reviewerEmployer.IsVerifiedEmployer
+                };
+
+            query = sort switch
+            {
+                "highest" => query
+                    .OrderByDescending(item => item.review.Rating)
+                    .ThenByDescending(item => item.review.CreatedAtUtc),
+                "lowest" => query
+                    .OrderBy(item => item.review.Rating)
+                    .ThenByDescending(item => item.review.CreatedAtUtc),
+                _ => query.OrderByDescending(item => item.review.CreatedAtUtc)
+            };
+
+            var totalCount = await _context.MatchReviews
+                .Where(review => review.RevieweeId == employeeId)
+                .CountAsync();
+
+            var reviews = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (
+                reviews.Select(item => new CandidateReviewItemDTO
+                {
+                    Id = item.review.Id,
+                    ApplicationId = item.review.ApplicationId,
+                    ReviewerId = item.reviewerId,
+                    ReviewerName = item.reviewerName.Trim(),
+                    ReviewerProfilePhoto = item.reviewerProfilePhoto,
+                    ReviewerIsVerified = item.reviewerIsVerified,
+                    Rating = item.review.Rating,
+                    Comment = item.review.Comment,
+                    JobPostTitle = item.jobPostTitle,
+                    CreatedAtUtc = item.review.CreatedAtUtc,
+                    Recommends = item.review.Rating >= ReviewRecommendationRules.MinimumRating
+                }).ToList(),
+                totalCount);
+        }
+
+        public async Task<List<ReviewDTO>> GetReviewsForEmployerAsync(Guid employerId)
+        {
+            var reviews = await (
+                from review in _context.MatchReviews
+                join application in _context.Applications on review.ApplicationId equals application.Id
+                join jobPost in _context.JobPosts on application.JobPostId equals jobPost.Id
+                join reviewerEmployee in _context.Users.OfType<Employee>() on review.ReviewerId equals reviewerEmployee.Id
                 where review.RevieweeId == employerId
                 orderby review.CreatedAtUtc descending
                 select new
                 {
                     review,
                     jobPost.Title,
-                    ReviewerName = reviewerEmployer != null
-                        ? reviewerEmployer.Name
-                        : reviewerEmployee != null
-                            ? reviewerEmployee.FirstName + " " + reviewerEmployee.LastName
-                            : "Unknown"
-                }).ToListAsync();
+                    ReviewerName = reviewerEmployee.FirstName + " " + reviewerEmployee.LastName
+                })
+                .ToListAsync();
 
             return reviews
                 .Select(item => new ReviewDTO
                 {
                     Id = item.review.Id,
                     ApplicationId = item.review.ApplicationId,
-                    ReviewerName = item.ReviewerName,
+                    ReviewerName = item.ReviewerName.Trim(),
                     Rating = item.review.Rating,
                     Comment = item.review.Comment,
                     JobPostTitle = item.Title,
                     CreatedAtUtc = item.review.CreatedAtUtc
                 })
                 .ToList();
+        }
+
+        public async Task<EmployerRestaurantReviewSummaryDTO> GetEmployerRestaurantReviewSummaryAsync(Guid employerId)
+        {
+            var employer = await _context.Users.OfType<Employer>()
+                .Where(item => item.Id == employerId)
+                .Select(item => new { item.Name })
+                .FirstOrDefaultAsync();
+
+            var reviews = await _context.MatchReviews
+                .Where(review => review.RevieweeId == employerId)
+                .Select(review => new { review.Rating, review.CreatedAtUtc })
+                .ToListAsync();
+
+            if (reviews.Count == 0)
+            {
+                return new EmployerRestaurantReviewSummaryDTO
+                {
+                    RestaurantName = employer?.Name ?? string.Empty
+                };
+            }
+
+            return new EmployerRestaurantReviewSummaryDTO
+            {
+                RestaurantName = employer?.Name ?? string.Empty,
+                AverageRating = Math.Round((decimal)reviews.Average(item => item.Rating), 1),
+                ReviewCount = reviews.Count,
+                RecommendationsCount = reviews.Count(item => item.Rating >= ReviewRecommendationRules.MinimumRating),
+                LastReviewAtUtc = reviews.Max(item => item.CreatedAtUtc)
+            };
+        }
+
+        public async Task<(List<EmployerRestaurantReviewItemDTO> Items, int TotalCount)> GetEmployerRestaurantReviewsPagedAsync(
+            Guid employerId,
+            int page,
+            int pageSize,
+            string sort)
+        {
+            var query =
+                from review in _context.MatchReviews
+                join application in _context.Applications on review.ApplicationId equals application.Id
+                join jobPost in _context.JobPosts on application.JobPostId equals jobPost.Id
+                join reviewerEmployee in _context.Users.OfType<Employee>() on review.ReviewerId equals reviewerEmployee.Id
+                where review.RevieweeId == employerId
+                select new
+                {
+                    review,
+                    reviewerId = reviewerEmployee.Id,
+                    reviewerName = reviewerEmployee.FirstName + " " + reviewerEmployee.LastName,
+                    reviewerProfilePhoto = reviewerEmployee.ProfilePhoto
+                };
+
+            query = sort switch
+            {
+                "highest" => query
+                    .OrderByDescending(item => item.review.Rating)
+                    .ThenByDescending(item => item.review.CreatedAtUtc),
+                "lowest" => query
+                    .OrderBy(item => item.review.Rating)
+                    .ThenByDescending(item => item.review.CreatedAtUtc),
+                _ => query.OrderByDescending(item => item.review.CreatedAtUtc)
+            };
+
+            var totalCount = await _context.MatchReviews
+                .Where(review => review.RevieweeId == employerId)
+                .CountAsync();
+
+            var reviews = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (
+                reviews.Select(item => new EmployerRestaurantReviewItemDTO
+                {
+                    Id = item.review.Id,
+                    ApplicationId = item.review.ApplicationId,
+                    ReviewerId = item.reviewerId,
+                    ReviewerName = item.reviewerName.Trim(),
+                    ReviewerProfilePhoto = item.reviewerProfilePhoto,
+                    Rating = item.review.Rating,
+                    Comment = item.review.Comment,
+                    CreatedAtUtc = item.review.CreatedAtUtc,
+                    Recommends = item.review.Rating >= ReviewRecommendationRules.MinimumRating
+                }).ToList(),
+                totalCount);
         }
 
         public async Task<ReviewSummaryDTO> GetEmployeeReviewSummaryAsync(Guid employeeId)

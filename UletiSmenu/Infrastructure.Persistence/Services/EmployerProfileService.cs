@@ -288,5 +288,70 @@ namespace Infrastructure.Persistence.Services
                 employerIdsWithBranch.Contains(employer.Id) ||
                 string.Equals(employer.Address?.City?.Name, normalizedCity, StringComparison.OrdinalIgnoreCase));
         }
+
+        public async Task<Result<EmployerRestaurantReviewSummaryDTO>> GetMyRestaurantReviewsSummaryBySlugAsync(
+            Guid employerId,
+            string slug)
+        {
+            var ownershipResult = await EnsureEmployerOwnsSlugAsync(employerId, slug);
+            if (ownershipResult.IsFailure)
+                return Result.Failure<EmployerRestaurantReviewSummaryDTO>(ownershipResult.Error);
+
+            return Result.Success(
+                await _reviewRepository.GetEmployerRestaurantReviewSummaryAsync(ownershipResult.Value));
+        }
+
+        public async Task<Result<PagedResultDTO<EmployerRestaurantReviewItemDTO>>> GetMyRestaurantReviewsBySlugAsync(
+            Guid employerId,
+            string slug,
+            int page,
+            int pageSize,
+            string sort)
+        {
+            var ownershipResult = await EnsureEmployerOwnsSlugAsync(employerId, slug);
+            if (ownershipResult.IsFailure)
+                return Result.Failure<PagedResultDTO<EmployerRestaurantReviewItemDTO>>(ownershipResult.Error);
+
+            if (page < 1 || pageSize < 1 || pageSize > 50)
+                return Result.Failure<PagedResultDTO<EmployerRestaurantReviewItemDTO>>("Invalid pagination parameters.");
+
+            var normalizedSort = NormalizeReviewSort(sort);
+            var (items, totalCount) = await _reviewRepository.GetEmployerRestaurantReviewsPagedAsync(
+                ownershipResult.Value,
+                page,
+                pageSize,
+                normalizedSort);
+
+            return Result.Success(new PagedResultDTO<EmployerRestaurantReviewItemDTO>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize
+            });
+        }
+
+        private async Task<Result<Guid>> EnsureEmployerOwnsSlugAsync(Guid employerId, string slug)
+        {
+            if (string.IsNullOrWhiteSpace(slug))
+                return Result.Failure<Guid>("Restaurant not found.");
+
+            var employer = await _userRepository.FindEmployerByPublicSlugAsync(slug);
+            if (employer == null)
+                return Result.Failure<Guid>("Restaurant not found.");
+
+            if (employer.Id != employerId)
+                return Result.Failure<Guid>("You can view reviews only for your own restaurants.");
+
+            return Result.Success(employer.Id);
+        }
+
+        private static string NormalizeReviewSort(string sort) =>
+            sort?.Trim().ToLowerInvariant() switch
+            {
+                "highest" => "highest",
+                "lowest" => "lowest",
+                _ => "newest"
+            };
     }
 }

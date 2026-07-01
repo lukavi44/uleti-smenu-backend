@@ -14,7 +14,13 @@ namespace Infrastructure.Persistence.Database.Configurations
             builder.Property(conversation => conversation.EmployerId).IsRequired();
             builder.Property(conversation => conversation.EmployeeId).IsRequired();
             builder.Property(conversation => conversation.JobPostId).IsRequired();
+            builder.Property(conversation => conversation.Status)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
             builder.Property(conversation => conversation.CreatedAtUtc).IsRequired();
+            builder.Property(conversation => conversation.ArchivedAtUtc);
+            builder.Property(conversation => conversation.LastMessageAtUtc);
 
             builder.HasIndex(conversation => conversation.ApplicationId).IsUnique();
             builder.HasIndex(conversation => conversation.EmployerId);

@@ -35,13 +35,13 @@ namespace API.Controllers
         }
 
         [HttpGet("conversations")]
-        public async Task<IActionResult> GetMyConversations()
+        public async Task<IActionResult> GetMyConversations([FromQuery] string status = "active")
         {
             var (userId, role, errorResult) = await ResolveCurrentUserAsync();
             if (errorResult != null)
                 return errorResult;
 
-            var result = await _chatService.GetMyConversationsAsync(userId, role!);
+            var result = await _chatService.GetMyConversationsAsync(userId, role!, status);
             if (result.IsFailure)
                 return BadRequest(result.Error);
 

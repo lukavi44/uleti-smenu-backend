@@ -128,6 +128,47 @@ namespace API.Controllers
             return Ok(result.Value);
         }
 
+        [Authorize(Roles = "Employer")]
+        [HttpGet("slug/{slug}/reviews/summary")]
+        public async Task<IActionResult> GetMyRestaurantReviewsSummary(string slug)
+        {
+            var employerId = GetCurrentUserId();
+            if (employerId == null)
+                return Unauthorized();
+
+            var result = await _employerProfileService.GetMyRestaurantReviewsSummaryBySlugAsync(
+                employerId.Value,
+                slug);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Value);
+        }
+
+        [Authorize(Roles = "Employer")]
+        [HttpGet("slug/{slug}/reviews")]
+        public async Task<IActionResult> GetMyRestaurantReviews(
+            string slug,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string sort = "newest")
+        {
+            var employerId = GetCurrentUserId();
+            if (employerId == null)
+                return Unauthorized();
+
+            var result = await _employerProfileService.GetMyRestaurantReviewsBySlugAsync(
+                employerId.Value,
+                slug,
+                page,
+                pageSize,
+                sort);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Value);
+        }
+
         private Guid? GetCurrentUserId()
         {
             var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);

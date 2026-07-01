@@ -12,7 +12,19 @@ namespace Core.Repositories
             Guid employeeId,
             int page,
             int pageSize);
+        Task<CandidateReviewSummaryDTO> GetCandidateReviewSummaryAsync(Guid employeeId);
+        Task<(List<CandidateReviewItemDTO> Items, int TotalCount)> GetCandidateReviewsPagedAsync(
+            Guid employeeId,
+            int page,
+            int pageSize,
+            string sort);
         Task<List<ReviewDTO>> GetReviewsForEmployerAsync(Guid employerId);
+        Task<EmployerRestaurantReviewSummaryDTO> GetEmployerRestaurantReviewSummaryAsync(Guid employerId);
+        Task<(List<EmployerRestaurantReviewItemDTO> Items, int TotalCount)> GetEmployerRestaurantReviewsPagedAsync(
+            Guid employerId,
+            int page,
+            int pageSize,
+            string sort);
         Task<ReviewSummaryDTO> GetEmployeeReviewSummaryAsync(Guid employeeId);
         Task<ReviewSummaryDTO> GetEmployerReviewSummaryAsync(Guid employerId);
         Task<Dictionary<Guid, ReviewSummaryDTO>> GetEmployeeReviewSummariesAsync(IEnumerable<Guid> employeeIds);

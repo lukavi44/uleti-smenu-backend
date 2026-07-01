@@ -79,6 +79,33 @@ namespace Infrastructure.Persistence.Database.Repositories
                         .ToList());
         }
 
+        public async Task<JobPostApplicationStatsDTO> GetApplicationStatsByJobPostIdAsync(Guid jobPostId)
+        {
+            var grouped = await _context.Applications
+                .Where(application => application.JobPostId == jobPostId)
+                .GroupBy(application => application.Status)
+                .Select(group => new { Status = group.Key, Count = group.Count() })
+                .ToListAsync();
+
+            var accepted = grouped
+                .Where(item => item.Status == ApplicationStatusEnum.Accepted)
+                .Sum(item => item.Count);
+            var pending = grouped
+                .Where(item => item.Status == ApplicationStatusEnum.Applied)
+                .Sum(item => item.Count);
+            var denied = grouped
+                .Where(item => item.Status == ApplicationStatusEnum.Denied)
+                .Sum(item => item.Count);
+
+            return new JobPostApplicationStatsDTO
+            {
+                TotalApplications = grouped.Sum(item => item.Count),
+                Accepted = accepted,
+                Pending = pending,
+                Denied = denied
+            };
+        }
+
         public async Task AddAsync(Application application)
         {
             await _context.Applications.AddAsync(application);

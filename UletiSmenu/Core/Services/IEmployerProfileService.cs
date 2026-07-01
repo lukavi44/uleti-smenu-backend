@@ -16,5 +16,14 @@ namespace Core.Services
             int page,
             int pageSize,
             Guid? employeeId);
+        Task<Result<EmployerRestaurantReviewSummaryDTO>> GetMyRestaurantReviewsSummaryBySlugAsync(
+            Guid employerId,
+            string slug);
+        Task<Result<PagedResultDTO<EmployerRestaurantReviewItemDTO>>> GetMyRestaurantReviewsBySlugAsync(
+            Guid employerId,
+            string slug,
+            int page,
+            int pageSize,
+            string sort);
     }
 }
