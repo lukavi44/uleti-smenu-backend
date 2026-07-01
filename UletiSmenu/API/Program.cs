@@ -20,11 +20,18 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
+using Serilog;
 using Swashbuckle.AspNetCore.Filters;
 using System.Net;
 using System.Net.Mail;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .Enrich.FromLogContext()
+    .Enrich.WithProperty("Application", "UletiSmenu.API")
+    .Enrich.WithProperty("Environment", context.HostingEnvironment.EnvironmentName));
 
 if (builder.Environment.IsDevelopment())
 {
@@ -127,6 +134,8 @@ builder.Services.AddTransient<IEmailService, EmailService>(provider =>
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddControllers();
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<ApplicationDbContext>("database");
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -233,6 +242,15 @@ if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
 app.UseRouting();
 app.UseCors("AllowSpecificOrigin");
 
+app.UseSerilogRequestLogging(options =>
+{
+    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+    {
+        diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
+        diagnosticContext.Set("UserId", httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value);
+    };
+});
+
 if (app.Environment.IsProduction())
     app.UseHttpsRedirection();
 
@@ -245,9 +263,17 @@ app.MapIdentityApi<User>();
 
 app.MapControllers();
 app.MapHub<RealtimeHub>("/hubs/realtime");
-app.MapGet("/health", () => Results.Ok("ok"));
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapHealthChecks("/health/ready");
 
-app.Run();
+try
+{
+    app.Run();
+}
+finally
+{
+    Log.CloseAndFlush();
+}
 
 static async Task EnsureDatabaseMigratedAsync(IServiceProvider services)
 {
@@ -314,14 +340,19 @@ static async Task EnsureAdminUserSeededAsync(IServiceProvider services)
 {
     using var scope = services.CreateScope();
     var settings = scope.ServiceProvider.GetRequiredService<IOptions<AdminSeedSettings>>().Value;
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("AdminSeed");
+
     if (!settings.Enabled)
         return;
 
     if (string.IsNullOrWhiteSpace(settings.Email) || string.IsNullOrWhiteSpace(settings.Password))
+    {
+        logger.LogInformation(
+            "Admin seed is enabled but Email or Password is missing. Set AdminSeed__Email and AdminSeed__Password.");
         return;
+    }
 
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
-    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("AdminSeed");
 
     var normalizedEmail = settings.Email.Trim();
     var existingUser = await userManager.FindByEmailAsync(normalizedEmail);
@@ -366,7 +397,7 @@ static async Task EnsureAdminUserSeededAsync(IServiceProvider services)
         return;
     }
 
-    logger.LogInformation("Development admin user seeded for {Email}", normalizedEmail);
+    logger.LogInformation("Admin user seeded for {Email}", normalizedEmail);
 }
 
 static async Task EnsureSubscriptionsSeededAsync(IServiceProvider services)

@@ -7,11 +7,16 @@ namespace API.Middlewares
     {
         private readonly RequestDelegate _next;
         private readonly ILogger<ExceptionHandlingMiddleware> _logger;
+        private readonly IHostEnvironment _environment;
 
-        public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
+        public ExceptionHandlingMiddleware(
+            RequestDelegate next,
+            ILogger<ExceptionHandlingMiddleware> logger,
+            IHostEnvironment environment)
         {
             _next = next;
             _logger = logger;
+            _environment = environment;
         }
 
         public async Task Invoke(HttpContext context)
@@ -22,30 +27,40 @@ namespace API.Middlewares
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "An unexpected error occured.");
+                _logger.LogError(
+                    ex,
+                    "Unhandled exception for {Method} {Path}",
+                    context.Request.Method,
+                    context.Request.Path);
+
                 await HandleExceptionAsync(context, ex);
             }
         }
 
-        private static Task HandleExceptionAsync(HttpContext context, Exception exception)
+        private Task HandleExceptionAsync(HttpContext context, Exception exception)
         {
             var response = context.Response;
             response.ContentType = "application/json";
 
             var statusCode = exception switch
             {
-                KeyNotFoundException => (int)HttpStatusCode.NotFound, // 404
-                UnauthorizedAccessException => (int)HttpStatusCode.Unauthorized, // 401
-                ArgumentException => (int)HttpStatusCode.BadRequest, // 400
-                _ => (int)HttpStatusCode.InternalServerError // 500
+                KeyNotFoundException => (int)HttpStatusCode.NotFound,
+                UnauthorizedAccessException => (int)HttpStatusCode.Unauthorized,
+                ArgumentException => (int)HttpStatusCode.BadRequest,
+                _ => (int)HttpStatusCode.InternalServerError
             };
 
             response.StatusCode = statusCode;
 
+            var message = statusCode == (int)HttpStatusCode.InternalServerError && _environment.IsProduction()
+                ? "An unexpected error occurred."
+                : exception.Message;
+
             var errorResponse = new
             {
                 StatusCode = statusCode,
-                Message = exception.Message
+                Message = message,
+                TraceId = context.TraceIdentifier
             };
 
             var result = JsonSerializer.Serialize(errorResponse);

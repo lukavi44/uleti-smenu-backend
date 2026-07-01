@@ -14,6 +14,7 @@ namespace API.DTOs
         public string MB { get; set; } = string.Empty;
         public AddressDTO? Address { get; set; }
         public bool IsFavourite { get; set; }
+        public bool IsVerifiedEmployer { get; set; }
         public EmployerSubscriptionDTO? Subscription { get; set; }
     }
 }

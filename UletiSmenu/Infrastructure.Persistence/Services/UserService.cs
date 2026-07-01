@@ -78,7 +78,7 @@ namespace Infrastructure.Persistence.Services
                 var defaultLocationResult = RestaurantLocation.Create(
                     Guid.NewGuid(),
                     employer.Id,
-                    $"{employer.Name} - Main location",
+                    employer.Name,
                     employer.PhoneNumber ?? "N/A",
                     employer.PIB.Value,
                     employer.MB.Value,
