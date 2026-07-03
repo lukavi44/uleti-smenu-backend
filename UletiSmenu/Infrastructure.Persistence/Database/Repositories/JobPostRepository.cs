@@ -418,5 +418,16 @@ namespace Infrastructure.Persistence.Database.Repositories
               .Include(jp => jp.RestaurantLocation)
               .FirstOrDefaultAsync(jp => jp.Id == id);
         }
+
+        public async Task<JobPost?> GetVisibleJobPostByIdAsync(Guid id, DateTime utcNow)
+        {
+            return await _context.JobPosts
+                .Include(jp => jp.Employer)
+                .Include(jp => jp.RestaurantLocation)
+                .FirstOrDefaultAsync(jp =>
+                    jp.Id == id
+                    && jp.Status == JobStatusEnum.Active
+                    && (jp.VisibleUntil >= utcNow || jp.StartingDate.AddHours(1) >= utcNow));
+        }
     }
 }

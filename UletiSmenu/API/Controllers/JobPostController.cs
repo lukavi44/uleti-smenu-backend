@@ -39,6 +39,33 @@ namespace API.Controllers
             _userManager = userManager;
         }
 
+        private static void SanitizeJobPostsForPublic(IEnumerable<JobPostDTO> jobPosts)
+        {
+            foreach (var jobPost in jobPosts)
+            {
+                SanitizeJobPostForPublic(jobPost);
+            }
+        }
+
+        private static void SanitizeJobPostForPublic(JobPostDTO jobPost)
+        {
+            jobPost.ApplicantCount = 0;
+            jobPost.RecentApplicants = new List<RecentApplicantPreviewDTO>();
+
+            if (jobPost.Employer is null)
+            {
+                return;
+            }
+
+            jobPost.Employer.Email = string.Empty;
+            jobPost.Employer.PhoneNumber = string.Empty;
+            jobPost.Employer.PIB = string.Empty;
+            jobPost.Employer.MB = string.Empty;
+            jobPost.Employer.Address = null;
+            jobPost.Employer.Subscription = null;
+            jobPost.Employer.IsFavourite = false;
+        }
+
         [Authorize(Roles = "Employer")]
         [HttpPost("createJobPost")]
         public async Task<IActionResult> CreateJobPost([FromBody] JobPostCreateDTO jobPostCreateDTO)
@@ -148,6 +175,11 @@ namespace API.Controllers
 
             var jobPostDtos = _mapper.Map<List<JobPostDTO>>(pagedJobPosts.Items);
 
+            if (User.Identity?.IsAuthenticated != true)
+            {
+                SanitizeJobPostsForPublic(jobPostDtos);
+            }
+
             return Ok(new PagedResultDTO<JobPostDTO>
             {
                 Items = jobPostDtos,
@@ -155,6 +187,25 @@ namespace API.Controllers
                 Page = pagedJobPosts.Page,
                 PageSize = pagedJobPosts.PageSize
             });
+        }
+
+        [HttpGet("{jobPostId:guid}")]
+        public async Task<IActionResult> GetVisibleJobPostById(Guid jobPostId)
+        {
+            var jobPost = await _jobPostService.GetVisibleJobPostByIdAsync(jobPostId);
+            if (jobPost is null)
+            {
+                return NotFound();
+            }
+
+            var jobPostDto = _mapper.Map<JobPostDTO>(jobPost);
+
+            if (User.Identity?.IsAuthenticated != true)
+            {
+                SanitizeJobPostForPublic(jobPostDto);
+            }
+
+            return Ok(jobPostDto);
         }
 
         [HttpGet("filter-options")]

@@ -138,6 +138,11 @@ namespace Infrastructure.Persistence.Services
             return await _jobPostRepository.GetVisibleJobPostFilterOptionsAsync(DateTime.UtcNow, city);
         }
 
+        public async Task<JobPost?> GetVisibleJobPostByIdAsync(Guid jobPostId)
+        {
+            return await _jobPostRepository.GetVisibleJobPostByIdAsync(jobPostId, DateTime.UtcNow);
+        }
+
         public async Task<IEnumerable<JobPost>> GetMyJobPostsAsync(Guid employerId)
         {
             return await _jobPostRepository.GetAllByEmployerIdAsync(employerId);

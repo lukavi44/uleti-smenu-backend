@@ -36,6 +36,7 @@ namespace Core.Services
             string? applicationFilter = null,
             bool? favouritesOnly = null);
         Task<VisibleJobPostFilterOptionsDTO> GetVisibleJobPostFilterOptionsAsync(string? city = null);
+        Task<JobPost?> GetVisibleJobPostByIdAsync(Guid jobPostId);
         Task<IEnumerable<JobPost>> GetMyJobPostsAsync(Guid employerId);
         Task<List<string>> GetMyJobPostPositionsAsync(Guid employerId);
         Task<PagedResultDTO<JobPost>> GetMyJobPostsPagedAsync(
