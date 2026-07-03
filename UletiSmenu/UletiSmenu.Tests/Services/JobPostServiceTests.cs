@@ -16,7 +16,9 @@ namespace UletiSmenu.Tests.Services
         {
             // Arrange
             var jobPostRepositoryMock = new Mock<IJobPostRepository>();
+            var userRepositoryMock = new Mock<IUserRepository>();
             var locationRepositoryMock = new Mock<IRestaurantLocationRepository>();
+            var applicationRepositoryMock = new Mock<IApplicationRepository>();
             var unitOfWorkMock = new Mock<IApplicationUnitOfWork>();
             var billingServiceMock = new Mock<IBillingService>();
             var emailServiceMock = new Mock<IEmailService>();
@@ -31,7 +33,7 @@ namespace UletiSmenu.Tests.Services
                 Guid.NewGuid(),
                 "Konobar",
                 "Smenski rad",
-                JobStatusEnum.Active,
+                JobStatusEnum.Draft,
                 startsAt,
                 startsAt.AddMinutes(30),
                 employerId,
@@ -63,7 +65,9 @@ namespace UletiSmenu.Tests.Services
 
             var sut = new JobPostService(
                 jobPostRepositoryMock.Object,
+                userRepositoryMock.Object,
                 locationRepositoryMock.Object,
+                applicationRepositoryMock.Object,
                 unitOfWorkMock.Object,
                 billingServiceMock.Object,
                 emailServiceMock.Object,

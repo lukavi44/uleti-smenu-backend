@@ -12,7 +12,9 @@ namespace Infrastructure.Persistence.Services
     public class JobPostService : IJobPostService
     {
         private const string NewFavouriteRestaurantJobPostType = "NewFavouriteRestaurantJobPost";
+        private const string CompleteEmployerProfileMessage = "Da biste objavili oglas, prvo popunite profil poslodavca.";
         private readonly IJobPostRepository _jobPostRepository;
+        private readonly IUserRepository _userRepository;
         private readonly IRestaurantLocationRepository _restaurantLocationRepository;
         private readonly IApplicationRepository _applicationRepository;
         private readonly IApplicationUnitOfWork _applicationUnitOfWork;
@@ -22,6 +24,7 @@ namespace Infrastructure.Persistence.Services
 
         public JobPostService(
             IJobPostRepository jobPostRepository,
+            IUserRepository userRepository,
             IRestaurantLocationRepository restaurantLocationRepository,
             IApplicationRepository applicationRepository,
             IApplicationUnitOfWork applicationUnitOfWork,
@@ -30,6 +33,7 @@ namespace Infrastructure.Persistence.Services
             ILogger<JobPostService> logger)
         {
             _jobPostRepository = jobPostRepository;
+            _userRepository = userRepository;
             _restaurantLocationRepository = restaurantLocationRepository;
             _applicationRepository = applicationRepository;
             _applicationUnitOfWork = applicationUnitOfWork;
@@ -39,6 +43,13 @@ namespace Infrastructure.Persistence.Services
         }
         public async Task<Result> CreateJobPostAsync(JobPost jobPost)
         {
+            if (jobPost.Status == JobStatusEnum.Active)
+            {
+                var profileValidation = await ValidateEmployerProfileCompleteAsync(jobPost.EmployerId);
+                if (profileValidation.IsFailure)
+                    return profileValidation;
+            }
+
             var billingValidation = await _billingService.ValidateEmployerCanCreatePostAsync(jobPost.EmployerId);
             if (billingValidation.IsFailure)
                 return Result.Failure(billingValidation.Error);
@@ -138,6 +149,22 @@ namespace Infrastructure.Persistence.Services
             return await _jobPostRepository.GetVisibleJobPostFilterOptionsAsync(DateTime.UtcNow, city);
         }
 
+        public async Task<List<JobPost>> GetCandidateRecommendedJobPostsAsync(Guid employeeId, string? city, int pageSize = 3)
+        {
+            if (string.IsNullOrWhiteSpace(city))
+            {
+                return new List<JobPost>();
+            }
+
+            var safePageSize = pageSize < 1 ? 3 : Math.Min(pageSize, 12);
+
+            return await _jobPostRepository.GetCandidateRecommendedJobPostsAsync(
+                employeeId,
+                city,
+                DateTime.UtcNow,
+                safePageSize);
+        }
+
         public async Task<JobPost?> GetVisibleJobPostByIdAsync(Guid jobPostId)
         {
             return await _jobPostRepository.GetVisibleJobPostByIdAsync(jobPostId, DateTime.UtcNow);
@@ -230,6 +257,13 @@ namespace Infrastructure.Persistence.Services
             var parseStatusOk = Enum.TryParse<JobStatusEnum>(status, out var parsedStatus);
             if (!parseStatusOk)
                 return Result.Failure("Invalid job post status.");
+
+            if (parsedStatus == JobStatusEnum.Active)
+            {
+                var profileValidation = await ValidateEmployerProfileCompleteAsync(employerId);
+                if (profileValidation.IsFailure)
+                    return profileValidation;
+            }
 
             var updateResult = jobPost.Update(
                 title,
@@ -352,6 +386,17 @@ namespace Infrastructure.Persistence.Services
             await _jobPostRepository.DeleteJobPostAsync(jobPost);
             await _applicationUnitOfWork.SaveChangesAsync();
             return Result.Success("Job post deleted successfully.");
+        }
+
+        private async Task<Result> ValidateEmployerProfileCompleteAsync(Guid employerId)
+        {
+            var locations = await _restaurantLocationRepository.GetByEmployerIdAsync(employerId);
+            var employer = await _userRepository.GetByIdAsync<Employer>(employerId);
+
+            if (employer == null || !employer.HasCompletedRequiredProfile() || locations.Count == 0)
+                return Result.Failure(CompleteEmployerProfileMessage);
+
+            return Result.Success();
         }
 
         private static DateTime ResolveDuplicateStartingDate(DateTime sourceStartingDate, DateTime utcNow)

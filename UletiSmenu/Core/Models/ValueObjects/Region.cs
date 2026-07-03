@@ -23,6 +23,8 @@ namespace Core.Models.ValueObjects
             return Result.Success(new Region(name));
         }
 
+        public static Region Empty() => new(string.Empty);
+
         protected override IEnumerable<IComparable> GetEqualityComponents()
         {
             yield return Name;

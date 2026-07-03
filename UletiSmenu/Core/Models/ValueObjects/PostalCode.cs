@@ -23,6 +23,8 @@ public class PostalCode : ValueObject
         return Result.Success(new PostalCode(value));
     }
 
+    public static PostalCode Empty() => new(string.Empty);
+
     protected override IEnumerable<IComparable> GetEqualityComponents()
     {
         yield return Value;

@@ -65,6 +65,39 @@ namespace Core.Models.Entities
             return Result.Success(employer);
         }
 
+        public static Result<Employer> CreateMinimal(Guid id, string email, string username)
+        {
+            var userResult = User.Create(id, email, username, string.Empty, string.Empty);
+            if (userResult.IsFailure)
+                return Result.Failure<Employer>(userResult.Error);
+
+            return Result.Success(new Employer(
+                id,
+                string.Empty,
+                email,
+                username,
+                string.Empty,
+                string.Empty,
+                PIB.Empty(),
+                MB.Empty(),
+                null,
+                null,
+                null,
+                Address.Empty()));
+        }
+
+        public bool HasCompletedRequiredProfile() =>
+            !string.IsNullOrWhiteSpace(Name) &&
+            !string.IsNullOrWhiteSpace(PhoneNumber) &&
+            !string.IsNullOrWhiteSpace(PIB?.Value) &&
+            !string.IsNullOrWhiteSpace(MB?.Value) &&
+            !string.IsNullOrWhiteSpace(Address?.Street?.Name) &&
+            !string.IsNullOrWhiteSpace(Address?.Street?.Number) &&
+            !string.IsNullOrWhiteSpace(Address?.City?.Name) &&
+            !string.IsNullOrWhiteSpace(Address?.City?.PostalCode?.Value) &&
+            !string.IsNullOrWhiteSpace(Address?.City?.Country?.Name) &&
+            !string.IsNullOrWhiteSpace(Address?.City?.Region?.Name);
+
         public Result SetPublicSlug(string slug)
         {
             if (string.IsNullOrWhiteSpace(slug))
@@ -244,6 +277,8 @@ namespace Core.Models.Entities
         public Result UpdateProfile(
             string name,
             string phoneNumber,
+            string pib,
+            string mb,
             string streetName,
             string streetNumber,
             string city,
@@ -256,6 +291,14 @@ namespace Core.Models.Entities
 
             if (string.IsNullOrWhiteSpace(phoneNumber))
                 return Result.Failure("Phone number cannot be empty.");
+
+            var pibResult = PIB.Create(pib.Trim());
+            if (pibResult.IsFailure)
+                return Result.Failure(pibResult.Error);
+
+            var mbResult = MB.Create(mb.Trim());
+            if (mbResult.IsFailure)
+                return Result.Failure(mbResult.Error);
 
             if (string.IsNullOrWhiteSpace(streetName))
                 return Result.Failure("Street name cannot be empty.");
@@ -305,6 +348,8 @@ namespace Core.Models.Entities
 
             Name = name.Trim();
             PhoneNumber = phoneNumber.Trim();
+            PIB = pibResult.Value;
+            MB = mbResult.Value;
             Address = addressResult.Value;
 
             return Result.Success();

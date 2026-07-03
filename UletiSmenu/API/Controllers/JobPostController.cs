@@ -215,6 +215,26 @@ namespace API.Controllers
             return Ok(options);
         }
 
+        [Authorize(Roles = "Employee")]
+        [HttpGet("candidate/recommended-jobs")]
+        public async Task<IActionResult> GetCandidateRecommendedJobs([FromQuery] int pageSize = 3)
+        {
+            var employeeIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(employeeIdClaim, out var employeeId))
+                return Unauthorized("Invalid user claim.");
+
+            var user = await _userService.GetUserByIdAsync(employeeId);
+            if (user is not Employee employee)
+                return Forbid();
+
+            var jobPosts = await _jobPostService.GetCandidateRecommendedJobPostsAsync(
+                employeeId,
+                employee.City,
+                pageSize);
+
+            return Ok(_mapper.Map<List<JobPostDTO>>(jobPosts));
+        }
+
         [Authorize]
         [HttpGet("my")]
         public async Task<IActionResult> GetMyJobPosts(

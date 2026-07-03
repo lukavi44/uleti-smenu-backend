@@ -351,6 +351,31 @@ namespace Infrastructure.Persistence.Database.Repositories
             return (items, totalCount);
         }
 
+        public async Task<List<JobPost>> GetCandidateRecommendedJobPostsAsync(
+            Guid employeeId,
+            string city,
+            DateTime utcNow,
+            int pageSize)
+        {
+            var normalizedCity = city.Trim();
+
+            return await _context.JobPosts
+                .Include(jp => jp.Employer)
+                .Include(jp => jp.RestaurantLocation)
+                .Where(jp =>
+                    jp.Status == JobStatusEnum.Active
+                    && jp.StartingDate > utcNow
+                    && jp.RestaurantLocation != null
+                    && jp.RestaurantLocation.City == normalizedCity
+                    && !_context.Applications.Any(application =>
+                        application.JobPostId == jp.Id
+                        && application.UserId == employeeId))
+                .OrderBy(jp => jp.StartingDate)
+                .ThenByDescending(jp => jp.CreatedAtUtc)
+                .Take(pageSize)
+                .ToListAsync();
+        }
+
         public async Task<VisibleJobPostFilterOptionsDTO> GetVisibleJobPostFilterOptionsAsync(DateTime utcNow, string? city = null)
         {
             var baseQuery = _context.JobPosts

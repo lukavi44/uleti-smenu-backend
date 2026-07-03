@@ -29,6 +29,8 @@ namespace Core.Models.ValueObjects
             return Result.Success(new City(name, postalCode, country, region));
         }
 
+        public static City Empty() => new(string.Empty, PostalCode.Empty(), Country.Empty(), Region.Empty());
+
         protected override IEnumerable<object> GetEqualityComponents()
         {
             yield return Name;

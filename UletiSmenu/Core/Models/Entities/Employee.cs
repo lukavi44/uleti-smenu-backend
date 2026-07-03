@@ -41,6 +41,15 @@ namespace Core.Models.Entities
             return Result.Success(employee);
         }
 
+        public static Result<Employee> CreateMinimal(Guid id, string email, string username)
+        {
+            var userResult = User.Create(id, email, username, string.Empty, string.Empty);
+            if (userResult.IsFailure)
+                return Result.Failure<Employee>(userResult.Error);
+
+            return Result.Success(new Employee(id, email, username, string.Empty, string.Empty, new List<Application>(), string.Empty, string.Empty, null));
+        }
+
         public Result UpdateProfile(string firstName, string lastName, string phoneNumber, string? city)
         {
             if (string.IsNullOrWhiteSpace(firstName))

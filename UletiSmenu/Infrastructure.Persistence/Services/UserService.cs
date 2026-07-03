@@ -63,10 +63,6 @@ namespace Infrastructure.Persistence.Services
                 if (bonusResult.IsFailure)
                     return Result.Failure(bonusResult.Error);
 
-                var slugResult = await AssignUniquePublicSlugAsync(employer);
-                if (slugResult.IsFailure)
-                    return Result.Failure(slugResult.Error);
-
                 var identityResult = await _userManager.CreateAsync(employer, password);
                 if (!identityResult.Succeeded)
                     return Result.Failure(string.Join(", ", identityResult.Errors.Select(e => e.Description)));
@@ -74,24 +70,6 @@ namespace Infrastructure.Persistence.Services
                 var roleResult = await _userManager.AddToRoleAsync(employer, UserRolesEnum.Employer.ToString());
                 if (!roleResult.Succeeded)
                     return Result.Failure("User created but failed to assign role: " + string.Join(", ", roleResult.Errors.Select(e => e.Description)));
-
-                var defaultLocationResult = RestaurantLocation.Create(
-                    Guid.NewGuid(),
-                    employer.Id,
-                    employer.Name,
-                    employer.PhoneNumber ?? "N/A",
-                    employer.PIB.Value,
-                    employer.MB.Value,
-                    employer.Address.Street.Name,
-                    employer.Address.Street.Number,
-                    employer.Address.City.Name,
-                    employer.Address.City.PostalCode.Value,
-                    employer.Address.City.Country.Name,
-                    employer.Address.City.Region.Name);
-                if (defaultLocationResult.IsFailure)
-                    return Result.Failure(defaultLocationResult.Error);
-
-                await _restaurantLocationRepository.AddAsync(defaultLocationResult.Value);
 
                 await _applicationUnitOfWork.SaveChangesAsync();
                 await _applicationUnitOfWork.CommitTransactionAsync();
@@ -249,6 +227,8 @@ namespace Infrastructure.Persistence.Services
             Guid employerId,
             string name,
             string phoneNumber,
+            string pib,
+            string mb,
             string streetName,
             string streetNumber,
             string city,
@@ -263,6 +243,8 @@ namespace Infrastructure.Persistence.Services
             var updateResult = employer.UpdateProfile(
                 name,
                 phoneNumber,
+                pib,
+                mb,
                 streetName,
                 streetNumber,
                 city,
@@ -475,7 +457,10 @@ namespace Infrastructure.Persistence.Services
             if (!string.IsNullOrWhiteSpace(employer.PublicSlug))
                 return Result.Success();
 
-            var baseSlug = EmployerSlugHelper.Slugify(employer.Name);
+            var slugSource = string.IsNullOrWhiteSpace(employer.Name)
+                ? (employer.Email?.Split('@').FirstOrDefault() ?? employer.Id.ToString())
+                : employer.Name;
+            var baseSlug = EmployerSlugHelper.Slugify(slugSource);
             var slug = baseSlug;
             var suffix = 2;
 

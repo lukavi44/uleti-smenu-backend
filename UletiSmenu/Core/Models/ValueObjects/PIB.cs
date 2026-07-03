@@ -23,6 +23,8 @@ public class PIB : ValueObject
         return Result.Success(new PIB(value));
     }
 
+    public static PIB Empty() => new(string.Empty);
+
     protected override IEnumerable<object> GetEqualityComponents()
     {
         yield return Value;

@@ -29,9 +29,6 @@ namespace Core.Models.Entities
             if (string.IsNullOrWhiteSpace(username))
                 return Result.Failure<User>("Username cannot be empty.");
 
-            if (string.IsNullOrWhiteSpace(phoneNumber))
-                return Result.Failure<User>("Phone number cannot be empty.");
-
             var user = new User(id, email, username, phoneNumber, profilePhoto);
             return Result.Success(user);
         }

@@ -23,6 +23,8 @@ public class MB : ValueObject
         return Result.Success(new MB(value));
     }
 
+    public static MB Empty() => new(string.Empty);
+
     protected override IEnumerable<object> GetEqualityComponents()
     {
         yield return Value;

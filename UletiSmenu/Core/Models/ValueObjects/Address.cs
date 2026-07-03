@@ -20,6 +20,8 @@ namespace Core.Models.ValueObjects
             return Result.Success(new Address(street, city));
         }
 
+        public static Address Empty() => new(Street.Empty(), City.Empty());
+
         protected override IEnumerable<object> GetEqualityComponents()
         {
             yield return Street;

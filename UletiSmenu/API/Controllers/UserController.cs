@@ -2,6 +2,7 @@ using API.DTOs;
 using AutoMapper;
 using Core.Models.Entities;
 using Core.Services;
+using Core.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -19,6 +20,8 @@ namespace API.Controllers
         private readonly IMapper _mapper;
         private readonly IFileService _fileService;
         private readonly UserManager<User> _userManager;
+        private readonly IEmailService _emailService;
+        private readonly IConfiguration _configuration;
 
         public UserController(
             IUserService userService,
@@ -26,7 +29,9 @@ namespace API.Controllers
             IBillingService billingService,
             IMapper mapper,
             IFileService fileService,
-            UserManager<User> userManager)
+            UserManager<User> userManager,
+            IEmailService emailService,
+            IConfiguration configuration)
         {
             _userService = userService;
             _employerProfileService = employerProfileService;
@@ -34,6 +39,8 @@ namespace API.Controllers
             _mapper = mapper;
             _fileService = fileService;
             _userManager = userManager;
+            _emailService = emailService;
+            _configuration = configuration;
         }
 
         [HttpPost("register/employer")]
@@ -56,6 +63,52 @@ namespace API.Controllers
             if (employeeResult.IsFailure) return BadRequest(employeeResult.Error);
 
             return Ok("User registered successfully!");
+        }
+
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDTO request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Email))
+                return BadRequest("Email is required.");
+
+            var user = await _userManager.FindByEmailAsync(request.Email.Trim());
+            if (user == null)
+            {
+                return Ok(new { message = "If an account exists for this email, a reset link has been sent." });
+            }
+
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var frontendBaseUrl = (_configuration["Backend:FrontendBaseUrl"] ?? "/").TrimEnd('/');
+            var resetLink =
+                $"{frontendBaseUrl}/reset-password?email={Uri.EscapeDataString(user.Email ?? request.Email.Trim())}&token={Uri.EscapeDataString(token)}";
+
+            await _emailService.SendEmailAsync(
+                user.Email ?? request.Email.Trim(),
+                "Reset your UletiSmenu password",
+                $"Click <a href='{resetLink}'>here</a> to reset your password.");
+
+            return Ok(new { message = "If an account exists for this email, a reset link has been sent." });
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDTO request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Email) ||
+                string.IsNullOrWhiteSpace(request.Token) ||
+                string.IsNullOrWhiteSpace(request.Password))
+            {
+                return BadRequest("Email, token and password are required.");
+            }
+
+            var user = await _userManager.FindByEmailAsync(request.Email.Trim());
+            if (user == null)
+                return BadRequest("Invalid or expired reset link.");
+
+            var result = await _userManager.ResetPasswordAsync(user, request.Token, request.Password);
+            if (!result.Succeeded)
+                return BadRequest(string.Join(", ", result.Errors.Select(error => error.Description)));
+
+            return Ok(new { message = "Password reset successfully." });
         }
 
         [HttpGet("confirm-email")]
@@ -239,6 +292,8 @@ namespace API.Controllers
                 employerId,
                 request.Name,
                 request.PhoneNumber,
+                request.PIB,
+                request.MB,
                 request.StreetName,
                 request.StreetNumber,
                 request.City,

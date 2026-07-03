@@ -24,6 +24,9 @@ namespace Core.Models.ValueObjects
 
             return Result.Success(new Street(name, number));
         }
+
+        public static Street Empty() => new(string.Empty, string.Empty);
+
         protected override IEnumerable<object> GetEqualityComponents()
         {
             yield return Name;

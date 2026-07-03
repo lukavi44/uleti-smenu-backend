@@ -45,6 +45,11 @@ namespace Core.Repositories
             Guid? employeeId = null,
             string? applicationFilter = null,
             bool? favouritesOnly = null);
+        Task<List<JobPost>> GetCandidateRecommendedJobPostsAsync(
+            Guid employeeId,
+            string city,
+            DateTime utcNow,
+            int pageSize);
         Task<VisibleJobPostFilterOptionsDTO> GetVisibleJobPostFilterOptionsAsync(DateTime utcNow, string? city = null);
         Task<JobPost?> GetVisibleJobPostByIdAsync(Guid id, DateTime utcNow);
         Task<int> CountActiveByEmployerIdAsync(Guid employerId);

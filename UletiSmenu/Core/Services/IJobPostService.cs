@@ -35,6 +35,7 @@ namespace Core.Services
             Guid? employeeId = null,
             string? applicationFilter = null,
             bool? favouritesOnly = null);
+        Task<List<JobPost>> GetCandidateRecommendedJobPostsAsync(Guid employeeId, string? city, int pageSize = 3);
         Task<VisibleJobPostFilterOptionsDTO> GetVisibleJobPostFilterOptionsAsync(string? city = null);
         Task<JobPost?> GetVisibleJobPostByIdAsync(Guid jobPostId);
         Task<IEnumerable<JobPost>> GetMyJobPostsAsync(Guid employerId);

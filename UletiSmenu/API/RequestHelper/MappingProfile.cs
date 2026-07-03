@@ -16,24 +16,10 @@ namespace API.RequestHelper
             .ForMember(dest => dest.SubscriptionStop, opt => opt.Ignore())
             .ForMember(dest => dest.ProfilePhoto, opt => opt.Ignore())
             .ConstructUsing((dto, context) =>
-                Employer.Create(
+                Employer.CreateMinimal(
                     Guid.NewGuid(),
-                    dto.Name,
                     dto.Email,
-                    dto.Email,
-                    dto.PhoneNumber,
-                    "",
-                    PIB.Create(dto.PIB).Value,
-                    MB.Create(dto.MB).Value,
-                    null, null, null,
-                    Address.Create(
-                        Street.Create(dto.StreetName, dto.StreetNumber).Value,
-                        City.Create(dto.City,
-                            PostalCode.Create(dto.PostalCode).Value,
-                            Country.Create(dto.Country).Value,
-                            Region.Create(dto.Region).Value
-                        ).Value
-                    ).Value
+                    dto.Email
                 ).Value
             );
 
@@ -55,15 +41,10 @@ namespace API.RequestHelper
                 .ForMember(dest => dest.Applications, opt => opt.Ignore())
                 .ForMember(dest => dest.ProfilePhoto, opt => opt.Ignore())
                  .ConstructUsing((dto, context) =>
-                 Employee.Create(
+                 Employee.CreateMinimal(
                      Guid.NewGuid(),
                      dto.Email,
-                     dto.Email,
-                     dto.PhoneNumber,
-                     "",
-                     null,
-                     dto.FirstName,
-                     dto.LastName).Value);
+                     dto.Email).Value);
 
             CreateMap<Employee, RegisterEmployeeDTO>();
 
