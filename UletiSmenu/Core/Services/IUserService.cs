@@ -29,6 +29,8 @@ namespace Core.Services
         Task<IEnumerable<Employer>> GetEmployersAsync(string? city = null);
         Task<IEnumerable<EmployerFavouriteStatusDTO>> GetAllEmployersWithFavouriteStatusAsync(Guid employeeId, string? city = null);
         Task<Result<RestaurantLocation>> CreateEmployerLocationAsync(Guid employerId, string name, string phoneNumber, string pib, string mb, string streetName, string streetNumber, string city, string postalCode, string country, string region);
+        Task<Result<RestaurantLocation>> UpdateEmployerLocationAsync(Guid employerId, Guid locationId, string name, string phoneNumber, string pib, string mb, string streetName, string streetNumber, string city, string postalCode, string country, string region);
+        Task<Result> DeleteEmployerLocationAsync(Guid employerId, Guid locationId);
         Task<IEnumerable<RestaurantLocation>> GetEmployerLocationsAsync(Guid employerId);
 
         // Employer

@@ -43,16 +43,18 @@ namespace Infrastructure.Persistence.Services
         }
         public async Task<Result> CreateJobPostAsync(JobPost jobPost)
         {
-            if (jobPost.Status == JobStatusEnum.Active)
+            var isActivePost = jobPost.Status == JobStatusEnum.Active;
+
+            if (isActivePost)
             {
                 var profileValidation = await ValidateEmployerProfileCompleteAsync(jobPost.EmployerId);
                 if (profileValidation.IsFailure)
                     return profileValidation;
-            }
 
-            var billingValidation = await _billingService.ValidateEmployerCanCreatePostAsync(jobPost.EmployerId);
-            if (billingValidation.IsFailure)
-                return Result.Failure(billingValidation.Error);
+                var billingValidation = await _billingService.ValidateEmployerCanCreatePostAsync(jobPost.EmployerId);
+                if (billingValidation.IsFailure)
+                    return Result.Failure(billingValidation.Error);
+            }
 
             if (!jobPost.RestaurantLocationId.HasValue)
                 return Result.Failure("Restaurant location must be selected.");
@@ -70,17 +72,23 @@ namespace Infrastructure.Persistence.Services
             {
                 await _jobPostRepository.AddAsync(jobPost);
 
-                var creditResult = await _billingService.OnJobPostCreatedAsync(jobPost.EmployerId, jobPost.Id);
-                if (creditResult.IsFailure)
+                if (isActivePost)
                 {
-                    await _applicationUnitOfWork.RollbackTransactionAsync();
-                    return Result.Failure(creditResult.Error);
+                    var creditResult = await _billingService.OnJobPostCreatedAsync(jobPost.EmployerId, jobPost.Id);
+                    if (creditResult.IsFailure)
+                    {
+                        await _applicationUnitOfWork.RollbackTransactionAsync();
+                        return Result.Failure(creditResult.Error);
+                    }
+
+                    await CreateInAppNotificationsAsync(jobPost);
                 }
 
-                await CreateInAppNotificationsAsync(jobPost);
                 await _applicationUnitOfWork.SaveChangesAsync();
                 await _applicationUnitOfWork.CommitTransactionAsync();
-                await NotifyFollowersAsync(jobPost);
+
+                if (isActivePost)
+                    await NotifyFollowersAsync(jobPost);
 
                 return Result.Success("Job post created successfully.");
 
@@ -258,11 +266,21 @@ namespace Infrastructure.Persistence.Services
             if (!parseStatusOk)
                 return Result.Failure("Invalid job post status.");
 
-            if (parsedStatus == JobStatusEnum.Active)
+            var wasActive = jobPost.Status == JobStatusEnum.Active;
+            var willBeActive = parsedStatus == JobStatusEnum.Active;
+
+            if (willBeActive)
             {
                 var profileValidation = await ValidateEmployerProfileCompleteAsync(employerId);
                 if (profileValidation.IsFailure)
                     return profileValidation;
+
+                if (!wasActive)
+                {
+                    var billingValidation = await _billingService.ValidateEmployerCanCreatePostAsync(employerId);
+                    if (billingValidation.IsFailure)
+                        return Result.Failure(billingValidation.Error);
+                }
             }
 
             var updateResult = jobPost.Update(
@@ -277,6 +295,13 @@ namespace Infrastructure.Persistence.Services
 
             if (updateResult.IsFailure)
                 return Result.Failure(updateResult.Error);
+
+            if (willBeActive && !wasActive)
+            {
+                var creditResult = await _billingService.OnJobPostCreatedAsync(employerId, jobPostId);
+                if (creditResult.IsFailure)
+                    return Result.Failure(creditResult.Error);
+            }
 
             await _applicationUnitOfWork.SaveChangesAsync();
             return Result.Success("Job post updated successfully.");
@@ -350,21 +375,9 @@ namespace Infrastructure.Persistence.Services
             if (jobPost.Status == JobStatusEnum.Cancelled)
                 return Result.Success("Job post is already archived.");
 
-            if (!jobPost.RestaurantLocationId.HasValue)
-                return Result.Failure("Restaurant location must be selected.");
-
-            var updateResult = jobPost.Update(
-                jobPost.Title,
-                jobPost.Description,
-                JobStatusEnum.Cancelled,
-                jobPost.StartingDate,
-                jobPost.VisibleUntil,
-                jobPost.RestaurantLocationId.Value,
-                jobPost.Salary,
-                jobPost.Position);
-
-            if (updateResult.IsFailure)
-                return Result.Failure(updateResult.Error);
+            var archiveResult = jobPost.Archive();
+            if (archiveResult.IsFailure)
+                return Result.Failure(archiveResult.Error);
 
             await _applicationUnitOfWork.SaveChangesAsync();
             return Result.Success("Job post archived successfully.");

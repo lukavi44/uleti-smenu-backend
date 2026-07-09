@@ -435,5 +435,56 @@ namespace API.Controllers
 
             return Ok(_mapper.Map<RestaurantLocationDTO>(result.Value));
         }
+
+        [Authorize]
+        [HttpPut("me/locations/{locationId:guid}")]
+        public async Task<IActionResult> UpdateMyLocation(Guid locationId, [FromBody] CreateRestaurantLocationDTO request)
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdClaim, out var employerId))
+                return Unauthorized("Invalid user claim.");
+
+            var user = await _userService.GetUserByIdAsync(employerId);
+            if (user is not Employer)
+                return Forbid();
+
+            var result = await _userService.UpdateEmployerLocationAsync(
+                employerId,
+                locationId,
+                request.Name,
+                request.PhoneNumber,
+                request.PIB,
+                request.MB,
+                request.StreetName,
+                request.StreetNumber,
+                request.City,
+                request.PostalCode,
+                request.Country,
+                request.Region);
+
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(_mapper.Map<RestaurantLocationDTO>(result.Value));
+        }
+
+        [Authorize]
+        [HttpDelete("me/locations/{locationId:guid}")]
+        public async Task<IActionResult> DeleteMyLocation(Guid locationId)
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdClaim, out var employerId))
+                return Unauthorized("Invalid user claim.");
+
+            var user = await _userService.GetUserByIdAsync(employerId);
+            if (user is not Employer)
+                return Forbid();
+
+            var result = await _userService.DeleteEmployerLocationAsync(employerId, locationId);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(new { message = "Location deleted successfully." });
+        }
     }
 }

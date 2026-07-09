@@ -88,6 +88,31 @@ namespace UletiSmenu.Tests.Domain
         }
 
         [Fact]
+        public void Archive_ShouldSetStatusToCancelled()
+        {
+            var startingDate = DateTime.UtcNow.AddHours(2);
+            var jobPost = CreateValidJobPost(JobStatusEnum.Active, startingDate, startingDate.AddMinutes(30));
+
+            var result = jobPost.Archive();
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(JobStatusEnum.Cancelled, jobPost.Status);
+        }
+
+        [Fact]
+        public void Archive_ShouldBeIdempotent_WhenAlreadyCancelled()
+        {
+            var startingDate = DateTime.UtcNow.AddHours(2);
+            var jobPost = CreateValidJobPost(JobStatusEnum.Active, startingDate, startingDate.AddMinutes(30));
+            jobPost.Archive();
+
+            var result = jobPost.Archive();
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(JobStatusEnum.Cancelled, jobPost.Status);
+        }
+
+        [Fact]
         public void IsArchived_ShouldReturnTrue_WhenUtcNowIsMoreThanOneHourAfterStart()
         {
             // Arrange

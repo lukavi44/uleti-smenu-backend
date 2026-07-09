@@ -22,6 +22,7 @@ namespace Infrastructure.Persistence.Services
         private readonly SignInManager<User> _signInManager;
         private readonly IUserRepository _userRepository;
         private readonly IRestaurantLocationRepository _restaurantLocationRepository;
+        private readonly IJobPostRepository _jobPostRepository;
         private readonly IApplicationUnitOfWork _applicationUnitOfWork;
         private readonly IEmailService _emailService;
         private readonly IConfiguration _configuration;
@@ -30,11 +31,12 @@ namespace Infrastructure.Persistence.Services
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly ILogger<UserService> _logger;
 
-        public UserService(IUserRepository userRepository, IRestaurantLocationRepository restaurantLocationRepository, UserManager<User> userManager, SignInManager<User> signInManager,
+        public UserService(IUserRepository userRepository, IRestaurantLocationRepository restaurantLocationRepository, IJobPostRepository jobPostRepository, UserManager<User> userManager, SignInManager<User> signInManager,
             IApplicationUnitOfWork applicationUnitOfWork, IEmailService emailService, IConfiguration configuration, IHttpContextAccessor httpContextAccessor, IBillingService billingService, IServiceScopeFactory serviceScopeFactory, ILogger<UserService> logger)
         {
             _userRepository = userRepository;
             _restaurantLocationRepository = restaurantLocationRepository;
+            _jobPostRepository = jobPostRepository;
             _userManager = userManager;
             _signInManager = signInManager;
             _billingService = billingService;
@@ -415,6 +417,61 @@ namespace Infrastructure.Persistence.Services
             await _applicationUnitOfWork.SaveChangesAsync();
 
             return Result.Success(createLocationResult.Value);
+        }
+
+        public async Task<Result<RestaurantLocation>> UpdateEmployerLocationAsync(
+            Guid employerId,
+            Guid locationId,
+            string name,
+            string phoneNumber,
+            string pib,
+            string mb,
+            string streetName,
+            string streetNumber,
+            string city,
+            string postalCode,
+            string country,
+            string region)
+        {
+            var location = await _restaurantLocationRepository.GetByIdAsync(locationId);
+            if (location == null || location.EmployerId != employerId)
+                return Result.Failure<RestaurantLocation>("Location not found.");
+
+            var updateResult = location.Update(
+                name,
+                phoneNumber,
+                pib,
+                mb,
+                streetName,
+                streetNumber,
+                city,
+                postalCode,
+                country,
+                region);
+
+            if (updateResult.IsFailure)
+                return Result.Failure<RestaurantLocation>(updateResult.Error);
+
+            _restaurantLocationRepository.Update(location);
+            await _applicationUnitOfWork.SaveChangesAsync();
+
+            return Result.Success(location);
+        }
+
+        public async Task<Result> DeleteEmployerLocationAsync(Guid employerId, Guid locationId)
+        {
+            var location = await _restaurantLocationRepository.GetByIdAsync(locationId);
+            if (location == null || location.EmployerId != employerId)
+                return Result.Failure("Location not found.");
+
+            var activeJobPostsCount = await _jobPostRepository.CountActiveByRestaurantLocationIdAsync(locationId);
+            if (activeJobPostsCount > 0)
+                return Result.Failure("Cannot delete a branch that has active job posts. Archive or remove those posts first.");
+
+            _restaurantLocationRepository.Remove(location);
+            await _applicationUnitOfWork.SaveChangesAsync();
+
+            return Result.Success();
         }
 
         public async Task<IEnumerable<RestaurantLocation>> GetEmployerLocationsAsync(Guid employerId)

@@ -18,6 +18,7 @@ namespace UletiSmenu.Tests.Services
     {
         private readonly Mock<IUserRepository> _userRepositoryMock;
         private readonly Mock<IRestaurantLocationRepository> _restaurantLocationRepositoryMock;
+        private readonly Mock<IJobPostRepository> _jobPostRepositoryMock;
         private readonly Mock<UserManager<User>> _userManagerMock;
         private readonly Mock<SignInManager<User>> _signInManagerMock;
         private readonly Mock<IApplicationUnitOfWork> _unitOfWorkMock;
@@ -34,6 +35,7 @@ namespace UletiSmenu.Tests.Services
         {
             _userRepositoryMock = new Mock<IUserRepository>();
             _restaurantLocationRepositoryMock = new Mock<IRestaurantLocationRepository>();
+            _jobPostRepositoryMock = new Mock<IJobPostRepository>();
             _userManagerMock = MockHelper.CreateUserManagerMock();
             _signInManagerMock = MockHelper.CreateSignInManagerMock();
             _unitOfWorkMock = new Mock<IApplicationUnitOfWork>();
@@ -51,6 +53,7 @@ namespace UletiSmenu.Tests.Services
             _userService = new UserService(
                 _userRepositoryMock.Object,
                 _restaurantLocationRepositoryMock.Object,
+                _jobPostRepositoryMock.Object,
                 _userManagerMock.Object,
                 _signInManagerMock.Object,
                 _unitOfWorkMock.Object,

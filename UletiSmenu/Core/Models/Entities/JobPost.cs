@@ -137,6 +137,15 @@ namespace Core.Models.Entities
             return Result.Success();
         }
 
+        public Result Archive()
+        {
+            if (Status == JobStatusEnum.Cancelled)
+                return Result.Success();
+
+            Status = JobStatusEnum.Cancelled;
+            return Result.Success();
+        }
+
         public bool IsArchived(DateTime utcNow)
         {
             if (Status is JobStatusEnum.Cancelled or JobStatusEnum.Completed or JobStatusEnum.Expired)

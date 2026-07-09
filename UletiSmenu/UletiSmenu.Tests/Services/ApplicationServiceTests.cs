@@ -14,6 +14,8 @@ namespace UletiSmenu.Tests.Services
         private readonly Mock<IChatRepository> _chatRepositoryMock;
         private readonly Mock<IUserRepository> _userRepositoryMock;
         private readonly Mock<IApplicationUnitOfWork> _unitOfWorkMock;
+        private readonly Mock<INotificationRepository> _notificationRepositoryMock;
+        private readonly Mock<IRealtimeNotifier> _realtimeNotifierMock;
         private readonly ApplicationService _applicationService;
 
         public ApplicationServiceTests()
@@ -23,13 +25,27 @@ namespace UletiSmenu.Tests.Services
             _chatRepositoryMock = new Mock<IChatRepository>();
             _userRepositoryMock = new Mock<IUserRepository>();
             _unitOfWorkMock = new Mock<IApplicationUnitOfWork>();
+            _notificationRepositoryMock = new Mock<INotificationRepository>();
+            _realtimeNotifierMock = new Mock<IRealtimeNotifier>();
+
+            _unitOfWorkMock.Setup(u => u.Notifications).Returns(_notificationRepositoryMock.Object);
+            _notificationRepositoryMock
+                .Setup(r => r.AddAsync(It.IsAny<Notification>()))
+                .Returns(Task.CompletedTask);
+            _notificationRepositoryMock
+                .Setup(r => r.GetUnreadCountByUserIdAsync(It.IsAny<Guid>()))
+                .ReturnsAsync(1);
+            _realtimeNotifierMock
+                .Setup(n => n.NotifyNotificationAsync(It.IsAny<Guid>(), It.IsAny<Core.DTOs.UserNotificationDTO>(), It.IsAny<int>()))
+                .Returns(Task.CompletedTask);
 
             _applicationService = new ApplicationService(
                 _applicationRepositoryMock.Object,
                 _jobPostRepositoryMock.Object,
                 _chatRepositoryMock.Object,
                 _userRepositoryMock.Object,
-                _unitOfWorkMock.Object);
+                _unitOfWorkMock.Object,
+                _realtimeNotifierMock.Object);
         }
 
         [Fact]
@@ -76,6 +92,10 @@ namespace UletiSmenu.Tests.Services
             // Assert
             Assert.True(result.IsSuccess);
             _applicationRepositoryMock.Verify(r => r.AddAsync(It.IsAny<Application>()), Times.Once);
+            _notificationRepositoryMock.Verify(r => r.AddAsync(It.IsAny<Notification>()), Times.Once);
+            _realtimeNotifierMock.Verify(
+                n => n.NotifyNotificationAsync(It.IsAny<Guid>(), It.IsAny<Core.DTOs.UserNotificationDTO>(), It.IsAny<int>()),
+                Times.Once);
             _unitOfWorkMock.Verify(u => u.BeginTransactionAsync(), Times.Once);
             _unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.Once);
             _unitOfWorkMock.Verify(u => u.CommitTransactionAsync(), Times.Once);

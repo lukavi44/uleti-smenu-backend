@@ -53,5 +53,6 @@ namespace Core.Repositories
         Task<VisibleJobPostFilterOptionsDTO> GetVisibleJobPostFilterOptionsAsync(DateTime utcNow, string? city = null);
         Task<JobPost?> GetVisibleJobPostByIdAsync(Guid id, DateTime utcNow);
         Task<int> CountActiveByEmployerIdAsync(Guid employerId);
+        Task<int> CountActiveByRestaurantLocationIdAsync(Guid restaurantLocationId);
     }
 }

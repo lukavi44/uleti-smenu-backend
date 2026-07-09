@@ -101,5 +101,61 @@ namespace Core.Models.Entities
             return Result.Success(new RestaurantLocation(
                 id, employerId, name, phoneNumber, pib.Trim(), mb.Trim(), streetName, streetNumber, city, postalCode, country, region));
         }
+
+        public Result Update(
+            string name,
+            string phoneNumber,
+            string pib,
+            string mb,
+            string streetName,
+            string streetNumber,
+            string city,
+            string postalCode,
+            string country,
+            string region)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return Result.Failure("Location name cannot be empty.");
+
+            if (string.IsNullOrWhiteSpace(phoneNumber))
+                return Result.Failure("Phone number cannot be empty.");
+
+            if (global::PIB.Create(pib).IsFailure)
+                return Result.Failure("PIB is invalid.");
+
+            if (global::MB.Create(mb).IsFailure)
+                return Result.Failure("MB is invalid.");
+
+            if (string.IsNullOrWhiteSpace(streetName))
+                return Result.Failure("Street name cannot be empty.");
+
+            if (string.IsNullOrWhiteSpace(streetNumber))
+                return Result.Failure("Street number cannot be empty.");
+
+            if (string.IsNullOrWhiteSpace(city))
+                return Result.Failure("City cannot be empty.");
+
+            if (string.IsNullOrWhiteSpace(postalCode))
+                return Result.Failure("Postal code cannot be empty.");
+
+            if (string.IsNullOrWhiteSpace(country))
+                return Result.Failure("Country cannot be empty.");
+
+            if (string.IsNullOrWhiteSpace(region))
+                return Result.Failure("Region cannot be empty.");
+
+            Name = name.Trim();
+            PhoneNumber = phoneNumber.Trim();
+            PIB = pib.Trim();
+            MB = mb.Trim();
+            StreetName = streetName.Trim();
+            StreetNumber = streetNumber.Trim();
+            City = city.Trim();
+            PostalCode = postalCode.Trim();
+            Country = country.Trim();
+            Region = region.Trim();
+
+            return Result.Success();
+        }
     }
 }

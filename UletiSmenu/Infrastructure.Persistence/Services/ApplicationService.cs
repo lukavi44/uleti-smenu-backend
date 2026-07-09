@@ -12,24 +12,28 @@ namespace Infrastructure.Persistence.Services
     {
         private const string ApplicationAcceptedNotificationType = "ApplicationAccepted";
         private const string ApplicationDeclinedNotificationType = "ApplicationDeclined";
+        private const string ApplicationReceivedNotificationType = "ApplicationReceived";
         private readonly IApplicationRepository _applicationRepository;
         private readonly IJobPostRepository _jobPostRepository;
         private readonly IChatRepository _chatRepository;
         private readonly IUserRepository _userRepository;
         private readonly IApplicationUnitOfWork _applicationUnitOfWork;
+        private readonly IRealtimeNotifier _realtimeNotifier;
 
         public ApplicationService(
             IApplicationRepository applicationRepository,
             IJobPostRepository jobPostRepository,
             IChatRepository chatRepository,
             IUserRepository userRepository,
-            IApplicationUnitOfWork applicationUnitOfWork)
+            IApplicationUnitOfWork applicationUnitOfWork,
+            IRealtimeNotifier realtimeNotifier)
         {
             _applicationRepository = applicationRepository;
             _jobPostRepository = jobPostRepository;
             _chatRepository = chatRepository;
             _userRepository = userRepository;
             _applicationUnitOfWork = applicationUnitOfWork;
+            _realtimeNotifier = realtimeNotifier;
         }
 
         public async Task<Result> ApplyToJobPostAsync(Guid employeeId, Guid jobPostId)
@@ -65,9 +69,16 @@ namespace Infrastructure.Persistence.Services
             await _applicationUnitOfWork.BeginTransactionAsync();
             try
             {
-                await _applicationRepository.AddAsync(applicationResult.Value);
+                var application = applicationResult.Value;
+                await _applicationRepository.AddAsync(application);
+
+                var notification = CreateApplicationReceivedNotification(application, employee, jobPost);
+                await _applicationUnitOfWork.Notifications.AddAsync(notification);
+
                 await _applicationUnitOfWork.SaveChangesAsync();
                 await _applicationUnitOfWork.CommitTransactionAsync();
+
+                await NotifyApplicationReceivedAsync(notification);
 
                 return Result.Success();
             }
@@ -184,6 +195,42 @@ namespace Infrastructure.Persistence.Services
 
             await _applicationUnitOfWork.SaveChangesAsync();
             return Result.Success();
+        }
+
+        private static Notification CreateApplicationReceivedNotification(
+            Application application,
+            Employee employee,
+            JobPost jobPost)
+        {
+            var applicantName = $"{employee.FirstName} {employee.LastName}".Trim();
+            var notificationType = $"{ApplicationReceivedNotificationType}:{application.Id}";
+            var message = $"New application from {applicantName} for {jobPost.Title}.";
+
+            return Notification.Create(
+                jobPost.EmployerId,
+                jobPost.EmployerId,
+                jobPost.Id,
+                notificationType,
+                message);
+        }
+
+        private async Task NotifyApplicationReceivedAsync(Notification notification)
+        {
+            var unreadCount = await _applicationUnitOfWork.Notifications
+                .GetUnreadCountByUserIdAsync(notification.UserId);
+
+            var notificationDto = new UserNotificationDTO
+            {
+                Id = notification.Id,
+                EmployerId = notification.EmployerId,
+                JobPostId = notification.JobPostId,
+                Type = notification.Type,
+                Message = notification.Message,
+                IsRead = notification.IsRead,
+                CreatedAtUtc = notification.CreatedAtUtc
+            };
+
+            await _realtimeNotifier.NotifyNotificationAsync(notification.UserId, notificationDto, unreadCount);
         }
 
         private async Task CreateDecisionNotificationIfNeededAsync(
