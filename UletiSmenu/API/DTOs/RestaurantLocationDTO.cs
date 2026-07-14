@@ -14,5 +14,8 @@ namespace API.DTOs
         public string PostalCode { get; set; } = string.Empty;
         public string Country { get; set; } = string.Empty;
         public string Region { get; set; } = string.Empty;
+        public string CountryCode { get; set; } = string.Empty;
+        public string RegionCode { get; set; } = string.Empty;
+        public string CityCode { get; set; } = string.Empty;
     }
 }

@@ -91,6 +91,39 @@ namespace Infrastructure.Persistence.Database.Configurations
             builder.Property(e => e.VerifiedByUserId)
                    .IsRequired(false);
 
+            builder.Property(e => e.GeographyCountryCode)
+                   .HasMaxLength(2)
+                   .IsRequired(false);
+
+            builder.Property(e => e.GeographyRegionCode)
+                   .HasMaxLength(20)
+                   .IsRequired(false);
+
+            builder.Property(e => e.GeographyCityCode)
+                   .HasMaxLength(20)
+                   .IsRequired(false);
+
+            builder.HasOne(e => e.GeographyCountry)
+                   .WithMany()
+                   .HasForeignKey(e => e.GeographyCountryCode)
+                   .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(e => e.GeographyRegion)
+                   .WithMany()
+                   .HasForeignKey(e => new { e.GeographyCountryCode, e.GeographyRegionCode })
+                   .HasPrincipalKey(region => new { region.CountryCode, region.Code })
+                   .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(e => e.GeographyCity)
+                   .WithMany()
+                   .HasForeignKey(e => new { e.GeographyRegionCode, e.GeographyCityCode })
+                   .HasPrincipalKey(city => new { city.RegionCode, city.Code })
+                   .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasIndex(e => e.GeographyCountryCode);
+            builder.HasIndex(e => e.GeographyRegionCode);
+            builder.HasIndex(e => e.GeographyCityCode);
+
             builder.OwnsOne(c => c.Address, address =>
             {
                 // Configure Street

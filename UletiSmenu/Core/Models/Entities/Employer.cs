@@ -27,6 +27,12 @@ namespace Core.Models.Entities
         public DateTime? VerifiedAtUtc { get; private set; }
         public Guid? VerifiedByUserId { get; private set; }
         public Address Address { get; private set; }
+        public string? GeographyCountryCode { get; private set; }
+        public string? GeographyRegionCode { get; private set; }
+        public string? GeographyCityCode { get; private set; }
+        public GeographyCountry? GeographyCountry { get; private set; }
+        public GeographyRegion? GeographyRegion { get; private set; }
+        public GeographyCity? GeographyCity { get; private set; }
         public ICollection<JobPost> Posts { get; private set; } = new List<JobPost>();
         public ICollection<RestaurantLocation> Locations { get; private set; } = new List<RestaurantLocation>();
 
@@ -96,7 +102,10 @@ namespace Core.Models.Entities
             !string.IsNullOrWhiteSpace(Address?.City?.Name) &&
             !string.IsNullOrWhiteSpace(Address?.City?.PostalCode?.Value) &&
             !string.IsNullOrWhiteSpace(Address?.City?.Country?.Name) &&
-            !string.IsNullOrWhiteSpace(Address?.City?.Region?.Name);
+            !string.IsNullOrWhiteSpace(Address?.City?.Region?.Name) &&
+            !string.IsNullOrWhiteSpace(GeographyCountryCode) &&
+            !string.IsNullOrWhiteSpace(GeographyRegionCode) &&
+            !string.IsNullOrWhiteSpace(GeographyCityCode);
 
         public Result SetPublicSlug(string slug)
         {
@@ -284,7 +293,10 @@ namespace Core.Models.Entities
             string city,
             string postalCode,
             string country,
-            string region)
+            string region,
+            string geographyCountryCode,
+            string geographyRegionCode,
+            string geographyCityCode)
         {
             if (string.IsNullOrWhiteSpace(name))
                 return Result.Failure("Name cannot be empty.");
@@ -317,6 +329,13 @@ namespace Core.Models.Entities
 
             if (string.IsNullOrWhiteSpace(region))
                 return Result.Failure("Region cannot be empty.");
+
+            if (string.IsNullOrWhiteSpace(geographyCountryCode) ||
+                string.IsNullOrWhiteSpace(geographyRegionCode) ||
+                string.IsNullOrWhiteSpace(geographyCityCode))
+            {
+                return Result.Failure("Country, region, and city codes are required.");
+            }
 
             var streetResult = Street.Create(streetName.Trim(), streetNumber.Trim());
             if (streetResult.IsFailure)
@@ -351,8 +370,21 @@ namespace Core.Models.Entities
             PIB = pibResult.Value;
             MB = mbResult.Value;
             Address = addressResult.Value;
+            GeographyCountryCode = geographyCountryCode.Trim().ToUpperInvariant();
+            GeographyRegionCode = geographyRegionCode.Trim();
+            GeographyCityCode = geographyCityCode.Trim();
 
             return Result.Success();
+        }
+
+        public void SetGeographyCodes(
+            string geographyCountryCode,
+            string geographyRegionCode,
+            string geographyCityCode)
+        {
+            GeographyCountryCode = geographyCountryCode.Trim().ToUpperInvariant();
+            GeographyRegionCode = geographyRegionCode.Trim();
+            GeographyCityCode = geographyCityCode.Trim();
         }
 
         public Result SetVerification(bool isVerified, Guid? verifiedByUserId, DateTime utcNow)

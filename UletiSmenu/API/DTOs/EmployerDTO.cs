@@ -13,6 +13,9 @@ namespace API.DTOs
         public string PIB { get; set; } = string.Empty;
         public string MB { get; set; } = string.Empty;
         public AddressDTO? Address { get; set; }
+        public string CountryCode { get; set; } = string.Empty;
+        public string RegionCode { get; set; } = string.Empty;
+        public string CityCode { get; set; } = string.Empty;
         public bool IsFavourite { get; set; }
         public bool IsVerifiedEmployer { get; set; }
         public EmployerSubscriptionDTO? Subscription { get; set; }

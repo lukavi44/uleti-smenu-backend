@@ -29,6 +29,9 @@ namespace API.RequestHelper
              .ForMember(dest => dest.PIB, opt => opt.MapFrom(src => src.PIB.Value))
              .ForMember(dest => dest.MB, opt => opt.MapFrom(src => src.MB.Value))
              .ForMember(dest => dest.Address, opt => opt.MapFrom(src => src.Address))
+             .ForMember(dest => dest.CountryCode, opt => opt.MapFrom(src => src.GeographyCountryCode ?? string.Empty))
+             .ForMember(dest => dest.RegionCode, opt => opt.MapFrom(src => src.GeographyRegionCode ?? string.Empty))
+             .ForMember(dest => dest.CityCode, opt => opt.MapFrom(src => src.GeographyCityCode ?? string.Empty))
              .IncludeBase<User, EmployerDTO>();
 
             CreateMap<User, EmployerDTO>()
@@ -56,7 +59,10 @@ namespace API.RequestHelper
                 .ForMember(dest => dest.Country, opt => opt.MapFrom(src => src.City.Country.Name))
                 .ForMember(dest => dest.Region, opt => opt.MapFrom(src => src.City.Region.Name));
 
-            CreateMap<RestaurantLocation, RestaurantLocationDTO>();
+            CreateMap<RestaurantLocation, RestaurantLocationDTO>()
+                .ForMember(dest => dest.CountryCode, opt => opt.MapFrom(src => src.GeographyCountryCode ?? string.Empty))
+                .ForMember(dest => dest.RegionCode, opt => opt.MapFrom(src => src.GeographyRegionCode ?? string.Empty))
+                .ForMember(dest => dest.CityCode, opt => opt.MapFrom(src => src.GeographyCityCode ?? string.Empty));
 
             CreateMap<JobPost, JobPostDTO>()
               .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))

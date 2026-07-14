@@ -53,7 +53,10 @@ namespace UletiSmenu.Tests.Services
                 "Novi Sad",
                 "21000",
                 "Serbia",
-                "Vojvodina").Value;
+                "Vojvodina",
+                "RS",
+                "89010",
+                "802824").Value;
 
             billingServiceMock
                 .Setup(x => x.ValidateEmployerCanCreatePostAsync(employerId))
@@ -128,7 +131,10 @@ namespace UletiSmenu.Tests.Services
                 "Novi Sad",
                 "21000",
                 "Serbia",
-                "Vojvodina").Value;
+                "Vojvodina",
+                "RS",
+                "89010",
+                "802824").Value;
 
             locationRepositoryMock
                 .Setup(x => x.GetByIdAsync(locationId))

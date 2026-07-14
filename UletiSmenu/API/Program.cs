@@ -91,6 +91,7 @@ builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IReviewReminderService, ReviewReminderService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IGeographyService, GeographyService>();
 builder.Services.AddSingleton<IRealtimeNotifier, RealtimeNotifier>();
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IBillingService, BillingService>();
@@ -222,6 +223,7 @@ var uploadPath = app.Configuration["FileSettings:UploadPath"]
 Directory.CreateDirectory(uploadPath);
 
 await EnsureDatabaseMigratedAsync(app.Services);
+await EnsureGeographySeededAsync(app.Services);
 await EnsureRolesSeededAsync(app.Services);
 await EnsureAdminUserSeededAsync(app.Services);
 await EnsureSubscriptionsSeededAsync(app.Services);
@@ -315,6 +317,13 @@ static bool IsTransientDatabaseError(Exception ex)
     }
 
     return false;
+}
+
+static async Task EnsureGeographySeededAsync(IServiceProvider services)
+{
+    using var scope = services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await GeographyCatalogSeeder.SeedAsync(dbContext);
 }
 
 static async Task EnsureRolesSeededAsync(IServiceProvider services)

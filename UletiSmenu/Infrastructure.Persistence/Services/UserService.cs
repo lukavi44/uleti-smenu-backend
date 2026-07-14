@@ -29,10 +29,11 @@ namespace Infrastructure.Persistence.Services
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IBillingService _billingService;
         private readonly IServiceScopeFactory _serviceScopeFactory;
+        private readonly IGeographyService _geographyService;
         private readonly ILogger<UserService> _logger;
 
         public UserService(IUserRepository userRepository, IRestaurantLocationRepository restaurantLocationRepository, IJobPostRepository jobPostRepository, UserManager<User> userManager, SignInManager<User> signInManager,
-            IApplicationUnitOfWork applicationUnitOfWork, IEmailService emailService, IConfiguration configuration, IHttpContextAccessor httpContextAccessor, IBillingService billingService, IServiceScopeFactory serviceScopeFactory, ILogger<UserService> logger)
+            IApplicationUnitOfWork applicationUnitOfWork, IEmailService emailService, IConfiguration configuration, IHttpContextAccessor httpContextAccessor, IBillingService billingService, IServiceScopeFactory serviceScopeFactory, IGeographyService geographyService, ILogger<UserService> logger)
         {
             _userRepository = userRepository;
             _restaurantLocationRepository = restaurantLocationRepository;
@@ -45,6 +46,7 @@ namespace Infrastructure.Persistence.Services
             _configuration = configuration;
             _httpContextAccessor = httpContextAccessor;
             _serviceScopeFactory = serviceScopeFactory;
+            _geographyService = geographyService;
             _logger = logger;
         }
 
@@ -237,14 +239,26 @@ namespace Infrastructure.Persistence.Services
             string mb,
             string streetName,
             string streetNumber,
-            string city,
             string postalCode,
-            string country,
-            string region)
+            string countryCode,
+            string regionCode,
+            string cityCode)
         {
             var employer = await _userRepository.GetByIdAsync<Employer>(employerId);
             if (employer == null)
                 return Result.Failure<Employer>("Employer not found.");
+
+            var geographyResult = await _geographyService.ValidateSelectionAsync(
+                countryCode,
+                regionCode,
+                cityCode);
+            if (geographyResult.IsFailure)
+                return Result.Failure<Employer>(geographyResult.Error);
+
+            var geography = geographyResult.Value;
+            var postalCodeResult = ValidatePostalCode(geography.CountryCode, postalCode);
+            if (postalCodeResult.IsFailure)
+                return Result.Failure<Employer>(postalCodeResult.Error);
 
             var updateResult = employer.UpdateProfile(
                 name,
@@ -253,10 +267,13 @@ namespace Infrastructure.Persistence.Services
                 mb,
                 streetName,
                 streetNumber,
-                city,
+                geography.CityName,
                 postalCode,
-                country,
-                region);
+                geography.CountryName,
+                geography.RegionName,
+                geography.CountryCode,
+                geography.RegionCode,
+                geography.CityCode);
 
             if (updateResult.IsFailure)
                 return Result.Failure<Employer>(updateResult.Error);
@@ -391,14 +408,26 @@ namespace Infrastructure.Persistence.Services
             string mb,
             string streetName,
             string streetNumber,
-            string city,
             string postalCode,
-            string country,
-            string region)
+            string countryCode,
+            string regionCode,
+            string cityCode)
         {
             var employer = await _userRepository.GetByIdAsync<Employer>(employerId);
             if (employer == null)
                 return Result.Failure<RestaurantLocation>("Employer not found.");
+
+            var geographyResult = await _geographyService.ValidateSelectionAsync(
+                countryCode,
+                regionCode,
+                cityCode);
+            if (geographyResult.IsFailure)
+                return Result.Failure<RestaurantLocation>(geographyResult.Error);
+
+            var geography = geographyResult.Value;
+            var postalCodeResult = ValidatePostalCode(geography.CountryCode, postalCode);
+            if (postalCodeResult.IsFailure)
+                return Result.Failure<RestaurantLocation>(postalCodeResult.Error);
 
             var createLocationResult = RestaurantLocation.Create(
                 Guid.NewGuid(),
@@ -409,10 +438,13 @@ namespace Infrastructure.Persistence.Services
                 mb,
                 streetName,
                 streetNumber,
-                city,
+                geography.CityName,
                 postalCode,
-                country,
-                region);
+                geography.CountryName,
+                geography.RegionName,
+                geography.CountryCode,
+                geography.RegionCode,
+                geography.CityCode);
 
             if (createLocationResult.IsFailure)
                 return Result.Failure<RestaurantLocation>(createLocationResult.Error);
@@ -432,14 +464,26 @@ namespace Infrastructure.Persistence.Services
             string mb,
             string streetName,
             string streetNumber,
-            string city,
             string postalCode,
-            string country,
-            string region)
+            string countryCode,
+            string regionCode,
+            string cityCode)
         {
             var location = await _restaurantLocationRepository.GetByIdAsync(locationId);
             if (location == null || location.EmployerId != employerId)
                 return Result.Failure<RestaurantLocation>("Location not found.");
+
+            var geographyResult = await _geographyService.ValidateSelectionAsync(
+                countryCode,
+                regionCode,
+                cityCode);
+            if (geographyResult.IsFailure)
+                return Result.Failure<RestaurantLocation>(geographyResult.Error);
+
+            var geography = geographyResult.Value;
+            var postalCodeResult = ValidatePostalCode(geography.CountryCode, postalCode);
+            if (postalCodeResult.IsFailure)
+                return Result.Failure<RestaurantLocation>(postalCodeResult.Error);
 
             var updateResult = location.Update(
                 name,
@@ -448,10 +492,13 @@ namespace Infrastructure.Persistence.Services
                 mb,
                 streetName,
                 streetNumber,
-                city,
+                geography.CityName,
                 postalCode,
-                country,
-                region);
+                geography.CountryName,
+                geography.RegionName,
+                geography.CountryCode,
+                geography.RegionCode,
+                geography.CityCode);
 
             if (updateResult.IsFailure)
                 return Result.Failure<RestaurantLocation>(updateResult.Error);
@@ -481,6 +528,18 @@ namespace Infrastructure.Persistence.Services
         public async Task<IEnumerable<RestaurantLocation>> GetEmployerLocationsAsync(Guid employerId)
         {
             return await _restaurantLocationRepository.GetByEmployerIdAsync(employerId);
+        }
+
+        private static Result ValidatePostalCode(string countryCode, string postalCode)
+        {
+            var normalizedPostalCode = postalCode?.Trim() ?? string.Empty;
+            if (string.Equals(countryCode, "RS", StringComparison.OrdinalIgnoreCase) &&
+                (normalizedPostalCode.Length != 5 || !normalizedPostalCode.All(char.IsDigit)))
+            {
+                return Result.Failure("Postal code for Serbia must contain exactly 5 digits.");
+            }
+
+            return Result.Success();
         }
 
         private void QueueConfirmationEmail(Guid userId, string email)

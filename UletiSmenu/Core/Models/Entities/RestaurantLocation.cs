@@ -17,6 +17,12 @@ namespace Core.Models.Entities
         public string PostalCode { get; private set; }
         public string Country { get; private set; }
         public string Region { get; private set; }
+        public string? GeographyCountryCode { get; private set; }
+        public string? GeographyRegionCode { get; private set; }
+        public string? GeographyCityCode { get; private set; }
+        public GeographyCountry? GeographyCountry { get; private set; }
+        public GeographyRegion? GeographyRegion { get; private set; }
+        public GeographyCity? GeographyCity { get; private set; }
 
         private RestaurantLocation() { }
 
@@ -32,7 +38,10 @@ namespace Core.Models.Entities
             string city,
             string postalCode,
             string country,
-            string region)
+            string region,
+            string geographyCountryCode,
+            string geographyRegionCode,
+            string geographyCityCode)
         {
             Id = id;
             EmployerId = employerId;
@@ -46,6 +55,9 @@ namespace Core.Models.Entities
             PostalCode = postalCode;
             Country = country;
             Region = region;
+            GeographyCountryCode = geographyCountryCode;
+            GeographyRegionCode = geographyRegionCode;
+            GeographyCityCode = geographyCityCode;
         }
 
         public static Result<RestaurantLocation> Create(
@@ -60,7 +72,10 @@ namespace Core.Models.Entities
             string city,
             string postalCode,
             string country,
-            string region)
+            string region,
+            string geographyCountryCode,
+            string geographyRegionCode,
+            string geographyCityCode)
         {
             if (id == Guid.Empty)
                 return Result.Failure<RestaurantLocation>("Location ID cannot be empty.");
@@ -98,8 +113,18 @@ namespace Core.Models.Entities
             if (string.IsNullOrWhiteSpace(region))
                 return Result.Failure<RestaurantLocation>("Region cannot be empty.");
 
+            if (string.IsNullOrWhiteSpace(geographyCountryCode) ||
+                string.IsNullOrWhiteSpace(geographyRegionCode) ||
+                string.IsNullOrWhiteSpace(geographyCityCode))
+            {
+                return Result.Failure<RestaurantLocation>(
+                    "Country, region, and city codes are required.");
+            }
+
             return Result.Success(new RestaurantLocation(
-                id, employerId, name, phoneNumber, pib.Trim(), mb.Trim(), streetName, streetNumber, city, postalCode, country, region));
+                id, employerId, name, phoneNumber, pib.Trim(), mb.Trim(), streetName, streetNumber,
+                city, postalCode, country, region, geographyCountryCode.Trim().ToUpperInvariant(),
+                geographyRegionCode.Trim(), geographyCityCode.Trim()));
         }
 
         public Result Update(
@@ -112,7 +137,10 @@ namespace Core.Models.Entities
             string city,
             string postalCode,
             string country,
-            string region)
+            string region,
+            string geographyCountryCode,
+            string geographyRegionCode,
+            string geographyCityCode)
         {
             if (string.IsNullOrWhiteSpace(name))
                 return Result.Failure("Location name cannot be empty.");
@@ -144,6 +172,13 @@ namespace Core.Models.Entities
             if (string.IsNullOrWhiteSpace(region))
                 return Result.Failure("Region cannot be empty.");
 
+            if (string.IsNullOrWhiteSpace(geographyCountryCode) ||
+                string.IsNullOrWhiteSpace(geographyRegionCode) ||
+                string.IsNullOrWhiteSpace(geographyCityCode))
+            {
+                return Result.Failure("Country, region, and city codes are required.");
+            }
+
             Name = name.Trim();
             PhoneNumber = phoneNumber.Trim();
             PIB = pib.Trim();
@@ -154,8 +189,21 @@ namespace Core.Models.Entities
             PostalCode = postalCode.Trim();
             Country = country.Trim();
             Region = region.Trim();
+            GeographyCountryCode = geographyCountryCode.Trim().ToUpperInvariant();
+            GeographyRegionCode = geographyRegionCode.Trim();
+            GeographyCityCode = geographyCityCode.Trim();
 
             return Result.Success();
+        }
+
+        public void SetGeographyCodes(
+            string geographyCountryCode,
+            string geographyRegionCode,
+            string geographyCityCode)
+        {
+            GeographyCountryCode = geographyCountryCode.Trim().ToUpperInvariant();
+            GeographyRegionCode = geographyRegionCode.Trim();
+            GeographyCityCode = geographyCityCode.Trim();
         }
     }
 }

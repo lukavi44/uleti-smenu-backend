@@ -7,8 +7,8 @@ namespace API.DTOs
         string MB,
         string StreetName,
         string StreetNumber,
-        string City,
         string PostalCode,
-        string Country,
-        string Region);
+        string CountryCode,
+        string RegionCode,
+        string CityCode);
 }

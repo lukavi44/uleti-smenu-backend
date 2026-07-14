@@ -28,8 +28,8 @@ namespace Core.Services
         Task<List<string>> GetEmployerCitiesAsync();
         Task<IEnumerable<Employer>> GetEmployersAsync(string? city = null);
         Task<IEnumerable<EmployerFavouriteStatusDTO>> GetAllEmployersWithFavouriteStatusAsync(Guid employeeId, string? city = null);
-        Task<Result<RestaurantLocation>> CreateEmployerLocationAsync(Guid employerId, string name, string phoneNumber, string pib, string mb, string streetName, string streetNumber, string city, string postalCode, string country, string region);
-        Task<Result<RestaurantLocation>> UpdateEmployerLocationAsync(Guid employerId, Guid locationId, string name, string phoneNumber, string pib, string mb, string streetName, string streetNumber, string city, string postalCode, string country, string region);
+        Task<Result<RestaurantLocation>> CreateEmployerLocationAsync(Guid employerId, string name, string phoneNumber, string pib, string mb, string streetName, string streetNumber, string postalCode, string countryCode, string regionCode, string cityCode);
+        Task<Result<RestaurantLocation>> UpdateEmployerLocationAsync(Guid employerId, Guid locationId, string name, string phoneNumber, string pib, string mb, string streetName, string streetNumber, string postalCode, string countryCode, string regionCode, string cityCode);
         Task<Result> DeleteEmployerLocationAsync(Guid employerId, Guid locationId);
         Task<IEnumerable<RestaurantLocation>> GetEmployerLocationsAsync(Guid employerId);
 
@@ -46,10 +46,10 @@ namespace Core.Services
             string mb,
             string streetName,
             string streetNumber,
-            string city,
             string postalCode,
-            string country,
-            string region);
+            string countryCode,
+            string regionCode,
+            string cityCode);
         Task<Result> UpdateEmployerAsync(Guid employerId, Employer employer);
         Task<Result> RegisterEmployerAsync(Employer employer, string password);
     }

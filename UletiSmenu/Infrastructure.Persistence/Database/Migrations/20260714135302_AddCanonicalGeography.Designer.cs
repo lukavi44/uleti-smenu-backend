@@ -4,6 +4,7 @@ using Infrastructure.Persistence.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infrastructure.Persistence.Database.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260714135302_AddCanonicalGeography")]
+    partial class AddCanonicalGeography
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -510,10 +513,6 @@ namespace Infrastructure.Persistence.Database.Migrations
                     b.HasIndex("GeographyRegionCode");
 
                     b.HasIndex("EmployerId", "Name");
-
-                    b.HasIndex("GeographyCountryCode", "GeographyRegionCode");
-
-                    b.HasIndex("GeographyRegionCode", "GeographyCityCode");
 
                     b.ToTable("RestaurantLocations", (string)null);
                 });
@@ -1052,10 +1051,6 @@ namespace Infrastructure.Persistence.Database.Migrations
                         .IsUnique()
                         .HasFilter("[UserName] IS NOT NULL");
 
-                    b.HasIndex("GeographyCountryCode", "GeographyRegionCode");
-
-                    b.HasIndex("GeographyRegionCode", "GeographyCityCode");
-
                     b.ToTable("AspNetUsers", (string)null);
 
                     b.HasDiscriminator().HasValue("Employer");
@@ -1149,6 +1144,11 @@ namespace Infrastructure.Persistence.Database.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Core.Models.Entities.GeographyCity", "GeographyCity")
+                        .WithMany()
+                        .HasForeignKey("GeographyCityCode")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Core.Models.Entities.GeographyCountry", "GeographyCountry")
                         .WithMany()
                         .HasForeignKey("GeographyCountryCode")
@@ -1156,14 +1156,7 @@ namespace Infrastructure.Persistence.Database.Migrations
 
                     b.HasOne("Core.Models.Entities.GeographyRegion", "GeographyRegion")
                         .WithMany()
-                        .HasForeignKey("GeographyCountryCode", "GeographyRegionCode")
-                        .HasPrincipalKey("CountryCode", "Code")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Core.Models.Entities.GeographyCity", "GeographyCity")
-                        .WithMany()
-                        .HasForeignKey("GeographyRegionCode", "GeographyCityCode")
-                        .HasPrincipalKey("RegionCode", "Code")
+                        .HasForeignKey("GeographyRegionCode")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Employer");
@@ -1247,6 +1240,11 @@ namespace Infrastructure.Persistence.Database.Migrations
 
             modelBuilder.Entity("Core.Models.Entities.Employer", b =>
                 {
+                    b.HasOne("Core.Models.Entities.GeographyCity", "GeographyCity")
+                        .WithMany()
+                        .HasForeignKey("GeographyCityCode")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Core.Models.Entities.GeographyCountry", "GeographyCountry")
                         .WithMany()
                         .HasForeignKey("GeographyCountryCode")
@@ -1254,14 +1252,7 @@ namespace Infrastructure.Persistence.Database.Migrations
 
                     b.HasOne("Core.Models.Entities.GeographyRegion", "GeographyRegion")
                         .WithMany()
-                        .HasForeignKey("GeographyCountryCode", "GeographyRegionCode")
-                        .HasPrincipalKey("CountryCode", "Code")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Core.Models.Entities.GeographyCity", "GeographyCity")
-                        .WithMany()
-                        .HasForeignKey("GeographyRegionCode", "GeographyCityCode")
-                        .HasPrincipalKey("RegionCode", "Code")
+                        .HasForeignKey("GeographyRegionCode")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.OwnsOne("Core.Models.ValueObjects.Address", "Address", b1 =>

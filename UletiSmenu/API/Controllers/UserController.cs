@@ -296,10 +296,10 @@ namespace API.Controllers
                 request.MB,
                 request.StreetName,
                 request.StreetNumber,
-                request.City,
                 request.PostalCode,
-                request.Country,
-                request.Region);
+                request.CountryCode,
+                request.RegionCode,
+                request.CityCode);
 
             if (result.IsFailure)
                 return BadRequest(result.Error);
@@ -425,10 +425,10 @@ namespace API.Controllers
                 request.MB,
                 request.StreetName,
                 request.StreetNumber,
-                request.City,
                 request.PostalCode,
-                request.Country,
-                request.Region);
+                request.CountryCode,
+                request.RegionCode,
+                request.CityCode);
 
             if (result.IsFailure)
                 return BadRequest(result.Error);
@@ -457,10 +457,10 @@ namespace API.Controllers
                 request.MB,
                 request.StreetName,
                 request.StreetNumber,
-                request.City,
                 request.PostalCode,
-                request.Country,
-                request.Region);
+                request.CountryCode,
+                request.RegionCode,
+                request.CityCode);
 
             if (result.IsFailure)
                 return BadRequest(result.Error);

@@ -25,4 +25,8 @@
     <ProjectReference Include="..\Core\Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Data\serbia-geography.json" />
+  </ItemGroup>
+
 </Project>

@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using UletiSmenu.Tests.TestHelpers;
 using API.DTOs;
+using Core.DTOs;
 
 namespace UletiSmenu.Tests.Services
 {
@@ -27,6 +28,7 @@ namespace UletiSmenu.Tests.Services
         private readonly Mock<IHttpContextAccessor> _httpContextAccessorMock;
         private readonly Mock<IBillingService> _billingServiceMock;
         private readonly Mock<IServiceScopeFactory> _serviceScopeFactoryMock;
+        private readonly Mock<IGeographyService> _geographyServiceMock;
         private readonly Mock<ILogger<UserService>> _loggerMock;
 
         private readonly UserService _userService;
@@ -44,11 +46,25 @@ namespace UletiSmenu.Tests.Services
             _httpContextAccessorMock = new Mock<IHttpContextAccessor>();
             _billingServiceMock = new Mock<IBillingService>();
             _serviceScopeFactoryMock = new Mock<IServiceScopeFactory>();
+            _geographyServiceMock = new Mock<IGeographyService>();
             _loggerMock = new Mock<ILogger<UserService>>();
 
             _billingServiceMock
                 .Setup(service => service.GrantRegistrationBonus(It.IsAny<Employer>()))
                 .Returns(CSharpFunctionalExtensions.Result.Success());
+            _geographyServiceMock
+                .Setup(service => service.ValidateSelectionAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string>()))
+                .ReturnsAsync(CSharpFunctionalExtensions.Result.Success(
+                    new GeographySelectionDTO(
+                        "RS",
+                        "Srbija",
+                        "89010",
+                        "Novi Sad",
+                        "802824",
+                        "Novi Sad")));
 
             _userService = new UserService(
                 _userRepositoryMock.Object,
@@ -62,6 +78,7 @@ namespace UletiSmenu.Tests.Services
                 _httpContextAccessorMock.Object,
                 _billingServiceMock.Object,
                 _serviceScopeFactoryMock.Object,
+                _geographyServiceMock.Object,
                 _loggerMock.Object);
         }
 
@@ -113,10 +130,10 @@ namespace UletiSmenu.Tests.Services
                 "87654321",
                 "Street",
                 "1",
-                "City",
                 "21000",
-                "Country",
-                "Region");
+                "RS",
+                "89010",
+                "802824");
 
             // Assert
             Assert.True(result.IsSuccess);
@@ -146,15 +163,47 @@ namespace UletiSmenu.Tests.Services
                 employer.MB.Value,
                 "Street",
                 "1",
-                "City",
                 "21000",
-                "Country",
-                "Region");
+                "RS",
+                "89010",
+                "802824");
 
             // Assert
             Assert.True(result.IsFailure);
             Assert.Equal("PIB is invalid.", result.Error);
             _restaurantLocationRepositoryMock.Verify(repo => repo.AddAsync(It.IsAny<RestaurantLocation>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task CreateEmployerLocationAsync_ShouldFail_WhenCityDoesNotBelongToRegion()
+        {
+            var employerId = Guid.NewGuid();
+            _userRepositoryMock
+                .Setup(repo => repo.GetByIdAsync<Employer>(employerId))
+                .ReturnsAsync(TestDataFactory.CreateFakeRegisterEmployer());
+            _geographyServiceMock
+                .Setup(service => service.ValidateSelectionAsync("RS", "89010", "726770"))
+                .ReturnsAsync(CSharpFunctionalExtensions.Result.Failure<GeographySelectionDTO>(
+                    "Selected city does not belong to the selected region."));
+
+            var result = await _userService.CreateEmployerLocationAsync(
+                employerId,
+                "Branch 2",
+                "0609990000",
+                "123456789",
+                "87654321",
+                "Street",
+                "1",
+                "21000",
+                "RS",
+                "89010",
+                "726770");
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("Selected city does not belong to the selected region.", result.Error);
+            _restaurantLocationRepositoryMock.Verify(
+                repo => repo.AddAsync(It.IsAny<RestaurantLocation>()),
+                Times.Never);
         }
     }
 }
