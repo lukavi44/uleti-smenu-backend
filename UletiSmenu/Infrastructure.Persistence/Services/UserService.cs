@@ -65,6 +65,10 @@ namespace Infrastructure.Persistence.Services
                 if (bonusResult.IsFailure)
                     return Result.Failure(bonusResult.Error);
 
+                var slugResult = await AssignUniquePublicSlugAsync(employer);
+                if (slugResult.IsFailure)
+                    return Result.Failure(slugResult.Error);
+
                 var identityResult = await _userManager.CreateAsync(employer, password);
                 if (!identityResult.Succeeded)
                     return Result.Failure(string.Join(", ", identityResult.Errors.Select(e => e.Description)));
@@ -515,9 +519,12 @@ namespace Infrastructure.Persistence.Services
                 return Result.Success();
 
             var slugSource = string.IsNullOrWhiteSpace(employer.Name)
-                ? (employer.Email?.Split('@').FirstOrDefault() ?? employer.Id.ToString())
+                ? (employer.Email?.Split('@').FirstOrDefault() ?? employer.Id.ToString("N"))
                 : employer.Name;
             var baseSlug = EmployerSlugHelper.Slugify(slugSource);
+            if (string.IsNullOrWhiteSpace(baseSlug))
+                baseSlug = $"employer-{employer.Id.ToString("N")[..8]}";
+
             var slug = baseSlug;
             var suffix = 2;
 

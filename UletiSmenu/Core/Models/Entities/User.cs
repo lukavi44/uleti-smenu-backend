@@ -8,12 +8,12 @@ namespace Core.Models.Entities
     {
         public string? ProfilePhoto { get; private set; }
 
-        protected User(Guid id, string email, string username, string phoneNumber, string? profilePhoto = null)
+        protected User(Guid id, string email, string username, string? phoneNumber, string? profilePhoto = null)
         {
             Id = id;
             Email = email;
             UserName = email;
-            PhoneNumber = phoneNumber;
+            PhoneNumber = string.IsNullOrWhiteSpace(phoneNumber) ? null : phoneNumber.Trim();
             ProfilePhoto = profilePhoto ?? string.Empty;
         }
 
@@ -21,7 +21,7 @@ namespace Core.Models.Entities
         {
         }
 
-        public static Result<User> Create(Guid id, string email, string username, string phoneNumber, string? profilePhoto = null)
+        public static Result<User> Create(Guid id, string email, string username, string? phoneNumber, string? profilePhoto = null)
         {
             if (string.IsNullOrWhiteSpace(email))
                 return Result.Failure<User>("Email cannot be empty.");

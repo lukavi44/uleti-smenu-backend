@@ -15,7 +15,9 @@ namespace Infrastructure.Persistence.Database.Configurations
             // Indexes for performance optimization
             builder.HasIndex(u => u.Email).IsUnique();
             builder.HasIndex(u => u.UserName).IsUnique();
-            builder.HasIndex(u => u.PhoneNumber).IsUnique();
+            builder.HasIndex(u => u.PhoneNumber)
+                .IsUnique()
+                .HasFilter("[PhoneNumber] IS NOT NULL AND [PhoneNumber] <> ''");
 
             // Table name (optional)
             builder.ToTable("AspNetUsers");

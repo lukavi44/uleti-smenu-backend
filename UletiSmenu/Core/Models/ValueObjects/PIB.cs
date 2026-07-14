@@ -23,6 +23,12 @@ public class PIB : ValueObject
         return Result.Success(new PIB(value));
     }
 
+    /// <summary>
+    /// Materializes PIB from storage. Incomplete employer profiles may store an empty value.
+    /// </summary>
+    public static PIB FromPersistence(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? Empty() : Create(value).Value;
+
     public static PIB Empty() => new(string.Empty);
 
     protected override IEnumerable<object> GetEqualityComponents()

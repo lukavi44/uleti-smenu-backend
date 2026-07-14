@@ -32,7 +32,7 @@ namespace Core.Models.Entities
 
         public Employer() : base() {}
 
-        private Employer(Guid id, string name, string email, string username, string phoneNumber, string? profilePhoto,
+        private Employer(Guid id, string name, string email, string username, string? phoneNumber, string? profilePhoto,
                          PIB pib, MB mb, Guid? subscriptionId, DateTime? subscriptionStart, DateTime? subscriptionStop, Address address)
             : base(id, email, username, phoneNumber, profilePhoto) {
             Name = name;
@@ -67,7 +67,7 @@ namespace Core.Models.Entities
 
         public static Result<Employer> CreateMinimal(Guid id, string email, string username)
         {
-            var userResult = User.Create(id, email, username, string.Empty, string.Empty);
+            var userResult = User.Create(id, email, username, null, null);
             if (userResult.IsFailure)
                 return Result.Failure<Employer>(userResult.Error);
 
@@ -76,8 +76,8 @@ namespace Core.Models.Entities
                 string.Empty,
                 email,
                 username,
-                string.Empty,
-                string.Empty,
+                null,
+                null,
                 PIB.Empty(),
                 MB.Empty(),
                 null,

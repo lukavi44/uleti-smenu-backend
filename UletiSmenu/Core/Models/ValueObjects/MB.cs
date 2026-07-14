@@ -18,10 +18,16 @@ public class MB : ValueObject
             return Result.Failure<MB>("MB must contain only numbers.");
 
         if (value.Length != 8)
-            return Result.Failure<MB>("MB must be exactly 9 digits long.");
+            return Result.Failure<MB>("MB must be exactly 8 digits long.");
 
         return Result.Success(new MB(value));
     }
+
+    /// <summary>
+    /// Materializes MB from storage. Incomplete employer profiles may store an empty value.
+    /// </summary>
+    public static MB FromPersistence(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? Empty() : Create(value).Value;
 
     public static MB Empty() => new(string.Empty);
 

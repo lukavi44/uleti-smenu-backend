@@ -15,7 +15,7 @@ namespace Core.Models.Entities
 
         public Employee() : base () {}
 
-        private Employee(Guid id, string email, string username, string phoneNumber, string profilePhoto,
+        private Employee(Guid id, string email, string username, string? phoneNumber, string? profilePhoto,
             ICollection<Application> applications, string firstName, string lastName, string? cvFileName) : base(id, email, username, phoneNumber, profilePhoto)
         {
             Applications = applications;
@@ -43,11 +43,11 @@ namespace Core.Models.Entities
 
         public static Result<Employee> CreateMinimal(Guid id, string email, string username)
         {
-            var userResult = User.Create(id, email, username, string.Empty, string.Empty);
+            var userResult = User.Create(id, email, username, null, null);
             if (userResult.IsFailure)
                 return Result.Failure<Employee>(userResult.Error);
 
-            return Result.Success(new Employee(id, email, username, string.Empty, string.Empty, new List<Application>(), string.Empty, string.Empty, null));
+            return Result.Success(new Employee(id, email, username, null, null, new List<Application>(), string.Empty, string.Empty, null));
         }
 
         public Result UpdateProfile(string firstName, string lastName, string phoneNumber, string? city)

@@ -24,14 +24,14 @@ namespace Infrastructure.Persistence.Database.Configurations
             builder.Property(e => e.PIB)
                     .HasConversion(
                     pib => pib.Value,
-                    pib => PIB.Create(pib).Value)
+                    pib => PIB.FromPersistence(pib))
                    .IsRequired()
                    .HasMaxLength(9);
 
             builder.Property(e => e.MB)
                    .HasConversion(
                     mb => mb.Value,
-                    mb => MB.Create(mb).Value)
+                    mb => MB.FromPersistence(mb))
                    .IsRequired()
                    .HasMaxLength(8);
 
