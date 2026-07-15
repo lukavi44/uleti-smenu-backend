@@ -383,6 +383,7 @@ namespace Infrastructure.Persistence.Services
                 Name = e.Name,
                 ProfilePhoto = e.ProfilePhoto,
                 PublicSlug = e.PublicSlug,
+                City = EmployerDisplayCityResolver.Resolve(e, Array.Empty<RestaurantLocation>()),
                 IsFavourite = favouritedEmployerIds.Contains(e.Id)
             }).ToList();
         }

@@ -478,7 +478,10 @@ namespace Infrastructure.Persistence.Services
             var employerId = employer.Id;
 
             var activeJobPostsCount = await _context.JobPosts
-                .CountAsync(post => post.EmployerId == employerId && post.Status == JobStatusEnum.Active);
+                .CountAsync(post =>
+                    post.EmployerId == employerId
+                    && post.Status == JobStatusEnum.Active
+                    && post.StartingDate.AddHours(1) >= DateTime.UtcNow);
             var totalJobPostsCount = await _context.JobPosts
                 .CountAsync(post => post.EmployerId == employerId);
             var completedShiftsCount = await _context.JobPosts

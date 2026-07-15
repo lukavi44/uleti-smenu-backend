@@ -63,13 +63,16 @@ namespace API.Controllers
         }
 
         [HttpGet("conversations/{conversationId:guid}/messages")]
-        public async Task<IActionResult> GetMessages(Guid conversationId)
+        public async Task<IActionResult> GetMessages(
+            Guid conversationId,
+            [FromQuery] DateTime? before = null,
+            [FromQuery] int pageSize = 30)
         {
             var (userId, _, errorResult) = await ResolveCurrentUserAsync();
             if (errorResult != null)
                 return errorResult;
 
-            var result = await _chatService.GetMessagesAsync(userId, conversationId);
+            var result = await _chatService.GetMessagesAsync(userId, conversationId, before, pageSize);
             if (result.IsFailure)
                 return BadRequest(result.Error);
 

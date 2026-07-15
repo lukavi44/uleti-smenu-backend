@@ -16,6 +16,8 @@ namespace Core.Repositories
             Guid employeeId,
             ConversationStatusEnum status);
         Task<List<ChatMessageDTO>> GetMessagesAsync(Guid conversationId);
+        Task<ChatMessagePageDTO> GetMessagesPageAsync(Guid conversationId, DateTime? beforeUtc, int pageSize);
+        Task<DateTime?> GetLatestMessageSentAtAsync(Guid conversationId);
         Task AddConversationAsync(Conversation conversation);
         void UpdateConversation(Conversation conversation);
         Task AddMessageAsync(ChatMessage message);

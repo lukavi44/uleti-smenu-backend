@@ -33,16 +33,22 @@ namespace Infrastructure.Persistence.Database.Repositories
 
         public async Task<int> CountActiveByEmployerIdAsync(Guid employerId)
         {
+            var utcNow = DateTime.UtcNow;
             return await _context.JobPosts
-                .CountAsync(jp => jp.EmployerId == employerId && jp.Status == JobStatusEnum.Active);
+                .CountAsync(jp =>
+                    jp.EmployerId == employerId
+                    && jp.Status == JobStatusEnum.Active
+                    && jp.StartingDate.AddHours(1) >= utcNow);
         }
 
         public async Task<int> CountActiveByRestaurantLocationIdAsync(Guid restaurantLocationId)
         {
+            var utcNow = DateTime.UtcNow;
             return await _context.JobPosts
                 .CountAsync(jp =>
                     jp.RestaurantLocationId == restaurantLocationId
-                    && jp.Status == JobStatusEnum.Active);
+                    && jp.Status == JobStatusEnum.Active
+                    && jp.StartingDate.AddHours(1) >= utcNow);
         }
 
         public async Task<List<string>> GetDistinctPositionsByEmployerIdAsync(Guid employerId)

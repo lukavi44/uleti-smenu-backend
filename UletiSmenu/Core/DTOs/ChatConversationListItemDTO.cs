@@ -11,7 +11,8 @@ namespace Core.DTOs
         public string OtherPartyName { get; set; } = string.Empty;
         public Guid OtherPartyId { get; set; }
         public string? OtherPartyProfilePhoto { get; set; }
-        public string? LastMessagePreview { get; set; }
+        public string? OtherPartyPublicSlug { get; set; }
+        public string? LastMessagePreview { get; set; } = string.Empty;
         public DateTime? LastMessageAtUtc { get; set; }
         public int UnreadCount { get; set; }
         public string Status { get; set; } = "Active";

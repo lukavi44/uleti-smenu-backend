@@ -101,6 +101,7 @@ namespace Infrastructure.Persistence.Services
                 Name = employer.Name,
                 ProfilePhoto = employer.ProfilePhoto,
                 PhoneNumber = employer.PhoneNumber ?? string.Empty,
+                City = EmployerDisplayCityResolver.Resolve(employer, locations),
                 PublicSlug = employer.PublicSlug,
                 IsFavourite = isFavourite,
                 Locations = locations.Select(MapLocation).ToList(),
@@ -131,20 +132,13 @@ namespace Infrastructure.Persistence.Services
                 sortBy: "startingDate",
                 sortDirection: "asc");
 
-            var cities = locations
-                .Select(location => location.City)
-                .Where(city => !string.IsNullOrWhiteSpace(city))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(city => city)
-                .ToList();
-
             return Result.Success(new EmployerDirectoryPreviewDTO
             {
                 EmployerId = employer.Id,
                 Name = employer.Name,
                 ProfilePhoto = employer.ProfilePhoto,
                 PublicSlug = employer.PublicSlug,
-                City = cities.Count > 0 ? string.Join(", ", cities) : string.Empty,
+                City = EmployerDisplayCityResolver.Resolve(employer, locations),
                 ReviewSummary = reviewSummary,
                 ActiveJobPostsCount = activeJobPostsCount
             });
@@ -181,7 +175,7 @@ namespace Infrastructure.Persistence.Services
                 PhoneNumber = location.PhoneNumber,
                 StreetName = location.StreetName,
                 StreetNumber = location.StreetNumber,
-                City = location.City,
+                City = EmployerDisplayCityResolver.ResolveLocationCity(location),
                 PostalCode = location.PostalCode,
                 Country = location.Country,
                 Region = location.Region
@@ -198,7 +192,7 @@ namespace Infrastructure.Persistence.Services
                 Salary = jobPost.Salary,
                 StartingDate = jobPost.StartingDate,
                 RestaurantLocationName = jobPost.RestaurantLocation?.Name,
-                RestaurantLocationCity = jobPost.RestaurantLocation?.City
+                RestaurantLocationCity = EmployerDisplayCityResolver.ResolveLocationCity(jobPost.RestaurantLocation)
             };
         }
 

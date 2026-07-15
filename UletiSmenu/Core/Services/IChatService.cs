@@ -10,7 +10,11 @@ namespace Core.Services
             string role,
             string status = "active");
         Task<Result<ChatConversationListItemDTO>> GetConversationByApplicationAsync(Guid userId, Guid applicationId);
-        Task<Result<List<ChatMessageDTO>>> GetMessagesAsync(Guid userId, Guid conversationId);
+        Task<Result<ChatMessagePageDTO>> GetMessagesAsync(
+            Guid userId,
+            Guid conversationId,
+            DateTime? beforeUtc = null,
+            int pageSize = 30);
         Task<Result<ChatMessageDTO>> SendMessageAsync(Guid userId, Guid conversationId, string content);
         Task<Result<int>> GetMyUnreadCountAsync(Guid userId, string role);
         Task<Result> MarkConversationReadAsync(Guid userId, Guid conversationId);

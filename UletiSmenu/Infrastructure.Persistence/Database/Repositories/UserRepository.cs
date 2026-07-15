@@ -46,6 +46,7 @@ namespace Infrastructure.Persistence.Database.Repositories
         {
             var employer = await _context.Users
                 .OfType<Employer>()
+                .Include(e => e.GeographyCity)
                 .FirstOrDefaultAsync(e => e.Id == id);
 
             return employer == null
@@ -58,6 +59,7 @@ namespace Infrastructure.Persistence.Database.Repositories
             var normalizedSlug = publicSlug.Trim().ToLowerInvariant();
             return await _context.Users
                 .OfType<Employer>()
+                .Include(e => e.GeographyCity)
                 .FirstOrDefaultAsync(e => e.PublicSlug == normalizedSlug);
         }
 

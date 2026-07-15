@@ -164,6 +164,20 @@ namespace API.Controllers
                     PhoneNumber = employer.PhoneNumber ?? string.Empty,
                     ProfilePhoto = employer.ProfilePhoto ?? string.Empty,
                     PublicSlug = employer.PublicSlug,
+                    Address = employer.Address == null
+                        ? null
+                        : new AddressDTO
+                        {
+                            Street = employer.Address.Street?.Name ?? string.Empty,
+                            StreetNumber = employer.Address.Street?.Number ?? string.Empty,
+                            City = employer.Address.City?.Name ?? string.Empty,
+                            PostalCode = employer.Address.City?.PostalCode?.Value ?? string.Empty,
+                            Country = employer.Address.City?.Country?.Name ?? string.Empty,
+                            Region = employer.Address.City?.Region?.Name ?? string.Empty,
+                        },
+                    CountryCode = employer.GeographyCountryCode ?? string.Empty,
+                    RegionCode = employer.GeographyRegionCode ?? string.Empty,
+                    CityCode = employer.GeographyCityCode ?? string.Empty,
                 });
 
                 return Ok(response);
@@ -370,7 +384,13 @@ namespace API.Controllers
                 Name = x.Name,
                 ProfilePhoto = x.ProfilePhoto ?? string.Empty,
                 PublicSlug = x.PublicSlug,
-                IsFavourite = x.IsFavourite
+                IsFavourite = x.IsFavourite,
+                Address = string.IsNullOrWhiteSpace(x.City)
+                    ? null
+                    : new AddressDTO
+                    {
+                        City = x.City,
+                    },
             });
 
             return Ok(response);

@@ -121,7 +121,11 @@ namespace Infrastructure.Persistence.Services
             return Result.Success(conversationItem);
         }
 
-        public async Task<Result<List<ChatMessageDTO>>> GetMessagesAsync(Guid userId, Guid conversationId)
+        public async Task<Result<ChatMessagePageDTO>> GetMessagesAsync(
+            Guid userId,
+            Guid conversationId,
+            DateTime? beforeUtc = null,
+            int pageSize = 30)
         {
             var accessResult = await _chatAccessService.EvaluateConversationAccessAsync(
                 userId,
@@ -129,10 +133,24 @@ namespace Infrastructure.Persistence.Services
                 requireSend: false);
 
             if (accessResult.IsFailure)
-                return Result.Failure<List<ChatMessageDTO>>(accessResult.Error);
+                return Result.Failure<ChatMessagePageDTO>(accessResult.Error);
 
-            var messages = await _chatRepository.GetMessagesAsync(conversationId);
-            return Result.Success(messages);
+            if (pageSize <= 0 || pageSize > 100)
+                pageSize = 30;
+
+            DateTime? cursor = beforeUtc;
+            if (cursor.HasValue)
+            {
+                cursor = cursor.Value.Kind switch
+                {
+                    DateTimeKind.Utc => cursor.Value,
+                    DateTimeKind.Local => cursor.Value.ToUniversalTime(),
+                    _ => DateTime.SpecifyKind(cursor.Value, DateTimeKind.Utc)
+                };
+            }
+
+            var page = await _chatRepository.GetMessagesPageAsync(conversationId, cursor, pageSize);
+            return Result.Success(page);
         }
 
         public async Task<Result<ChatMessageDTO>> SendMessageAsync(Guid userId, Guid conversationId, string content)
@@ -205,10 +223,8 @@ namespace Infrastructure.Persistence.Services
             if (accessResult.IsFailure)
                 return Result.Failure(accessResult.Error);
 
-            var messages = await _chatRepository.GetMessagesAsync(conversationId);
-            var readAtUtc = messages.Count > 0
-                ? messages.Max(message => message.SentAtUtc)
-                : DateTime.UtcNow;
+            var latestSentAtUtc = await _chatRepository.GetLatestMessageSentAtAsync(conversationId);
+            var readAtUtc = latestSentAtUtc ?? DateTime.UtcNow;
 
             await _chatRepository.MarkConversationReadAsync(userId, conversationId, readAtUtc);
             await _applicationUnitOfWork.SaveChangesAsync();

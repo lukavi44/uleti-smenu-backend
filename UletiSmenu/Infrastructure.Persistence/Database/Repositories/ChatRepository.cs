@@ -54,6 +54,7 @@ namespace Infrastructure.Persistence.Database.Repositories
                     employee.FirstName + " " + employee.LastName,
                     employee.Id,
                     employee.ProfilePhoto,
+                    null,
                     conversation.CreatedAtUtc,
                     conversation.Status,
                     conversation.LastMessageAtUtc)).ToListAsync();
@@ -82,6 +83,7 @@ namespace Infrastructure.Persistence.Database.Repositories
                     employer.Name,
                     employer.Id,
                     employer.ProfilePhoto,
+                    employer.PublicSlug,
                     conversation.CreatedAtUtc,
                     conversation.Status,
                     conversation.LastMessageAtUtc)).ToListAsync();
@@ -163,6 +165,61 @@ namespace Infrastructure.Persistence.Database.Repositories
                 .ToListAsync();
         }
 
+        public async Task<ChatMessagePageDTO> GetMessagesPageAsync(Guid conversationId, DateTime? beforeUtc, int pageSize)
+        {
+            if (pageSize <= 0)
+                pageSize = 30;
+
+            var query = _context.ChatMessages
+                .Where(message => message.ConversationId == conversationId);
+
+            if (beforeUtc.HasValue)
+            {
+                var cursor = beforeUtc.Value;
+                query = query.Where(message => message.SentAtUtc < cursor);
+            }
+
+            // Fetch the newest page first (descending), grabbing one extra row to detect more history.
+            var rows = await query
+                .OrderByDescending(message => message.SentAtUtc)
+                .ThenByDescending(message => message.Id)
+                .Take(pageSize + 1)
+                .Select(message => new ChatMessageDTO
+                {
+                    Id = message.Id,
+                    SenderId = message.SenderId,
+                    Content = message.Content,
+                    SentAtUtc = message.SentAtUtc
+                })
+                .ToListAsync();
+
+            var hasMore = rows.Count > pageSize;
+            if (hasMore)
+                rows = rows.Take(pageSize).ToList();
+
+            // Return in ascending (oldest-to-newest) order for display.
+            rows.Reverse();
+
+            return new ChatMessagePageDTO
+            {
+                Items = rows,
+                HasMore = hasMore
+            };
+        }
+
+        public async Task<DateTime?> GetLatestMessageSentAtAsync(Guid conversationId)
+        {
+            var hasMessages = await _context.ChatMessages
+                .AnyAsync(message => message.ConversationId == conversationId);
+
+            if (!hasMessages)
+                return null;
+
+            return await _context.ChatMessages
+                .Where(message => message.ConversationId == conversationId)
+                .MaxAsync(message => message.SentAtUtc);
+        }
+
         public async Task AddConversationAsync(Conversation conversation)
         {
             await _context.Conversations.AddAsync(conversation);
@@ -212,6 +269,7 @@ namespace Infrastructure.Persistence.Database.Repositories
                         OtherPartyName = row.OtherPartyName,
                         OtherPartyId = row.OtherPartyId,
                         OtherPartyProfilePhoto = row.OtherPartyProfilePhoto,
+                        OtherPartyPublicSlug = row.OtherPartyPublicSlug,
                         LastMessagePreview = lastMessage?.Content,
                         LastMessageAtUtc = row.LastMessageAtUtc ?? lastMessage?.SentAtUtc ?? row.CreatedAtUtc,
                         UnreadCount = isArchived ? 0 : unreadCounts.GetValueOrDefault(row.Id),
@@ -261,6 +319,7 @@ namespace Infrastructure.Persistence.Database.Repositories
             string OtherPartyName,
             Guid OtherPartyId,
             string? OtherPartyProfilePhoto,
+            string? OtherPartyPublicSlug,
             DateTime CreatedAtUtc,
             ConversationStatusEnum Status,
             DateTime? LastMessageAtUtc);

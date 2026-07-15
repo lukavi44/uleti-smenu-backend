@@ -13,8 +13,9 @@ namespace Infrastructure.Persistence.Database.Repositories
         public async Task<List<RestaurantLocation>> GetByEmployerIdAsync(Guid employerId)
         {
             return await _context.RestaurantLocations
+                .Include(x => x.GeographyCity)
                 .Where(x => x.EmployerId == employerId)
-                .OrderBy(x => x.Name)
+                .OrderBy(x => x.Id)
                 .ToListAsync();
         }
 
