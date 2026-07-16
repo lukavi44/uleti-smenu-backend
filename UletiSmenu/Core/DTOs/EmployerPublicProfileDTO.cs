@@ -5,8 +5,9 @@ namespace Core.DTOs
         public Guid EmployerId { get; set; }
         public string Name { get; set; } = string.Empty;
         public string? ProfilePhoto { get; set; }
-        public string PhoneNumber { get; set; } = string.Empty;
         public string City { get; set; } = string.Empty;
+        public bool IsVerifiedEmployer { get; set; }
+        public int SuccessfulHiresCount { get; set; }
         public bool? IsFavourite { get; set; }
         public string PublicSlug { get; set; } = string.Empty;
         public List<EmployerLocationDTO> Locations { get; set; } = new();

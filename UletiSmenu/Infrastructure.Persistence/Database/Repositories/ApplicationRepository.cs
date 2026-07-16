@@ -106,6 +106,18 @@ namespace Infrastructure.Persistence.Database.Repositories
             };
         }
 
+        public async Task<int> CountDistinctAcceptedCandidatesByEmployerAsync(Guid employerId)
+        {
+            return await (
+                from application in _context.Applications
+                join jobPost in _context.JobPosts on application.JobPostId equals jobPost.Id
+                where jobPost.EmployerId == employerId
+                      && application.Status == ApplicationStatusEnum.Accepted
+                select application.UserId)
+                .Distinct()
+                .CountAsync();
+        }
+
         public async Task AddAsync(Application application)
         {
             await _context.Applications.AddAsync(application);

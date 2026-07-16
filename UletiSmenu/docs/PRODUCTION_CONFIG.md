@@ -22,6 +22,14 @@ ASP.NET Core loads settings in this order (later wins):
 └─────────────────────────────────────────────────────────┘
 ```
 
+On **Render / constrained Linux hosts**, set:
+
+```text
+DOTNET_USE_POLLING_FILE_WATCHER=1
+```
+
+ASP.NET Core otherwise uses **inotify** for JSON config reload and can fail at `WebApplication.CreateBuilder` when the instance limit is hit (`user limit (128) on the number of inotify instances`). Prefer environment variables for production secrets; live JSON reload is not needed in Staging/Production (`Program.cs` disables `ReloadOnChange` outside Development). Docker start command must be `dotnet API.dll` — never `dotnet watch`. See `docs/RENDER_DEPLOY.md`.
+
 ---
 
 ## What belongs in `appsettings.json` (committed)
@@ -271,6 +279,7 @@ See `docs/PAYMENT_PROPOSAL.md` for full billing behavior.
 ## Checklist before going live
 
 - [ ] `ASPNETCORE_ENVIRONMENT=Production`
+- [ ] `DOTNET_USE_POLLING_FILE_WATCHER=1` if hosting on Render (or similar Linux containers)
 - [ ] Connection string in env vars, not in git
 - [ ] CORS lists only production frontend URL
 - [ ] `VITE_API_BASE_URL` points to production API

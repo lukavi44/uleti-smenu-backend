@@ -83,6 +83,7 @@ if ($existingApi) {
         }
         envVars = @(
             @{ key = "ASPNETCORE_ENVIRONMENT"; value = "Staging" }
+            @{ key = "DOTNET_USE_POLLING_FILE_WATCHER"; value = "1" }
             @{ key = "ConnectionStrings__UletiSmenu"; value = "REPLACE_IN_DASHBOARD" }
             @{ key = "Cors__AllowedOrigins__0"; value = "https://uletismenu-web-staging.onrender.com" }
             @{ key = "Cors__AllowedOrigins__1"; value = "http://localhost:5173" }

@@ -17,6 +17,7 @@ using Infrastructure.Persistence.Services;
 using Infrastructure.Stripe;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration.Json;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
@@ -26,6 +27,15 @@ using System.Net;
 using System.Net.Mail;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Production/staging config comes from env vars; avoid inotify file watchers on Render.
+if (!builder.Environment.IsDevelopment())
+{
+    foreach (var source in builder.Configuration.Sources.OfType<JsonConfigurationSource>())
+    {
+        source.ReloadOnChange = false;
+    }
+}
 
 builder.Host.UseSerilog((context, services, configuration) => configuration
     .ReadFrom.Configuration(context.Configuration)

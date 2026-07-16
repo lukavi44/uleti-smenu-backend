@@ -47,8 +47,29 @@ In Render → **uletismenu-api-staging** → **Environment**:
 |-----|--------|
 | `ConnectionStrings__UletiSmenu` | Azure SQL connection string |
 | `ASPNETCORE_ENVIRONMENT` | `Staging` (set by blueprint) |
+| `DOTNET_USE_POLLING_FILE_WATCHER` | `1` (required — see below) |
 | `Cors__AllowedOrigins__0` | `https://uletismenu-web-staging.onrender.com` |
 | `Stripe__Enabled` | `false` |
+
+### Inotify / file-watcher crash on Render
+
+Render Linux containers have a low **inotify** instance limit. ASP.NET Core’s default JSON config reload uses inotify and can crash at startup:
+
+```text
+System.IO.IOException: The configured user limit (128) on the number of inotify instances has been reached.
+```
+
+**Immediate fix (smallest / safest):** set on the API service, then redeploy:
+
+```text
+DOTNET_USE_POLLING_FILE_WATCHER=1
+```
+
+This is included in `render.yaml`. If the service already exists, add the variable in the Dashboard (or sync the Blueprint) and **Manual Deploy**.
+
+**Also in code:** non-Development environments disable `ReloadOnChange` on JSON configuration sources (`Program.cs`). Production secrets and settings should come from **environment variables**, not live-edited JSON files.
+
+**Start command:** the Docker image uses `dotnet API.dll` only — never `dotnet watch` on Render.
 
 ---
 

@@ -15,6 +15,7 @@ namespace Infrastructure.Persistence.Services
         private readonly IRestaurantLocationRepository _restaurantLocationRepository;
         private readonly IReviewRepository _reviewRepository;
         private readonly IJobPostRepository _jobPostRepository;
+        private readonly IApplicationRepository _applicationRepository;
         private readonly IApplicationUnitOfWork _applicationUnitOfWork;
 
         public EmployerProfileService(
@@ -22,12 +23,14 @@ namespace Infrastructure.Persistence.Services
             IRestaurantLocationRepository restaurantLocationRepository,
             IReviewRepository reviewRepository,
             IJobPostRepository jobPostRepository,
+            IApplicationRepository applicationRepository,
             IApplicationUnitOfWork applicationUnitOfWork)
         {
             _userRepository = userRepository;
             _restaurantLocationRepository = restaurantLocationRepository;
             _reviewRepository = reviewRepository;
             _jobPostRepository = jobPostRepository;
+            _applicationRepository = applicationRepository;
             _applicationUnitOfWork = applicationUnitOfWork;
         }
 
@@ -77,6 +80,8 @@ namespace Infrastructure.Persistence.Services
 
             var locations = await _restaurantLocationRepository.GetByEmployerIdAsync(employerId);
             var reviewSummary = await _reviewRepository.GetEmployerReviewSummaryAsync(employerId);
+            var successfulHiresCount =
+                await _applicationRepository.CountDistinctAcceptedCandidatesByEmployerAsync(employerId);
 
             var utcNow = DateTime.UtcNow;
             var (jobPosts, _) = await _jobPostRepository.GetByEmployerIdPagedAsync(
@@ -100,8 +105,9 @@ namespace Infrastructure.Persistence.Services
                 EmployerId = employer.Id,
                 Name = employer.Name,
                 ProfilePhoto = employer.ProfilePhoto,
-                PhoneNumber = employer.PhoneNumber ?? string.Empty,
                 City = EmployerDisplayCityResolver.Resolve(employer, locations),
+                IsVerifiedEmployer = employer.IsVerifiedEmployer,
+                SuccessfulHiresCount = successfulHiresCount,
                 PublicSlug = employer.PublicSlug,
                 IsFavourite = isFavourite,
                 Locations = locations.Select(MapLocation).ToList(),
@@ -172,7 +178,6 @@ namespace Infrastructure.Persistence.Services
             {
                 Id = location.Id,
                 Name = location.Name,
-                PhoneNumber = location.PhoneNumber,
                 StreetName = location.StreetName,
                 StreetNumber = location.StreetNumber,
                 City = EmployerDisplayCityResolver.ResolveLocationCity(location),

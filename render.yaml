@@ -14,6 +14,10 @@ services:
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Staging
+      # Avoid inotify "user limit (128) ... reached" during CreateBuilder on Render.
+      # Prefer env vars for production config; do not use dotnet watch in production.
+      - key: DOTNET_USE_POLLING_FILE_WATCHER
+        value: "1"
       - key: ConnectionStrings__UletiSmenu
         sync: false
       - key: Cors__AllowedOrigins__0

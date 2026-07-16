@@ -12,6 +12,7 @@ namespace Core.Repositories
             IEnumerable<Guid> jobPostIds,
             int limitPerPost = 3);
         Task<JobPostApplicationStatsDTO> GetApplicationStatsByJobPostIdAsync(Guid jobPostId);
+        Task<int> CountDistinctAcceptedCandidatesByEmployerAsync(Guid employerId);
         Task AddAsync(Application application);
         Task<Application?> GetByIdAsync(Guid applicationId);
         Task<List<Application>> GetPendingApplicationsByJobPostIdAsync(Guid jobPostId);
