@@ -143,6 +143,7 @@ namespace API.Controllers
         }
 
 
+        [Authorize(Roles = "Admin")]
         [HttpGet("users")]
         public async Task<IActionResult> GetAllUsers()
         {
@@ -150,6 +151,7 @@ namespace API.Controllers
             return Ok(users);
         }
 
+        [Authorize(Roles = "Employee,Admin")]
         [HttpGet("role/{roleName}")]
         public async Task<IActionResult> GetUsersByRole(string roleName, [FromQuery] string? city)
         {
@@ -196,8 +198,12 @@ namespace API.Controllers
         //}
 
         [Authorize]
+        [RequestSizeLimit(6 * 1024 * 1024)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 6 * 1024 * 1024)]
         [HttpPatch("me/profile-photo")]
-        public async Task<IActionResult> UpdateMyProfilePhoto([FromForm] IFormFile file)
+        public async Task<IActionResult> UpdateMyProfilePhoto(
+            [FromForm] IFormFile file,
+            CancellationToken cancellationToken)
         {
             var loggedInUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrWhiteSpace(loggedInUserId) || !Guid.TryParse(loggedInUserId, out var userId))
@@ -209,11 +215,28 @@ namespace API.Controllers
             var user = await _userService.GetUserByIdAsync(userId);
             if (user == null) return NotFound("User not found");
 
-            var imagePath = await _fileService.UploadImageAsync(file);
+            var previousImagePath = user.ProfilePhoto;
+            var imagePath = await _fileService.UploadImageAsync(file, cancellationToken);
             if (string.IsNullOrWhiteSpace(imagePath)) return BadRequest("Image upload failed.");
 
-            user.UpdateProfilePhoto(imagePath);
-            await _userManager.UpdateAsync(user);
+            var updatePhotoResult = user.UpdateProfilePhoto(imagePath);
+            if (updatePhotoResult.IsFailure)
+            {
+                await _fileService.DeleteImageAsync(imagePath, cancellationToken);
+                return BadRequest(updatePhotoResult.Error);
+            }
+
+            var updateUserResult = await _userManager.UpdateAsync(user);
+            if (!updateUserResult.Succeeded)
+            {
+                await _fileService.DeleteImageAsync(imagePath, cancellationToken);
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    "Profile photo could not be updated.");
+            }
+
+            if (!string.Equals(previousImagePath, imagePath, StringComparison.OrdinalIgnoreCase))
+                await _fileService.DeleteImageAsync(previousImagePath, cancellationToken);
 
             return Ok(new { message = "Profile photo updated successfully!", imagePath });
         }

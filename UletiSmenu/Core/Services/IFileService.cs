@@ -9,6 +9,11 @@ namespace Core.Services
         /// </summary>
         /// <param name="file">The image file to upload.</param>
         /// <returns>The relative path of the uploaded file.</returns>
-        Task<string> UploadImageAsync(IFormFile file);
+        Task<string> UploadImageAsync(IFormFile file, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Deletes a previously uploaded image owned by this service.
+        /// </summary>
+        Task DeleteImageAsync(string? relativePath, CancellationToken cancellationToken = default);
     }
 }
