@@ -10,22 +10,30 @@ namespace Core.Models.Entities
         public Guid UserId { get; private set; }
         public Guid JobPostId { get; private set; }
         public ApplicationStatusEnum Status { get; private set; }
-        public int NumberOfApplicants { get; private set; }
         public DateTime DateTime { get; private set; } = DateTime.UtcNow;
 
         private Application() { }
 
-        private Application(Guid id, Guid userId, Guid jobPostId, ApplicationStatusEnum status, int numberOfApplicants, DateTime dateTime)
+        private Application(
+            Guid id,
+            Guid userId,
+            Guid jobPostId,
+            ApplicationStatusEnum status,
+            DateTime dateTime)
         {
             Id = id;
             UserId = userId;
             JobPostId = jobPostId;
             Status = status;
-            NumberOfApplicants = numberOfApplicants;
             DateTime = dateTime;
         }
 
-        public static Result<Application> Create(Guid id, Guid userId, Guid jobPostId, ApplicationStatusEnum status, int numberOfApplicants, DateTime dateTime)
+        public static Result<Application> Create(
+            Guid id,
+            Guid userId,
+            Guid jobPostId,
+            ApplicationStatusEnum status,
+            DateTime dateTime)
         {
             if (id == Guid.Empty)
             {
@@ -45,10 +53,7 @@ namespace Core.Models.Entities
             if (!Enum.IsDefined(typeof(ApplicationStatusEnum), status))
                 return Result.Failure<Application>("Status is invalid.");
 
-            if (numberOfApplicants < 0)
-                return Result.Failure<Application>("Number of applicants cannot be less than zero.");
-
-            return Result.Success(new Application(id, userId, jobPostId, status, numberOfApplicants, dateTime));
+            return Result.Success(new Application(id, userId, jobPostId, status, dateTime));
         }
 
         public Result SetEmployerDecision(ApplicationStatusEnum newStatus)

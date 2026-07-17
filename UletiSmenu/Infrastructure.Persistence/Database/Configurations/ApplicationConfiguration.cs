@@ -29,13 +29,12 @@ namespace Infrastructure.Persistence.Database.Configurations
                 .HasForeignKey(a => a.JobPostId)
                 .OnDelete(DeleteBehavior.Cascade); // If JobPost is deleted, Application is deleted
 
+            builder.HasIndex(a => new { a.UserId, a.JobPostId })
+                .IsUnique();
+
             // Status - Enum stored as string
             builder.Property(a => a.Status)
                 .HasConversion<string>()
-                .IsRequired();
-
-            // NumberOfApplicants - Required
-            builder.Property(a => a.NumberOfApplicants)
                 .IsRequired();
 
             // DateTime - Required, default to UTC

@@ -3,6 +3,7 @@ using Core.Models.Enums;
 using Core.Repositories;
 using Core.Services;
 using Infrastructure.Persistence.Services;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 
 namespace UletiSmenu.Tests.Services
@@ -74,10 +75,6 @@ namespace UletiSmenu.Tests.Services
                 .ReturnsAsync(false);
 
             _applicationRepositoryMock
-                .Setup(r => r.GetApplicantCountByJobPostAsync(jobPostId))
-                .ReturnsAsync(2);
-
-            _applicationRepositoryMock
                 .Setup(r => r.AddAsync(It.IsAny<Application>()))
                 .Returns(Task.CompletedTask);
 
@@ -103,7 +100,7 @@ namespace UletiSmenu.Tests.Services
         }
 
         [Fact]
-        public async Task ApplyToJobPostAsync_ShouldFail_WhenEmployeeAlreadyApplied()
+        public async Task ApplyToJobPostAsync_ShouldBeIdempotent_WhenEmployeeAlreadyApplied()
         {
             // Arrange
             var employeeId = Guid.NewGuid();
@@ -131,10 +128,90 @@ namespace UletiSmenu.Tests.Services
             var result = await _applicationService.ApplyToJobPostAsync(employeeId, jobPostId);
 
             // Assert
-            Assert.True(result.IsFailure);
-            Assert.Equal("You have already applied to this job post.", result.Error);
+            Assert.True(result.IsSuccess);
             _applicationRepositoryMock.Verify(r => r.AddAsync(It.IsAny<Application>()), Times.Never);
             _unitOfWorkMock.Verify(u => u.BeginTransactionAsync(), Times.Never);
+        }
+
+        [Fact]
+        public async Task ApplyToJobPostAsync_ShouldBeIdempotent_WhenUniqueInsertLosesRace()
+        {
+            var employeeId = Guid.NewGuid();
+            var jobPostId = Guid.NewGuid();
+            var employee = CreateEmployee(employeeId);
+            var jobPost = CreateJobPost(
+                jobPostId,
+                status: JobStatusEnum.Active,
+                startingDate: DateTime.UtcNow.AddHours(2),
+                visibleUntil: DateTime.UtcNow.AddHours(2).AddMinutes(30));
+
+            _userRepositoryMock
+                .Setup(r => r.GetByIdAsync<Employee>(employeeId))
+                .ReturnsAsync(employee);
+            _jobPostRepositoryMock
+                .Setup(r => r.GetJobPostByIdAsync(jobPostId))
+                .ReturnsAsync(jobPost);
+            _applicationRepositoryMock
+                .SetupSequence(r => r.HasEmployeeAppliedAsync(employeeId, jobPostId))
+                .ReturnsAsync(false)
+                .ReturnsAsync(true);
+            _applicationRepositoryMock
+                .Setup(r => r.AddAsync(It.IsAny<Application>()))
+                .Returns(Task.CompletedTask);
+            _unitOfWorkMock.Setup(u => u.BeginTransactionAsync()).Returns(Task.CompletedTask);
+            _unitOfWorkMock
+                .Setup(u => u.SaveChangesAsync())
+                .ThrowsAsync(new DbUpdateException("Unique constraint violation."));
+            _unitOfWorkMock.Setup(u => u.RollbackTransactionAsync()).Returns(Task.CompletedTask);
+
+            var result = await _applicationService.ApplyToJobPostAsync(employeeId, jobPostId);
+
+            Assert.True(result.IsSuccess);
+            _unitOfWorkMock.Verify(u => u.RollbackTransactionAsync(), Times.Once);
+            _unitOfWorkMock.Verify(u => u.CommitTransactionAsync(), Times.Never);
+            _realtimeNotifierMock.Verify(
+                n => n.NotifyNotificationAsync(
+                    It.IsAny<Guid>(),
+                    It.IsAny<Core.DTOs.UserNotificationDTO>(),
+                    It.IsAny<int>()),
+                Times.Never);
+        }
+
+        [Fact]
+        public async Task ApplyToJobPostAsync_ShouldHideDatabaseError_WhenSaveFailsWithoutDuplicate()
+        {
+            var employeeId = Guid.NewGuid();
+            var jobPostId = Guid.NewGuid();
+            var employee = CreateEmployee(employeeId);
+            var jobPost = CreateJobPost(
+                jobPostId,
+                status: JobStatusEnum.Active,
+                startingDate: DateTime.UtcNow.AddHours(2),
+                visibleUntil: DateTime.UtcNow.AddHours(2).AddMinutes(30));
+
+            _userRepositoryMock
+                .Setup(r => r.GetByIdAsync<Employee>(employeeId))
+                .ReturnsAsync(employee);
+            _jobPostRepositoryMock
+                .Setup(r => r.GetJobPostByIdAsync(jobPostId))
+                .ReturnsAsync(jobPost);
+            _applicationRepositoryMock
+                .Setup(r => r.HasEmployeeAppliedAsync(employeeId, jobPostId))
+                .ReturnsAsync(false);
+            _applicationRepositoryMock
+                .Setup(r => r.AddAsync(It.IsAny<Application>()))
+                .Returns(Task.CompletedTask);
+            _unitOfWorkMock.Setup(u => u.BeginTransactionAsync()).Returns(Task.CompletedTask);
+            _unitOfWorkMock
+                .Setup(u => u.SaveChangesAsync())
+                .ThrowsAsync(new DbUpdateException("Sensitive database details."));
+            _unitOfWorkMock.Setup(u => u.RollbackTransactionAsync()).Returns(Task.CompletedTask);
+
+            var result = await _applicationService.ApplyToJobPostAsync(employeeId, jobPostId);
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("Failed to apply for job post.", result.Error);
+            Assert.DoesNotContain("Sensitive", result.Error);
         }
 
         [Fact]

@@ -5,6 +5,7 @@ using Core.Models.Enums;
 using Core.Repositories;
 using Core.Services;
 using CSharpFunctionalExtensions;
+using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Persistence.Services
 {
@@ -52,15 +53,13 @@ namespace Infrastructure.Persistence.Services
 
             var alreadyApplied = await _applicationRepository.HasEmployeeAppliedAsync(employeeId, jobPostId);
             if (alreadyApplied)
-                return Result.Failure("You have already applied to this job post.");
+                return Result.Success();
 
-            var applicantCount = await _applicationRepository.GetApplicantCountByJobPostAsync(jobPostId);
             var applicationResult = Application.Create(
                 Guid.NewGuid(),
                 employeeId,
                 jobPostId,
                 ApplicationStatusEnum.Applied,
-                applicantCount + 1,
                 DateTime.UtcNow);
 
             if (applicationResult.IsFailure)
@@ -82,10 +81,19 @@ namespace Infrastructure.Persistence.Services
 
                 return Result.Success();
             }
-            catch (Exception ex)
+            catch (DbUpdateException)
             {
                 await _applicationUnitOfWork.RollbackTransactionAsync();
-                return Result.Failure($"Failed to apply for job post: {ex.Message}");
+
+                if (await _applicationRepository.HasEmployeeAppliedAsync(employeeId, jobPostId))
+                    return Result.Success();
+
+                return Result.Failure("Failed to apply for job post.");
+            }
+            catch (Exception)
+            {
+                await _applicationUnitOfWork.RollbackTransactionAsync();
+                return Result.Failure("Failed to apply for job post.");
             }
         }
 
