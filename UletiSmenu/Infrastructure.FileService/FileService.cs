@@ -70,7 +70,14 @@ public class FileService : IFileService
         }
 
         input.Position = 0;
-        using var image = await Image.LoadAsync(input, cancellationToken);
+        var decoderOptions = new DecoderOptions
+        {
+            MaxFrames = 2
+        };
+        using var image = await Image.LoadAsync(decoderOptions, input, cancellationToken);
+        if (image.Frames.Count != 1)
+            throw new ArgumentException("Animated images are not allowed.");
+
         image.Mutate(context => context.AutoOrient());
 
         if (image.Width > MaxProfileDimension || image.Height > MaxProfileDimension)

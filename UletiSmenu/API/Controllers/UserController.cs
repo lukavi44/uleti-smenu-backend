@@ -1,4 +1,5 @@
 using API.DTOs;
+using API.Security;
 using AutoMapper;
 using Core.Models.Entities;
 using Core.Services;
@@ -6,6 +7,7 @@ using Core.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 
 namespace API.Controllers
@@ -44,6 +46,7 @@ namespace API.Controllers
         }
 
         [HttpPost("register/employer")]
+        [EnableRateLimiting(RateLimitPolicies.Registration)]
         public async Task<IActionResult> RegisterEmployer([FromBody] RegisterEmployerDTO registerDto)
         {   
             var employer = _mapper.Map<Employer>(registerDto);
@@ -55,6 +58,7 @@ namespace API.Controllers
         }
 
         [HttpPost("register/employee")]
+        [EnableRateLimiting(RateLimitPolicies.Registration)]
         public async Task<IActionResult> RegisterEmployee([FromBody] RegisterEmployeeDTO registerDto)
         {
             var employee = _mapper.Map<Employee>(registerDto);
@@ -66,6 +70,7 @@ namespace API.Controllers
         }
 
         [HttpPost("forgot-password")]
+        [EnableRateLimiting(RateLimitPolicies.PasswordRecovery)]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDTO request)
         {
             if (string.IsNullOrWhiteSpace(request.Email))
@@ -91,6 +96,7 @@ namespace API.Controllers
         }
 
         [HttpPost("reset-password")]
+        [EnableRateLimiting(RateLimitPolicies.PasswordRecovery)]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDTO request)
         {
             if (string.IsNullOrWhiteSpace(request.Email) ||
@@ -112,6 +118,7 @@ namespace API.Controllers
         }
 
         [HttpGet("confirm-email")]
+        [EnableRateLimiting(RateLimitPolicies.PasswordRecovery)]
         public async Task<IActionResult> ConfirmEmail(Guid userId, string token)
         {
             var user = await _userService.GetUserByIdAsync(userId);
@@ -198,6 +205,7 @@ namespace API.Controllers
         //}
 
         [Authorize]
+        [EnableRateLimiting(RateLimitPolicies.ProfileUpload)]
         [RequestSizeLimit(6 * 1024 * 1024)]
         [RequestFormLimits(MultipartBodyLengthLimit = 6 * 1024 * 1024)]
         [HttpPatch("me/profile-photo")]

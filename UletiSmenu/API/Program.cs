@@ -1,5 +1,6 @@
 using API.Hubs;
 using API.Middlewares;
+using API.Security;
 using API.Services;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.DataProtection;
@@ -16,6 +17,8 @@ using Infrastructure.Persistence.Database.Repositories;
 using Infrastructure.Persistence.Services;
 using Infrastructure.Stripe;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration.Json;
 using Microsoft.Extensions.FileProviders;
@@ -25,6 +28,7 @@ using Serilog;
 using Swashbuckle.AspNetCore.Filters;
 using System.Net;
 using System.Net.Mail;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -145,6 +149,121 @@ builder.Services.AddTransient<IEmailService, EmailService>(provider =>
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddControllers();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = 1;
+
+    if (IsRenderProxyEnabled(builder.Configuration))
+    {
+        options.KnownNetworks.Clear();
+        options.KnownProxies.Clear();
+    }
+});
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        var endpointPolicy = context.HttpContext
+            .GetEndpoint()?
+            .Metadata
+            .GetMetadata<EnableRateLimitingAttribute>()?
+            .PolicyName ?? "global";
+        if (context.Lease.TryGetMetadata(
+                MetadataName.RetryAfter,
+                out var retryAfter))
+        {
+            context.HttpContext.Response.Headers.RetryAfter =
+                Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds)).ToString();
+        }
+
+        var logger = context.HttpContext.RequestServices
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("RateLimit");
+        logger.LogWarning(
+            "Rate limit rejected request. Policy={Policy} Method={Method} Path={Path} UserId={UserId} ClientIp={ClientIp} TraceId={TraceId}",
+            endpointPolicy,
+            context.HttpContext.Request.Method,
+            context.HttpContext.Request.Path,
+            context.HttpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
+            context.HttpContext.Connection.RemoteIpAddress,
+            context.HttpContext.TraceIdentifier);
+
+        context.HttpContext.Response.ContentType = "application/json";
+        await context.HttpContext.Response.WriteAsJsonAsync(
+            new
+            {
+                message = "Too many requests. Please try again later.",
+                traceId = context.HttpContext.TraceIdentifier
+            },
+            cancellationToken);
+    };
+
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(
+        httpContext => RateLimitPartition.GetTokenBucketLimiter(
+            GetRateLimitPartitionKey(httpContext),
+            _ => new TokenBucketRateLimiterOptions
+            {
+                TokenLimit = 120,
+                TokensPerPeriod = 120,
+                ReplenishmentPeriod = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
+    options.AddPolicy(
+        RateLimitPolicies.Identity,
+        httpContext => RateLimitPartition.GetFixedWindowLimiter(
+            $"{GetRateLimitPartitionKey(httpContext)}:{GetIdentityRateLimitBucket(httpContext)}",
+            partitionKey => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = partitionKey.EndsWith(":login", StringComparison.Ordinal)
+                    ? 5
+                    : 30,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
+    options.AddPolicy(
+        RateLimitPolicies.Registration,
+        httpContext => RateLimitPartition.GetFixedWindowLimiter(
+            GetRateLimitPartitionKey(httpContext),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromHours(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
+    options.AddPolicy(
+        RateLimitPolicies.PasswordRecovery,
+        httpContext => RateLimitPartition.GetFixedWindowLimiter(
+            GetRateLimitPartitionKey(httpContext),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 3,
+                Window = TimeSpan.FromMinutes(15),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
+    options.AddPolicy(
+        RateLimitPolicies.ProfileUpload,
+        httpContext => RateLimitPartition.GetFixedWindowLimiter(
+            GetRateLimitPartitionKey(httpContext),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromHours(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+});
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<ApplicationDbContext>("database");
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
@@ -173,10 +292,16 @@ builder.Services.AddDataProtection()
 builder.Services.AddIdentity<User, IdentityRole<Guid>>(options =>
 {
     options.SignIn.RequireConfirmedEmail = false;
-    options.User.RequireUniqueEmail = true;     
+    options.User.RequireUniqueEmail = true;
     options.Password.RequireDigit = true;
+    options.Password.RequireLowercase = true;
+    options.Password.RequireNonAlphanumeric = true;
     options.Password.RequireUppercase = true;
-    options.Password.RequiredLength = 8;
+    options.Password.RequiredLength = 10;
+    options.Password.RequiredUniqueChars = 4;
+    options.Lockout.AllowedForNewUsers = true;
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
 })
 .AddRoles<IdentityRole<Guid>>()
 .AddEntityFrameworkStores<ApplicationDbContext>()
@@ -190,6 +315,8 @@ builder.Services.AddAuthentication(options =>
 })
 .AddBearerToken(IdentityConstants.BearerScheme, options =>
 {
+    options.BearerTokenExpiration = TimeSpan.FromHours(1);
+    options.RefreshTokenExpiration = TimeSpan.FromDays(14);
     options.Events = new BearerTokenEvents
     {
         OnMessageReceived = context =>
@@ -251,6 +378,9 @@ if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
     app.UseSwaggerUI();
 }
 
+if (IsRenderProxyEnabled(app.Configuration))
+    app.UseForwardedHeaders();
+
 app.UseRouting();
 app.UseCors("AllowSpecificOrigin");
 
@@ -267,16 +397,21 @@ if (app.Environment.IsProduction())
     app.UseHttpsRedirection();
 
 app.UseAuthentication();
+app.UseRateLimiter();
+app.UseMiddleware<AuthenticationAuditMiddleware>();
 app.UseAuthorization();
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-app.MapIdentityApi<User>();
+app.MapIdentityApi<User>()
+    .RequireRateLimiting(RateLimitPolicies.Identity);
 
 app.MapControllers();
 app.MapHub<RealtimeHub>("/hubs/realtime");
-app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
-app.MapHealthChecks("/health/ready");
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
+    .DisableRateLimiting();
+app.MapHealthChecks("/health/ready")
+    .DisableRateLimiting();
 
 try
 {
@@ -313,6 +448,48 @@ static async Task EnsureDatabaseMigratedAsync(IServiceProvider services)
             await Task.Delay(delay);
         }
     }
+}
+
+static string GetRateLimitPartitionKey(HttpContext context)
+{
+    var userId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+    if (!string.IsNullOrWhiteSpace(userId))
+        return $"user:{userId}";
+
+    return $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+}
+
+static string GetIdentityRateLimitBucket(HttpContext context) =>
+    context.Request.Path.Value?.ToLowerInvariant() switch
+    {
+        "/login" => "login",
+        "/refresh" => "refresh",
+        _ => "account"
+    };
+
+static bool IsRenderProxyEnabled(IConfiguration configuration)
+{
+    var provider = configuration["Proxy:Provider"];
+    if (string.IsNullOrWhiteSpace(provider) ||
+        provider.Equals("None", StringComparison.OrdinalIgnoreCase))
+    {
+        return false;
+    }
+
+    if (!provider.Equals("Render", StringComparison.OrdinalIgnoreCase))
+        throw new InvalidOperationException($"Unsupported proxy provider '{provider}'.");
+
+    if (!string.Equals(
+            Environment.GetEnvironmentVariable("RENDER"),
+            "true",
+            StringComparison.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException(
+            "Proxy provider is Render, but the Render runtime marker is missing. " +
+            "Refusing to trust forwarded headers.");
+    }
+
+    return true;
 }
 
 static bool IsTransientDatabaseError(Exception ex)

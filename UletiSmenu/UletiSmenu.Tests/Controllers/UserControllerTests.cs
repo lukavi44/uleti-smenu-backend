@@ -1,6 +1,8 @@
 using API.Controllers;
+using API.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Reflection;
 
 namespace UletiSmenu.Tests.Controllers
@@ -34,6 +36,25 @@ namespace UletiSmenu.Tests.Controllers
             Assert.NotNull(requestLimit);
             Assert.NotNull(formLimit);
             Assert.Equal(6 * 1024 * 1024, formLimit!.MultipartBodyLengthLimit);
+        }
+
+        [Theory]
+        [InlineData(nameof(UserController.RegisterEmployer), RateLimitPolicies.Registration)]
+        [InlineData(nameof(UserController.RegisterEmployee), RateLimitPolicies.Registration)]
+        [InlineData(nameof(UserController.ForgotPassword), RateLimitPolicies.PasswordRecovery)]
+        [InlineData(nameof(UserController.ResetPassword), RateLimitPolicies.PasswordRecovery)]
+        [InlineData(nameof(UserController.ConfirmEmail), RateLimitPolicies.PasswordRecovery)]
+        [InlineData(nameof(UserController.UpdateMyProfilePhoto), RateLimitPolicies.ProfileUpload)]
+        public void SensitiveEndpointsHaveExpectedRateLimitPolicy(
+            string methodName,
+            string expectedPolicy)
+        {
+            var method = typeof(UserController).GetMethod(methodName);
+
+            Assert.NotNull(method);
+            var rateLimit = method!.GetCustomAttribute<EnableRateLimitingAttribute>();
+            Assert.NotNull(rateLimit);
+            Assert.Equal(expectedPolicy, rateLimit!.PolicyName);
         }
     }
 }

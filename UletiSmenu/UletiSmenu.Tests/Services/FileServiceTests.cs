@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Webp;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace UletiSmenu.Tests.Services
 {
@@ -64,6 +67,28 @@ namespace UletiSmenu.Tests.Services
                 () => service.UploadImageAsync(file));
 
             Assert.Contains("5 MB", exception.Message);
+        }
+
+        [Fact]
+        public async Task UploadImageAsync_RejectsAnimatedImages()
+        {
+            var service = CreateService();
+            await using var stream = new MemoryStream();
+            using (var image = new Image<Rgba32>(2, 2))
+            using (var secondFrame = new Image<Rgba32>(2, 2))
+            {
+                image.Frames.AddFrame(secondFrame.Frames.RootFrame);
+                await image.SaveAsync(stream, new WebpEncoder());
+            }
+
+            stream.Position = 0;
+            var file = new FormFile(stream, 0, stream.Length, "file", "animated.webp");
+
+            var exception = await Assert.ThrowsAsync<ArgumentException>(
+                () => service.UploadImageAsync(file));
+
+            Assert.Contains("Animated images", exception.Message);
+            Assert.Empty(Directory.GetFiles(_uploadPath));
         }
 
         [Fact]
