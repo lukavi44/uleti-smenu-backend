@@ -333,6 +333,13 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(
+        IdentityEndpointSecurity.DisabledRegistrationPolicy,
+        policy => policy.RequireAssertion(_ => false));
+});
+
 var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
     ?? new[] { "http://localhost:5173" };
 
@@ -403,8 +410,9 @@ app.UseAuthorization();
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-app.MapIdentityApi<User>()
-    .RequireRateLimiting(RateLimitPolicies.Identity);
+var identityApi = app.MapIdentityApi<User>();
+identityApi.Add(IdentityEndpointSecurity.Apply);
+identityApi.RequireRateLimiting(RateLimitPolicies.Identity);
 
 app.MapControllers();
 app.MapHub<RealtimeHub>("/hubs/realtime");

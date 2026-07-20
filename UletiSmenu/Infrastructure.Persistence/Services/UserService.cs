@@ -59,7 +59,9 @@ namespace Infrastructure.Persistence.Services
                 var existingUser = await _userRepository.FindAsync(e => e.Email == employer.Email);
                 if (existingUser.Any())
                 {
-                    _logger.LogWarning($"Attempted to register user with existing email: {employer.Email}");
+                    _logger.LogWarning(
+                        "Employer registration rejected because the email is already registered. UserId: {UserId}",
+                        employer.Id);
                     return Result.Failure("Email already exists");
                 }
 
@@ -89,7 +91,8 @@ namespace Infrastructure.Persistence.Services
             catch (Exception ex)
             {
                 await _applicationUnitOfWork.RollbackTransactionAsync();
-                return Result.Failure($"Employer registration failed: {ex.Message}");
+                _logger.LogError(ex, "Employer registration failed. UserId: {UserId}", employer.Id);
+                return Result.Failure("Employer registration failed.");
             }
         }
 
@@ -102,7 +105,9 @@ namespace Infrastructure.Persistence.Services
                 var existingUser = await _userRepository.FindAsync(e => e.Email == employee.Email);
                 if (existingUser.Any())
                 {
-                    _logger.LogWarning($"Attempted to register user with existing email: {employee.Email}");
+                    _logger.LogWarning(
+                        "Employee registration rejected because the email is already registered. UserId: {UserId}",
+                        employee.Id);
                     return Result.Failure("Email already exists");
                 }
 
@@ -124,7 +129,8 @@ namespace Infrastructure.Persistence.Services
             catch (Exception ex)
             {
                 await _applicationUnitOfWork.RollbackTransactionAsync();
-                return Result.Failure($"Employee registration failed: {ex.Message}");
+                _logger.LogError(ex, "Employee registration failed. UserId: {UserId}", employee.Id);
+                return Result.Failure("Employee registration failed.");
             }
         }
 

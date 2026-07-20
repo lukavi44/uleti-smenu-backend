@@ -155,45 +155,40 @@ namespace API.Controllers
         public async Task<IActionResult> GetAllUsers()
         {
             var users = await _userService.GetAllUsersAsync();
-            return Ok(users);
+            var response = await Task.WhenAll(users.Select(async user => new AdminUserListItemDTO
+            {
+                Id = user.Id,
+                Email = user.Email ?? string.Empty,
+                Roles = (await _userManager.GetRolesAsync(user)).ToList()
+            }));
+
+            return Ok(response);
         }
 
         [Authorize(Roles = "Employee,Admin")]
-        [HttpGet("role/{roleName}")]
-        public async Task<IActionResult> GetUsersByRole(string roleName, [FromQuery] string? city)
+        [HttpGet("employers/list")]
+        public async Task<IActionResult> GetEmployerList([FromQuery] string? city)
         {
-            if (roleName.Equals("employer", StringComparison.OrdinalIgnoreCase))
+            var employers = await _userService.GetEmployersAsync(city);
+            var response = employers.Select(employer => new EmployerListItemDTO
             {
-                var employers = await _userService.GetEmployersAsync(city);
-                var response = employers.Select(employer => new EmployerDTO
-                {
-                    Id = employer.Id,
-                    Name = employer.Name,
-                    Email = employer.Email ?? string.Empty,
-                    PhoneNumber = employer.PhoneNumber ?? string.Empty,
-                    ProfilePhoto = employer.ProfilePhoto ?? string.Empty,
-                    PublicSlug = employer.PublicSlug,
-                    Address = employer.Address == null
-                        ? null
-                        : new AddressDTO
-                        {
-                            Street = employer.Address.Street?.Name ?? string.Empty,
-                            StreetNumber = employer.Address.Street?.Number ?? string.Empty,
-                            City = employer.Address.City?.Name ?? string.Empty,
-                            PostalCode = employer.Address.City?.PostalCode?.Value ?? string.Empty,
-                            Country = employer.Address.City?.Country?.Name ?? string.Empty,
-                            Region = employer.Address.City?.Region?.Name ?? string.Empty,
-                        },
-                    CountryCode = employer.GeographyCountryCode ?? string.Empty,
-                    RegionCode = employer.GeographyRegionCode ?? string.Empty,
-                    CityCode = employer.GeographyCityCode ?? string.Empty,
-                });
+                Id = employer.Id,
+                Name = employer.Name,
+                ProfilePhoto = employer.ProfilePhoto ?? string.Empty,
+                PublicSlug = employer.PublicSlug,
+                IsVerifiedEmployer = employer.IsVerifiedEmployer,
+                Address = employer.Address == null
+                    ? null
+                    : new AddressDTO
+                    {
+                        City = employer.Address.City?.Name ?? string.Empty,
+                    },
+                CountryCode = employer.GeographyCountryCode ?? string.Empty,
+                RegionCode = employer.GeographyRegionCode ?? string.Empty,
+                CityCode = employer.GeographyCityCode ?? string.Empty,
+            });
 
-                return Ok(response);
-            }
-
-            var users = await _userService.GetUsersByRoleAsync(roleName);
-            return Ok(users);
+            return Ok(response);
         }
 
         //[HttpGet("employers/favourites")]

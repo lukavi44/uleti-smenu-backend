@@ -39,31 +39,34 @@ namespace API.Controllers
             _userManager = userManager;
         }
 
-        private static void SanitizeJobPostsForPublic(IEnumerable<JobPostDTO> jobPosts)
+        private static JobPostPublicDTO ToPublicJobPost(JobPostDTO jobPost)
         {
-            foreach (var jobPost in jobPosts)
+            return new JobPostPublicDTO
             {
-                SanitizeJobPostForPublic(jobPost);
-            }
-        }
-
-        private static void SanitizeJobPostForPublic(JobPostDTO jobPost)
-        {
-            jobPost.ApplicantCount = 0;
-            jobPost.RecentApplicants = new List<RecentApplicantPreviewDTO>();
-
-            if (jobPost.Employer is null)
-            {
-                return;
-            }
-
-            jobPost.Employer.Email = string.Empty;
-            jobPost.Employer.PhoneNumber = string.Empty;
-            jobPost.Employer.PIB = string.Empty;
-            jobPost.Employer.MB = string.Empty;
-            jobPost.Employer.Address = null;
-            jobPost.Employer.Subscription = null;
-            jobPost.Employer.IsFavourite = false;
+                Id = jobPost.Id,
+                EmployerId = jobPost.EmployerId,
+                Title = jobPost.Title,
+                Description = jobPost.Description,
+                Position = jobPost.Position,
+                Status = jobPost.Status,
+                Salary = jobPost.Salary,
+                StartingDate = jobPost.StartingDate,
+                VisibleUntil = jobPost.VisibleUntil,
+                RestaurantLocationId = jobPost.RestaurantLocationId,
+                RestaurantLocationName = jobPost.RestaurantLocationName,
+                RestaurantLocationCity = jobPost.RestaurantLocationCity,
+                IsArchived = jobPost.IsArchived,
+                Employer = jobPost.Employer == null
+                    ? null
+                    : new EmployerPublicSummaryDTO
+                    {
+                        Id = jobPost.Employer.Id,
+                        Name = jobPost.Employer.Name,
+                        ProfilePhoto = jobPost.Employer.ProfilePhoto,
+                        PublicSlug = jobPost.Employer.PublicSlug,
+                        IsVerifiedEmployer = jobPost.Employer.IsVerifiedEmployer
+                    }
+            };
         }
 
         [Authorize(Roles = "Employer")]
@@ -175,14 +178,9 @@ namespace API.Controllers
 
             var jobPostDtos = _mapper.Map<List<JobPostDTO>>(pagedJobPosts.Items);
 
-            if (User.Identity?.IsAuthenticated != true)
+            return Ok(new PagedResultDTO<JobPostPublicDTO>
             {
-                SanitizeJobPostsForPublic(jobPostDtos);
-            }
-
-            return Ok(new PagedResultDTO<JobPostDTO>
-            {
-                Items = jobPostDtos,
+                Items = jobPostDtos.Select(ToPublicJobPost).ToList(),
                 TotalCount = pagedJobPosts.TotalCount,
                 Page = pagedJobPosts.Page,
                 PageSize = pagedJobPosts.PageSize
@@ -199,13 +197,7 @@ namespace API.Controllers
             }
 
             var jobPostDto = _mapper.Map<JobPostDTO>(jobPost);
-
-            if (User.Identity?.IsAuthenticated != true)
-            {
-                SanitizeJobPostForPublic(jobPostDto);
-            }
-
-            return Ok(jobPostDto);
+            return Ok(ToPublicJobPost(jobPostDto));
         }
 
         [HttpGet("filter-options")]
@@ -232,7 +224,8 @@ namespace API.Controllers
                 employee.City,
                 pageSize);
 
-            return Ok(_mapper.Map<List<JobPostDTO>>(jobPosts));
+            var jobPostDtos = _mapper.Map<List<JobPostDTO>>(jobPosts);
+            return Ok(jobPostDtos.Select(ToPublicJobPost).ToList());
         }
 
         [Authorize]

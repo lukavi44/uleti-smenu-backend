@@ -153,9 +153,9 @@ namespace Infrastructure.Stripe
             {
                 stripeEvent = EventUtility.ConstructEvent(jsonBody, signatureHeader, _settings.WebhookSecret);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return Result.Failure($"Invalid Stripe webhook signature: {ex.Message}");
+                return Result.Failure("Invalid Stripe webhook signature.");
             }
 
             if (await _webhookProcessor.HasProcessedEventAsync(stripeEvent.Id))

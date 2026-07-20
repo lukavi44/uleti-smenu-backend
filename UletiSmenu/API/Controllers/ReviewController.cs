@@ -53,6 +53,10 @@ namespace API.Controllers
         [HttpGet("employees/{employeeId:guid}")]
         public async Task<IActionResult> GetEmployeeReviews(Guid employeeId)
         {
+            var accessError = AuthorizeEmployeeReviewRead(employeeId);
+            if (accessError != null)
+                return accessError;
+
             var result = await _reviewService.GetEmployeeReviewsAsync(employeeId);
             if (result.IsFailure)
                 return BadRequest(result.Error);
@@ -63,6 +67,10 @@ namespace API.Controllers
         [HttpGet("employees/{employeeId:guid}/summary")]
         public async Task<IActionResult> GetEmployeeReviewSummary(Guid employeeId)
         {
+            var accessError = AuthorizeEmployeeReviewRead(employeeId);
+            if (accessError != null)
+                return accessError;
+
             var result = await _reviewService.GetEmployeeReviewSummaryAsync(employeeId);
             if (result.IsFailure)
                 return BadRequest(result.Error);
@@ -73,6 +81,10 @@ namespace API.Controllers
         [HttpGet("employees/{employeeId:guid}/page")]
         public async Task<IActionResult> GetEmployeeReviewPage(Guid employeeId)
         {
+            var accessError = AuthorizeEmployeeReviewRead(employeeId);
+            if (accessError != null)
+                return accessError;
+
             var result = await _reviewService.GetEmployeeReviewPageAsync(employeeId);
             if (result.IsFailure)
                 return BadRequest(result.Error);
@@ -100,6 +112,18 @@ namespace API.Controllers
                 return BadRequest(result.Error);
 
             return Ok(result.Value);
+        }
+
+        private IActionResult? AuthorizeEmployeeReviewRead(Guid employeeId)
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdClaim, out var currentUserId))
+                return Unauthorized();
+
+            if (currentUserId != employeeId && !User.IsInRole("Admin"))
+                return Forbid();
+
+            return null;
         }
 
         private async Task<(Guid UserId, string? Role, IActionResult? ErrorResult)> ResolveCurrentUserAsync()

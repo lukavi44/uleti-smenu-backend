@@ -96,7 +96,12 @@ namespace Infrastructure.Persistence.Services
             catch (Exception ex)
             {
                 await _applicationUnitOfWork.RollbackTransactionAsync();
-                return Result.Failure($"Job post creation failed: {ex.Message}");
+                _logger.LogError(
+                    ex,
+                    "Job post creation failed. JobPostId: {JobPostId}, EmployerId: {EmployerId}",
+                    jobPost.Id,
+                    jobPost.EmployerId);
+                return Result.Failure("Job post creation failed.");
             }
         }
 

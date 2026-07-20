@@ -52,9 +52,15 @@ namespace API.Middlewares
 
             response.StatusCode = statusCode;
 
-            var message = statusCode == (int)HttpStatusCode.InternalServerError && _environment.IsProduction()
-                ? "An unexpected error occurred."
-                : exception.Message;
+            var message = _environment.IsDevelopment()
+                ? exception.Message
+                : statusCode switch
+                {
+                    (int)HttpStatusCode.BadRequest => "The request was invalid.",
+                    (int)HttpStatusCode.Unauthorized => "Authentication is required.",
+                    (int)HttpStatusCode.NotFound => "The requested resource was not found.",
+                    _ => "An unexpected error occurred."
+                };
 
             var errorResponse = new
             {

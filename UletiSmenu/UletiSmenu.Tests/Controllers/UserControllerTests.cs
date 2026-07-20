@@ -11,7 +11,7 @@ namespace UletiSmenu.Tests.Controllers
     {
         [Theory]
         [InlineData(nameof(UserController.GetAllUsers), "Admin")]
-        [InlineData(nameof(UserController.GetUsersByRole), "Employee,Admin")]
+        [InlineData(nameof(UserController.GetEmployerList), "Employee,Admin")]
         public void SensitiveDirectoryEndpointsRequireExpectedRoles(
             string methodName,
             string expectedRoles)
