@@ -1,0 +1,42 @@
+# Render Blueprint - UletiSmenu API (TEST environment)
+# Cost: free tier. Ephemeral uploads and cold starts are acceptable for TEST only.
+# Connect repo in Render dashboard: Blueprint path = render-test.yaml
+
+services:
+  - type: web
+    name: uletismenu-api-test
+    runtime: docker
+    plan: free
+    region: frankfurt
+    rootDir: UletiSmenu
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Staging
+      - key: DOTNET_USE_POLLING_FILE_WATCHER
+        value: "1"
+      - key: ConnectionStrings__UletiSmenu
+        sync: false
+      - key: Proxy__Provider
+        value: Render
+      - key: Cors__AllowedOrigins__0
+        value: https://test.app.uletismenu.com
+      - key: Cors__AllowedOrigins__1
+        value: http://localhost:5173
+      - key: FileSettings__Provider
+        value: Local
+      - key: FileSettings__UploadPath
+        value: /app/uploads
+      - key: Backend__BaseUrl
+        value: https://api-test.uletismenu.com
+      - key: Backend__FrontendBaseUrl
+        value: https://test.app.uletismenu.com/
+      - key: Stripe__Enabled
+        value: "false"
+      - key: AdminSeed__Enabled
+        value: "true"
+      - key: AdminSeed__Email
+        sync: false
+      - key: AdminSeed__Password
+        sync: false

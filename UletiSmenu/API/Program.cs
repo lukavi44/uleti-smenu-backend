@@ -1,3 +1,4 @@
+using API.Endpoints;
 using API.Hubs;
 using API.Middlewares;
 using API.Security;
@@ -16,6 +17,7 @@ using Infrastructure.Persistence.Database;
 using Infrastructure.Persistence.Database.Repositories;
 using Infrastructure.Persistence.Services;
 using Infrastructure.Stripe;
+using Infrastructure.FileService;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
@@ -93,7 +95,7 @@ builder.Services.AddScoped<IWalletTransactionRepository, WalletTransactionReposi
 builder.Services.AddScoped<RoleManager<IdentityRole<Guid>>>();
 builder.Services.AddScoped<IApplicationUnitOfWork, ApplicationUnitOfWork>();
 builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IFileService, FileService>();
+builder.Services.AddFileStorage(builder.Configuration);
 builder.Services.AddScoped<IJobPostService, JobPostService>();
 builder.Services.AddScoped<IApplicationService, ApplicationService>();
 builder.Services.AddScoped<IChatService, ChatService>();
@@ -362,21 +364,28 @@ if (app.Environment.IsDevelopment())
     app.Logger.LogInformation("Development database target: {DatabaseTarget}", DescribeDatabaseTarget(connectionString));
 }
 
-var uploadPath = app.Configuration["FileSettings:UploadPath"]
-    ?? Path.Combine(app.Environment.ContentRootPath, "uploads");
-Directory.CreateDirectory(uploadPath);
+var fileSettings = app.Configuration
+    .GetSection(FileSettings.SectionName)
+    .Get<FileSettings>() ?? new FileSettings();
+
+if (!fileSettings.UseAzureBlob)
+{
+    var uploadPath = fileSettings.UploadPath
+        ?? Path.Combine(app.Environment.ContentRootPath, "uploads");
+    Directory.CreateDirectory(uploadPath);
+
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(uploadPath),
+        RequestPath = "/uploads"
+    });
+}
 
 await EnsureDatabaseMigratedAsync(app.Services);
 await EnsureGeographySeededAsync(app.Services);
 await EnsureRolesSeededAsync(app.Services);
 await EnsureAdminUserSeededAsync(app.Services);
 await EnsureSubscriptionsSeededAsync(app.Services);
-
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(uploadPath),
-    RequestPath = "/uploads"
-});
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
@@ -387,6 +396,8 @@ if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
 
 if (IsRenderProxyEnabled(app.Configuration))
     app.UseForwardedHeaders();
+
+app.UseMiddleware<SecurityHeadersMiddleware>();
 
 app.UseRouting();
 app.UseCors("AllowSpecificOrigin");
@@ -415,6 +426,7 @@ identityApi.Add(IdentityEndpointSecurity.Apply);
 identityApi.RequireRateLimiting(RateLimitPolicies.Identity);
 
 app.MapControllers();
+app.MapUploads(fileSettings);
 app.MapHub<RealtimeHub>("/hubs/realtime");
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
     .DisableRateLimiting();

@@ -1,33 +1,22 @@
-﻿
-using Core.Services;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Processing;
 
-public class FileService : IFileService
+namespace Infrastructure.FileService;
+
+internal static class ImageUploadProcessor
 {
     public const long MaxUploadBytes = 5 * 1024 * 1024;
     private const int MaxSourceDimension = 8000;
     private const long MaxSourcePixels = 25_000_000;
     private const int MaxProfileDimension = 1024;
+
     private static readonly HashSet<string> AllowedFormats =
         new(StringComparer.OrdinalIgnoreCase) { "JPEG", "PNG", "WEBP" };
 
-    private readonly string _uploadPath;
-
-    public FileService(IConfiguration configuration)
-    {
-        _uploadPath = configuration["FileSettings:UploadPath"] ?? "wwwroot/uploads";
-        if (!Directory.Exists(_uploadPath))
-        {
-            Directory.CreateDirectory(_uploadPath);
-        }
-    }
-
-    public async Task<string> UploadImageAsync(
+    public static async Task<MemoryStream> ProcessToJpegAsync(
         IFormFile file,
         CancellationToken cancellationToken = default)
     {
@@ -70,10 +59,7 @@ public class FileService : IFileService
         }
 
         input.Position = 0;
-        var decoderOptions = new DecoderOptions
-        {
-            MaxFrames = 2
-        };
+        var decoderOptions = new DecoderOptions { MaxFrames = 2 };
         using var image = await Image.LoadAsync(decoderOptions, input, cancellationToken);
         if (image.Frames.Count != 1)
             throw new ArgumentException("Animated images are not allowed.");
@@ -89,58 +75,12 @@ public class FileService : IFileService
             }));
         }
 
-        var fileName = $"{Guid.NewGuid():N}.jpg";
-        var filePath = Path.Combine(_uploadPath, fileName);
-
-        try
-        {
-            await image.SaveAsJpegAsync(
-                filePath,
-                new JpegEncoder { Quality = 85 },
-                cancellationToken);
-        }
-        catch
-        {
-            if (File.Exists(filePath))
-                File.Delete(filePath);
-            throw;
-        }
-
-        return $"/uploads/{fileName}";
-    }
-
-    public Task DeleteImageAsync(
-        string? relativePath,
-        CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        if (string.IsNullOrWhiteSpace(relativePath))
-            return Task.CompletedTask;
-
-        const string uploadPrefix = "/uploads/";
-        if (!relativePath.StartsWith(uploadPrefix, StringComparison.OrdinalIgnoreCase))
-            return Task.CompletedTask;
-
-        var fileName = Path.GetFileName(relativePath);
-        if (string.IsNullOrWhiteSpace(fileName) ||
-            !string.Equals(relativePath, uploadPrefix + fileName, StringComparison.OrdinalIgnoreCase))
-        {
-            return Task.CompletedTask;
-        }
-
-        var fullUploadPath = Path.GetFullPath(_uploadPath);
-        var fullFilePath = Path.GetFullPath(Path.Combine(fullUploadPath, fileName));
-        if (!fullFilePath.StartsWith(
-                fullUploadPath.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar,
-                StringComparison.OrdinalIgnoreCase))
-        {
-            return Task.CompletedTask;
-        }
-
-        if (File.Exists(fullFilePath))
-            File.Delete(fullFilePath);
-
-        return Task.CompletedTask;
+        var output = new MemoryStream();
+        await image.SaveAsJpegAsync(
+            output,
+            new JpegEncoder { Quality = 85 },
+            cancellationToken);
+        output.Position = 0;
+        return output;
     }
 }

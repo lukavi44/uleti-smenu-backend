@@ -1,3 +1,4 @@
+using Infrastructure.FileService;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using SixLabors.ImageSharp;
@@ -59,7 +60,7 @@ namespace UletiSmenu.Tests.Services
             var file = new FormFile(
                 stream,
                 0,
-                FileService.MaxUploadBytes + 1,
+                5 * 1024 * 1024 + 1,
                 "file",
                 "large.png");
 
@@ -108,7 +109,7 @@ namespace UletiSmenu.Tests.Services
             File.Delete(outsidePath);
         }
 
-        private FileService CreateService()
+        private LocalFileService CreateService()
         {
             var configuration = new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?>
@@ -117,7 +118,7 @@ namespace UletiSmenu.Tests.Services
                 })
                 .Build();
 
-            return new FileService(configuration);
+            return new LocalFileService(configuration);
         }
 
         public void Dispose()

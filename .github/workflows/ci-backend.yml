@@ -1,0 +1,27 @@
+name: CI - backend build and test
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [develop]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.x"
+
+      - name: Restore
+        run: dotnet restore UletiSmenu/UletiSmenu.Tests/UletiSmenu.Tests.csproj
+
+      - name: Build
+        run: dotnet build UletiSmenu/UletiSmenu.Tests/UletiSmenu.Tests.csproj --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test UletiSmenu/UletiSmenu.Tests/UletiSmenu.Tests.csproj --configuration Release --no-build --verbosity normal
