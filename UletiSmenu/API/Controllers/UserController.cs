@@ -219,7 +219,16 @@ namespace API.Controllers
             if (user == null) return NotFound("User not found");
 
             var previousImagePath = user.ProfilePhoto;
-            var imagePath = await _fileService.UploadImageAsync(file, cancellationToken);
+            string imagePath;
+            try
+            {
+                imagePath = await _fileService.UploadImageAsync(file, cancellationToken);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+
             if (string.IsNullOrWhiteSpace(imagePath)) return BadRequest("Image upload failed.");
 
             var updatePhotoResult = user.UpdateProfilePhoto(imagePath);
