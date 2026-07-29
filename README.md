@@ -68,9 +68,12 @@ Clone and run the [frontend repo](https://github.com/lukavi44/uleti-smenu_react)
 
 Guides in `UletiSmenu/docs/`:
 
+- `ROADMAP.md` — **planning source of truth** (phases, soft launch, what not to build)
+- `ENVIRONMENTS.md` — LIVE vs TEST matrix and naming glossary
 - `PRODUCTION_CONFIG.md` — appsettings vs env vars, CORS, SMTP, uploads, secrets
-- `STAGING_DEPLOY.md` — deploy staging (payments disabled)
+- `email-setup.md` — Zoho SMTP setup
+- `STAGING_DEPLOY.md` — **legacy** Azure notes (prefer `ENVIRONMENTS.md` + `configure-azure-live.ps1`)
 - `PAYMENT_PROPOSAL.md` — billing model reference
 - `STRIPE_TEST_SETUP.md` — Stripe test mode
 
-**Payments:** `Stripe:Enabled=false` by default. Billing gates and free registration credits work; online checkout is off until CorvusPay or Stripe is configured.
+**Payments:** `Stripe:Enabled=false` by default. Billing gates and free registration credits work; online checkout is off until Stripe is configured (Roadmap Phase 4).
