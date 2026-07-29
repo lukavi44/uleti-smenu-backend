@@ -1,4 +1,5 @@
 using API.DTOs;
+using API.Filters;
 using Core.Interfaces;
 using Infrastructure.Email;
 using Microsoft.AspNetCore.Authorization;
@@ -10,11 +11,12 @@ namespace API.Controllers;
 /// <summary>
 /// SMTP smoke-test endpoint. Available only in Development and Staging (Render TEST).
 /// Staging requires header X-Email-Debug-Key matching SmtpSettings:DebugApiKey.
-/// Never registered for Production (returns 404).
+/// Never available in Production (404 before model binding).
 /// </summary>
 [ApiController]
 [Route("api/v1/debug")]
 [AllowAnonymous]
+[DevelopmentOrStagingOnly]
 public sealed class DebugEmailController : ControllerBase
 {
     public const string DebugKeyHeader = "X-Email-Debug-Key";
@@ -38,11 +40,7 @@ public sealed class DebugEmailController : ControllerBase
         [FromBody] TestEmailDTO request,
         CancellationToken cancellationToken)
     {
-        // Render TEST sets ASPNETCORE_ENVIRONMENT=Staging (see render-test.yaml).
-        // Production Azure sets Production — this branch must stay closed there.
-        if (_environment.IsProduction() || (!_environment.IsDevelopment() && !_environment.IsStaging()))
-            return NotFound();
-
+        // Render TEST sets ASPNETCORE_ENVIRONMENT=Staging (see render-test.yaml) = TEST.
         if (_environment.IsStaging())
         {
             if (string.IsNullOrWhiteSpace(_smtpSettings.DebugApiKey))

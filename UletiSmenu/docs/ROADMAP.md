@@ -1,6 +1,6 @@
 # UletiSmenu roadmap
 
-**Status:** active · **Last updated:** 2026-07-29  
+**Status:** active · **Last updated:** 2026-07-29 (Phase 1 smoke + monitoring scripts)  
 **Owner:** product / engineering (keep this file current)
 
 This is the **single source of truth** for planning. Before proposing or implementing work:
@@ -62,10 +62,11 @@ Render TEST uses `ASPNETCORE_ENVIRONMENT=Staging` (ASP.NET Core environment name
 | Zoho SMTP integration (MailKit) | Done | Auth `support@`, From `noreply@`, Reply-To `support@` |
 | Email templates + workflows | Done | Confirm, welcome, reset, favourite, contact |
 | Contact API + `/kontakt` frontend | Done | |
-| Azure LIVE SMTP App Settings | Done / verify | Password reset email observed working LIVE |
-| Verify all email flows on LIVE | **In progress** | Confirm registration, welcome employer/candidate, favourite alerts, contact form |
-| SMTP monitoring / ops clarity | Pending | Alerts when send fails repeatedly |
-| Confirm production readiness | Pending | Close when smoke list complete |
+| Azure LIVE SMTP App Settings | Done | Host/user/from present; rotate password if ever printed via `az` |
+| Verify all email flows on LIVE | **In progress** | B1 password reset observed; finish B2–B6 in `PRODUCTION_SMOKE.md` |
+| SMTP monitoring / ops clarity | **In progress** | Script `configure-azure-monitoring.ps1` + log alert guidance |
+| Documented smoke tests | Done | `docs/PRODUCTION_SMOKE.md`, `scripts/verify-live-smoke.ps1` |
+| Confirm production readiness | Pending | Close when B2–B6 + alerts confirmed |
 
 **Do not** block login on unconfirmed email until SMTP/monitoring are solid (prefer soft banner later if needed).
 
@@ -73,12 +74,12 @@ Render TEST uses `ASPNETCORE_ENVIRONMENT=Staging` (ASP.NET Core environment name
 
 | Item | Status |
 |------|--------|
-| `/health` + `/health/ready` | Exists — keep verifying LIVE |
-| Azure monitoring | Pending |
-| Azure alerts | Pending |
-| Logging review | Pending |
-| Uptime monitoring | Pending |
-| Documented smoke tests | Pending (see Soft Launch) |
+| `/health` + `/health/ready` | `/health` OK LIVE; `/health/ready` Unhealthy when SQL **Paused** (documented) |
+| Azure monitoring | Script ready — run `configure-azure-monitoring.ps1` |
+| Azure alerts | Script creates Http5xx + action group → `support@`; Portal log alert for SMTP |
+| Logging review | Serilog console → App Service / Insights once linked |
+| Uptime monitoring | Documented (UptimeRobot on `/health`) |
+| Documented smoke tests | Done (`PRODUCTION_SMOKE.md`) |
 
 ### Production deployment
 
