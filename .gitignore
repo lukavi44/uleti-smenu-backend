@@ -33,6 +33,7 @@ bld/
 [Oo]bj/
 publish/
 UletiSmenu/scripts/azure-staging-output.json
+UletiSmenu/scripts/.test-env-secrets.local
 [Ll]og/
 [Ll]ogs/
 

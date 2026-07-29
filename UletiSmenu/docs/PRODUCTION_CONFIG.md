@@ -125,8 +125,12 @@ Set on the server or in Azure App Service / hosting panel.
 | Variable | Maps to | Example |
 |----------|---------|---------|
 | `ConnectionStrings__UletiSmenu` | SQL connection | `Server=...;User Id=...;Password=...` |
-| `SmtpSettings__Username` | SMTP user | `apikey` |
-| `SmtpSettings__Password` | SMTP password | `***` |
+| `SmtpSettings__Username` | Zoho SMTP user | `support@uletismenu.com` |
+| `SmtpSettings__Password` | Zoho app password | `***` (never commit) |
+| `SmtpSettings__FromEmail` | Outgoing From (alias) | `noreply@uletismenu.com` |
+| `SmtpSettings__ReplyToEmail` | Reply-To | `support@uletismenu.com` |
+
+See also `docs/email-setup.md` for Zoho Send Mail As, Render TEST, and debugging.
 | `Stripe__Enabled` | Turn on live checkout | `true` |
 | `Stripe__SecretKey` | Stripe secret | `sk_live_...` |
 | `Stripe__WebhookSecret` | Webhook signing | `whsec_...` |

@@ -85,6 +85,7 @@ namespace Infrastructure.Persistence.Services
                 await _applicationUnitOfWork.CommitTransactionAsync();
 
                 QueueConfirmationEmail(employer.Id, employer.Email!);
+                QueueWelcomeEmail(employer.Email!, isEmployer: true, displayName: employer.Name);
 
                 return Result.Success("User registered successfully! Please check your email for confirmation.");
             }
@@ -123,6 +124,7 @@ namespace Infrastructure.Persistence.Services
                 await _applicationUnitOfWork.CommitTransactionAsync();
 
                 QueueConfirmationEmail(employee.Id, employee.Email!);
+                QueueWelcomeEmail(employee.Email!, isEmployer: false, displayName: employee.FirstName);
 
                 return Result.Success("User registered successfully! Please check your email for confirmation.");
             }
@@ -569,12 +571,32 @@ namespace Infrastructure.Persistence.Services
 
                     var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
                     var confirmationLink = $"{configuration["Backend:BaseUrl"]}/api/v1/User/confirm-email?userId={userId}&token={WebUtility.UrlEncode(token)}";
-                    await emailService.SendEmailAsync(email, "Confirm Your Email",
-                        $"Click <a href='{confirmationLink}'>here</a> to confirm your email.");
+                    await emailService.SendConfirmEmailAsync(email, confirmationLink);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Confirmation email was not sent to {Email}.", email);
+                }
+            });
+        }
+
+        private void QueueWelcomeEmail(string email, bool isEmployer, string? displayName)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    using var scope = _serviceScopeFactory.CreateScope();
+                    var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+
+                    if (isEmployer)
+                        await emailService.SendWelcomeEmployerAsync(email, displayName);
+                    else
+                        await emailService.SendWelcomeEmployeeAsync(email, displayName);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Welcome email was not sent to {Email}.", email);
                 }
             });
         }

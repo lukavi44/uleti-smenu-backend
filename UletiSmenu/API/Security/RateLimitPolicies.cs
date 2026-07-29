@@ -6,5 +6,6 @@ namespace API.Security
         public const string Registration = "registration";
         public const string PasswordRecovery = "password-recovery";
         public const string ProfileUpload = "profile-upload";
+        public const string Contact = "contact";
     }
 }

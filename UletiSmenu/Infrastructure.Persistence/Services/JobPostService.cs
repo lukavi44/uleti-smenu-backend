@@ -466,10 +466,7 @@ namespace Infrastructure.Persistence.Services
 
                 foreach (var email in followerEmails.Distinct())
                 {
-                    await _emailService.SendEmailAsync(
-                        email,
-                        "New restaurant shift available",
-                        $"A restaurant you follow just posted a new shift: <b>{jobPost.Title}</b>.");
+                    await _emailService.SendFavouriteJobPostAsync(email, jobPost.Title);
                 }
             }
             catch (Exception ex)
