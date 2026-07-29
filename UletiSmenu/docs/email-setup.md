@@ -94,9 +94,23 @@ SmtpSettings__Password=<zoho-app-password>
 SmtpSettings__DebugApiKey=<long-random-secret>
 ```
 
-(Other SMTP keys are already in the blueprint.)
+(Other SMTP keys are already in the blueprint. Host stays `smtppro.zoho.eu`, port `587`, STARTTLS.)
 
-Test:
+#### Render Free and outbound SMTP
+
+**Render Free blocks outbound ports 25, 465, and 587.** Zoho SMTP on 587 will time out on the free plan even when credentials are correct. This is a network restriction, not a Zoho or app-password problem.
+
+Do **not** change the Zoho host/port/credentials to work around Render Free. Email remains enabled; contact/test-email return a controlled **503** when SMTP cannot connect (connect timeout is ~15 seconds).
+
+Verify real SMTP delivery:
+
+- **locally** (Development + `test-email`),
+- on a **paid Render** plan that allows outbound SMTP, or
+- on **Azure LIVE**.
+
+On free Render you can still confirm auth/gating: missing debug key → **401**; SMTP blocked → **503** with a log like `SMTP network connectivity failed before authentication`.
+
+Test (when outbound SMTP is allowed):
 
 ```http
 POST https://api-test.uletismenu.com/api/v1/debug/test-email
@@ -167,7 +181,8 @@ Never commit passwords. Never log passwords (application logs do not include `Sm
 |---------|----------------|-----|
 | Auth failed / 535 | Wrong app password or using account login password | Create a fresh Zoho **app password** |
 | Cannot send as noreply@ | Alias not allowed for Send Mail As | Enable Send Mail As / alias for `noreply@` on `support@` |
-| Connection timeout | Firewall / wrong host | Use `smtppro.zoho.eu`, port `587`, STARTTLS |
+| Connection timeout / “connectivity failed before authentication” | Outbound SMTP blocked (esp. **Render Free** ports 25/465/587) or firewall | Keep Zoho `smtppro.zoho.eu:587`; test locally, paid Render, or Azure LIVE — do not change host/credentials |
+| Connection timeout (non-Render) | Wrong host / network | Use `smtppro.zoho.eu`, port `587`, STARTTLS |
 | Production app won’t start | Missing SMTP env vars | Set all required `SmtpSettings__*` then restart |
 | test-email 404 on LIVE | Expected | Endpoint disabled in Production |
 | test-email 401 on TEST | Missing debug key | Set `SmtpSettings__DebugApiKey` and send `X-Email-Debug-Key` |

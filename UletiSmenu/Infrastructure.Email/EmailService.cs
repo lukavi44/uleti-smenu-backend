@@ -9,6 +9,11 @@ namespace Infrastructure.Email;
 
 public class EmailService : IEmailService
 {
+    /// <summary>
+    /// MailKit default is ~120s; keep failures fast (e.g. Render Free blocks outbound 25/465/587).
+    /// </summary>
+    private static readonly TimeSpan SmtpTimeout = TimeSpan.FromSeconds(15);
+
     private readonly SmtpSettings _settings;
     private readonly ILogger<EmailService> _logger;
 
@@ -155,12 +160,30 @@ public class EmailService : IEmailService
 
             message.Body = new TextPart("html") { Text = htmlBody };
 
-            using var client = new SmtpClient();
+            using var client = new SmtpClient { Timeout = (int)SmtpTimeout.TotalMilliseconds };
             var secureSocketOptions = _settings.EnableSsl
                 ? SecureSocketOptions.StartTls
                 : SecureSocketOptions.Auto;
 
-            await client.ConnectAsync(_settings.Host, _settings.Port, secureSocketOptions, cancellationToken);
+            try
+            {
+                await client.ConnectAsync(_settings.Host, _settings.Port, secureSocketOptions, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // Connectivity failed before AuthenticateAsync — common when outbound SMTP is blocked
+                // (Render Free blocks ports 25, 465, and 587).
+                _logger.LogError(
+                    ex,
+                    "SMTP network connectivity failed before authentication. Host={Host} Port={Port}. " +
+                    "To={To} Subject={Subject}. Check firewall/outbound SMTP (Render Free blocks 25/465/587).",
+                    _settings.Host,
+                    _settings.Port,
+                    toEmail,
+                    subject);
+                return false;
+            }
+
             await client.AuthenticateAsync(_settings.Username, _settings.Password, cancellationToken);
             await client.SendAsync(message, cancellationToken);
             await client.DisconnectAsync(true, cancellationToken);
