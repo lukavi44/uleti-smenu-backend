@@ -40,3 +40,23 @@ services:
         sync: false
       - key: AdminSeed__Password
         sync: false
+      - key: SmtpSettings__Host
+        value: smtppro.zoho.eu
+      - key: SmtpSettings__Port
+        value: "587"
+      - key: SmtpSettings__EnableSsl
+        value: "true"
+      - key: SmtpSettings__Username
+        value: support@uletismenu.com
+      - key: SmtpSettings__FromEmail
+        value: noreply@uletismenu.com
+      - key: SmtpSettings__FromName
+        value: UletiSmenu
+      - key: SmtpSettings__ReplyToEmail
+        value: support@uletismenu.com
+      - key: SmtpSettings__ContactInbox
+        value: support@uletismenu.com
+      - key: SmtpSettings__Password
+        sync: false
+      - key: SmtpSettings__DebugApiKey
+        sync: false

@@ -13,11 +13,15 @@
     "FrontendBaseUrl": "http://localhost:5173/"
   },
   "SmtpSettings": {
-    "Host": "smtp.gmail.com",
+    "Host": "smtppro.zoho.eu",
     "Port": 587,
-    "Username": "",
+    "Username": "support@uletismenu.com",
     "Password": "",
-    "FromEmail": "no-reply@uletismenu.local",
-    "EnableSsl": true
+    "FromEmail": "noreply@uletismenu.com",
+    "FromName": "UletiSmenu",
+    "ReplyToEmail": "support@uletismenu.com",
+    "ContactInbox": "support@uletismenu.com",
+    "EnableSsl": true,
+    "DebugApiKey": ""
   }
 }

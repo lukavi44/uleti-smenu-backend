@@ -87,10 +87,9 @@ namespace API.Controllers
             var resetLink =
                 $"{frontendBaseUrl}/reset-password?email={Uri.EscapeDataString(user.Email ?? request.Email.Trim())}&token={Uri.EscapeDataString(token)}";
 
-            await _emailService.SendEmailAsync(
+            await _emailService.SendPasswordResetAsync(
                 user.Email ?? request.Email.Trim(),
-                "Reset your UletiSmenu password",
-                $"Click <a href='{resetLink}'>here</a> to reset your password.");
+                resetLink);
 
             return Ok(new { message = "If an account exists for this email, a reset link has been sent." });
         }

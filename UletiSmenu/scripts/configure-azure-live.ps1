@@ -11,15 +11,15 @@
 .PARAMETER ConnectionString
 .PARAMETER BlobConnectionString
   Azure Storage connection string for durable uploads.
-.PARAMETER SmtpApiKey
-  SendGrid API key (smtp.sendgrid.net username "apikey").
+.PARAMETER SmtpPassword
+  Zoho Mail app password for support@uletismenu.com (never commit this value).
 .PARAMETER CorsOrigin
   Frontend origin (default https://app.uletismenu.com).
 
 .EXAMPLE
   .\scripts\configure-azure-live.ps1 `
     -BlobConnectionString "DefaultEndpointsProtocol=https;..." `
-    -SmtpApiKey "SG...."
+    -SmtpPassword "your-zoho-app-password"
 #>
 [CmdletBinding()]
 param(
@@ -27,7 +27,7 @@ param(
     [string] $ApiAppName = "api-staging-uletismenu",
     [string] $ConnectionString,
     [string] $BlobConnectionString,
-    [string] $SmtpApiKey,
+    [string] $SmtpPassword,
     [string] $CorsOrigin = "https://app.uletismenu.com"
 )
 
@@ -58,19 +58,22 @@ $settings = @{
     Backend__FrontendBaseUrl                   = "https://app.uletismenu.com/"
     Stripe__Enabled                            = "false"
     AdminSeed__Enabled                         = "false"
-    SmtpSettings__Host                         = "smtp.sendgrid.net"
+    SmtpSettings__Host                         = "smtppro.zoho.eu"
     SmtpSettings__Port                         = "587"
     SmtpSettings__EnableSsl                    = "true"
-    SmtpSettings__FromEmail                    = "no-reply@uletismenu.com"
+    SmtpSettings__Username                     = "support@uletismenu.com"
+    SmtpSettings__FromEmail                    = "noreply@uletismenu.com"
+    SmtpSettings__FromName                     = "UletiSmenu"
+    SmtpSettings__ReplyToEmail                 = "support@uletismenu.com"
+    SmtpSettings__ContactInbox                 = "support@uletismenu.com"
 }
 
 if ($BlobConnectionString) {
     $settings["FileSettings__BlobConnectionString"] = $BlobConnectionString
 }
 
-if ($SmtpApiKey) {
-    $settings["SmtpSettings__Username"] = "apikey"
-    $settings["SmtpSettings__Password"] = $SmtpApiKey
+if ($SmtpPassword) {
+    $settings["SmtpSettings__Password"] = $SmtpPassword
 }
 
 $settingArgs = @()
@@ -97,4 +100,6 @@ Write-Host "Done. Verify:" -ForegroundColor Green
 Write-Host "  curl https://api.uletismenu.com/health"
 Write-Host "  curl https://api.uletismenu.com/health/ready"
 Write-Host ""
+Write-Host "SMTP: set SmtpSettings__Password in Azure Portal if not passed via -SmtpPassword." -ForegroundColor Yellow
+Write-Host "See docs/email-setup.md for Zoho app password steps." -ForegroundColor Yellow
 Write-Host "Run scripts\verify-live-database.sql against the LIVE database." -ForegroundColor Yellow

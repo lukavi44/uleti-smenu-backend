@@ -29,7 +29,6 @@ using Microsoft.OpenApi.Models;
 using Serilog;
 using Swashbuckle.AspNetCore.Filters;
 using System.Net;
-using System.Net.Mail;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -124,30 +123,7 @@ if (stripeEnabled)
 else
     builder.Services.AddScoped<IPaymentProvider, DisabledPaymentProvider>();
 
-builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"))
-    .AddTransient(serviceProvider =>
-    {
-        var smtpSettings = serviceProvider.GetRequiredService<IOptions<SmtpSettings>>().Value;
-
-        return new SmtpClient
-        {
-            Host = smtpSettings.Host,
-            Port = smtpSettings.Port,
-            Credentials = new NetworkCredential(smtpSettings.Username, smtpSettings.Password),
-            EnableSsl = smtpSettings.EnableSsl,
-            Timeout = 10000
-        };
-    });
-
-builder.Services.AddTransient<IEmailService, EmailService>(provider =>
-{
-    var smtpClient = provider.GetRequiredService<SmtpClient>();
-    var smtpSettings = provider.GetRequiredService<IOptions<SmtpSettings>>().Value;
-    var fromEmail = !string.IsNullOrWhiteSpace(smtpSettings.FromEmail)
-        ? smtpSettings.FromEmail
-        : (smtpClient.Credentials as NetworkCredential)?.UserName ?? string.Empty;
-    return new EmailService(smtpClient, fromEmail);
-});
+builder.Services.AddUletiSmenuEmail(builder.Configuration);
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddControllers();
@@ -265,6 +241,18 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
+
+    options.AddPolicy(
+        RateLimitPolicies.Contact,
+        httpContext => RateLimitPartition.GetFixedWindowLimiter(
+            GetRateLimitPartitionKey(httpContext),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromHours(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
 });
 builder.Services.AddHostedService<ApplicationStartupHostedService>();
 builder.Services.AddHealthChecks()
@@ -358,6 +346,8 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+SmtpConfigurationGuard.ValidateAtStartup(app.Environment, app.Services);
 
 if (app.Environment.IsDevelopment())
 {
