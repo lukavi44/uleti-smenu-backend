@@ -1,6 +1,9 @@
 <#
 .SYNOPSIS
-  Apply required App Service settings for staging API.
+  DEPRECATED — use configure-azure-live.ps1 for LIVE / Production App Service settings.
+
+  Azure resource names may still contain "staging" (legacy); they host LIVE today.
+  Prefer: .\scripts\configure-azure-live.ps1
 
 .PARAMETER ResourceGroup
 .PARAMETER ApiAppName
@@ -8,7 +11,7 @@
   Azure SQL connection string. If omitted, copies from ConnectionStrings__DefaultConnection when present.
 
 .EXAMPLE
-  .\scripts\configure-azure-staging.ps1 -ConnectionString "Server=tcp:..."
+  .\scripts\configure-azure-live.ps1 -SmtpPassword "..."
 #>
 [CmdletBinding()]
 param(
@@ -18,6 +21,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+Write-Host "DEPRECATED: prefer configure-azure-live.ps1 for LIVE configuration." -ForegroundColor Yellow
 
 if (-not (az account show 2>$null)) { throw "Run: az login" }
 

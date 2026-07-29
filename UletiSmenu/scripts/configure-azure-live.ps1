@@ -4,7 +4,8 @@
 
 .DESCRIPTION
   Targets the existing Azure App Service that serves api.uletismenu.com.
-  Azure resource name may still be api-staging-uletismenu from initial provisioning.
+  Azure resource name may still be api-staging-uletismenu / rg-uletismenu-staging (legacy names for LIVE).
+  Prefer this script over configure-azure-staging.ps1 (deprecated).
 
 .PARAMETER ResourceGroup
 .PARAMETER ApiAppName

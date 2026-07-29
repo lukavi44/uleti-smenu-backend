@@ -1,0 +1,20 @@
+---
+description: Always follow docs/ROADMAP.md as the single planning source of truth
+alwaysApply: true
+---
+
+# Roadmap authority
+
+Before proposing or implementing any new feature or significant non-bug work:
+
+1. Read `docs/ROADMAP.md` (backend: `UletiSmenu/docs/ROADMAP.md`; frontend: `docs/ROADMAP.md`).
+2. Confirm the work matches the current phase or Soft Launch checklist.
+3. If it does not align, explain why and **ask before proceeding**.
+
+When finishing a milestone, update ROADMAP status in the same change set and keep copies in sync across repos.
+
+Project vision: launch a production-ready hospitality hiring platform in Serbia ASAP — avoid feature creep.
+
+Default workflow: implement on **`develop` → TEST**, then PR to **`main` → LIVE**.
+
+Environment language: LIVE / PROD / Production and TEST. Azure resources named `*staging*` are often LIVE (legacy). Do not casually rename cloud resources.
