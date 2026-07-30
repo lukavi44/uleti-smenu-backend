@@ -51,7 +51,7 @@ Optional: Application Insights linked (`APPLICATIONINSIGHTS_CONNECTION_STRING`).
 |---|--------|-------|
 | D1 | Azure alerts provisioned | Done — `uletismenu-live-http5xx` + action group `ag-uletismenu-live` (2026-07-30) |
 | D2 | Action group emails `support@uletismenu.com` | Done — confirmed 2026-07-30 |
-| D3 | External uptime (UptimeRobot or equivalent) | **Do this:** see [`UPTIME_MONITORING.md`](./UPTIME_MONITORING.md) — monitor `https://api.uletismenu.com/health` every 5 min |
+| D3 | External uptime (UptimeRobot or equivalent) | Done — `api.uletismenu.com/health` (+ optional `app.uletismenu.com`) every 5 min → `support@` (2026-07-30) |
 | D4 | Log phrases for SMTP | Done — App Insights `appi-uletismenu-live` linked; scheduled query `uletismenu-live-smtp-failures` → `ag-uletismenu-live` |
 
 ## E. Known LIVE caveats
@@ -64,5 +64,5 @@ Optional: Application Insights linked (`APPLICATIONINSIGHTS_CONNECTION_STRING`).
 
 | Role | Date | Notes |
 |------|------|-------|
-| Engineer | 2026-07-30 | A1–A4 automated; B1–B6 manual email flows verified |
+| Engineer | 2026-07-30 | A1–A4, B1–B6, D1–D4 monitoring verified |
 | Product | | |
