@@ -122,6 +122,38 @@ namespace API.Controllers
             return Ok(result.Value);
         }
 
+        [HttpGet("users")]
+        public async Task<IActionResult> GetUsers(
+            [FromQuery] string? search = null,
+            [FromQuery] string? role = null,
+            [FromQuery] string? status = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            var result = await _adminService.GetUsersAsync(search, role, status, page, pageSize);
+            return Ok(result);
+        }
+
+        [HttpPut("users/{userId:guid}/lockout")]
+        public async Task<IActionResult> SetUserLockout(
+            Guid userId,
+            [FromBody] SetUserLockoutRequest request)
+        {
+            var adminUserId = GetCurrentUserId();
+            if (adminUserId == null)
+                return Unauthorized();
+
+            var result = await _adminService.SetUserLockoutAsync(
+                userId,
+                request.IsLockedOut,
+                adminUserId.Value);
+
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Value);
+        }
+
         private Guid? GetCurrentUserId()
         {
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -132,5 +164,10 @@ namespace API.Controllers
     public class SetEmployerVerificationRequest
     {
         public bool IsVerified { get; set; }
+    }
+
+    public class SetUserLockoutRequest
+    {
+        public bool IsLockedOut { get; set; }
     }
 }

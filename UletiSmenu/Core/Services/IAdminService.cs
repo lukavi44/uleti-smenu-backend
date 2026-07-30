@@ -41,5 +41,15 @@ namespace Core.Services
             string? search,
             int page,
             int pageSize);
+        Task<AdminPagedResponseDTO<AdminUserListItemDTO>> GetUsersAsync(
+            string? search,
+            string? role,
+            string? status,
+            int page,
+            int pageSize);
+        Task<Result<AdminUserListItemDTO>> SetUserLockoutAsync(
+            Guid userId,
+            bool isLockedOut,
+            Guid adminUserId);
     }
 }
