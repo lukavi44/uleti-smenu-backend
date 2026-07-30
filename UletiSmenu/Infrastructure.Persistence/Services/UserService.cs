@@ -639,5 +639,27 @@ namespace Infrastructure.Persistence.Services
             await _applicationUnitOfWork.SaveChangesAsync();
         }
 
+        public async Task<NotificationPreferencesDTO?> GetNotificationPreferencesAsync(Guid userId)
+        {
+            var user = await _userRepository.GetByIdAsync<User>(userId);
+            return user == null ? null : NotificationPreferenceHelper.ToDto(user);
+        }
+
+        public async Task<Result<NotificationPreferencesDTO>> UpdateNotificationPreferencesAsync(
+            Guid userId,
+            UpdateNotificationPreferencesDTO update)
+        {
+            var user = await _userRepository.GetByIdAsync<User>(userId);
+            if (user == null)
+                return Result.Failure<NotificationPreferencesDTO>("User not found.");
+
+            user.ApplyNotificationPreferences(update);
+            var identityResult = await _userManager.UpdateAsync(user);
+            if (!identityResult.Succeeded)
+                return Result.Failure<NotificationPreferencesDTO>(string.Join(", ", identityResult.Errors.Select(e => e.Description)));
+
+            return Result.Success(NotificationPreferenceHelper.ToDto(user));
+        }
+
     }
 }

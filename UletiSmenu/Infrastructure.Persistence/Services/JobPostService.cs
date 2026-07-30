@@ -1,4 +1,5 @@
 using Core.DTOs;
+using Core.Helpers;
 using Core.Interfaces;
 using Core.Models.Entities;
 using Core.Models.Enums;
@@ -11,7 +12,7 @@ namespace Infrastructure.Persistence.Services
 {
     public class JobPostService : IJobPostService
     {
-        private const string NewFavouriteRestaurantJobPostType = "NewFavouriteRestaurantJobPost";
+        private const string NewFavouriteRestaurantJobPostType = NotificationPreferenceHelper.NewFavouriteRestaurantJobPostType;
         private const string CompleteEmployerProfileMessage = "Da biste objavili oglas, prvo popunite profil poslodavca.";
         private readonly IJobPostRepository _jobPostRepository;
         private readonly IUserRepository _userRepository;
@@ -431,7 +432,12 @@ namespace Infrastructure.Persistence.Services
 
         private async Task CreateInAppNotificationsAsync(JobPost jobPost)
         {
-            var followerIds = await _applicationUnitOfWork.Favourites.GetEmployeeIdsByEmployerIdAsync(jobPost.EmployerId);
+            var followers = await _applicationUnitOfWork.Favourites.GetJobAlertFollowersByEmployerIdAsync(jobPost.EmployerId);
+            var followerIds = followers
+                .Where(follower => follower.InAppEnabled)
+                .Select(follower => follower.EmployeeId)
+                .ToList();
+
             if (followerIds.Count == 0)
                 return;
 
@@ -462,9 +468,14 @@ namespace Infrastructure.Persistence.Services
         {
             try
             {
-                var followerEmails = await _applicationUnitOfWork.Favourites.GetFollowerEmailsByEmployerIdAsync(jobPost.EmployerId);
+                var followers = await _applicationUnitOfWork.Favourites.GetJobAlertFollowersByEmployerIdAsync(jobPost.EmployerId);
+                var followerEmails = followers
+                    .Where(follower => follower.EmailEnabled && !string.IsNullOrWhiteSpace(follower.Email))
+                    .Select(follower => follower.Email!)
+                    .Distinct()
+                    .ToList();
 
-                foreach (var email in followerEmails.Distinct())
+                foreach (var email in followerEmails)
                 {
                     await _emailService.SendFavouriteJobPostAsync(email, jobPost.Title);
                 }

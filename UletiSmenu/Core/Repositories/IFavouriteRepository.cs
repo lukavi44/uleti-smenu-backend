@@ -1,4 +1,5 @@
 
+using Core.DTOs;
 using Core.Models;
 using CSharpFunctionalExtensions;
 
@@ -13,6 +14,7 @@ namespace Core.Repositories
         Task<List<Guid>> GetEmployerIdsFavouritedByEmployeeAsync(Guid employeeId);
         Task<List<Guid>> GetEmployeeIdsByEmployerIdAsync(Guid employerId);
         Task<List<string>> GetFollowerEmailsByEmployerIdAsync(Guid employerId);
+        Task<List<JobAlertFollower>> GetJobAlertFollowersByEmployerIdAsync(Guid employerId);
 
     }
 }

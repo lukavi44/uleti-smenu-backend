@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Core.Helpers;
 using Core.Models.Entities;
 using Core.Models.Enums;
 using Core.Repositories;
@@ -10,21 +11,24 @@ namespace Infrastructure.Persistence.Services
 {
     public class ReviewReminderService : IReviewReminderService
     {
-        public const string ReviewReminderType = "ReviewReminder";
+        public const string ReviewReminderType = NotificationPreferenceHelper.ReviewReminderType;
 
         private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> UserSyncLocks = new();
 
         private readonly IReviewService _reviewService;
         private readonly INotificationRepository _notificationRepository;
+        private readonly IUserRepository _userRepository;
         private readonly IApplicationUnitOfWork _applicationUnitOfWork;
 
         public ReviewReminderService(
             IReviewService reviewService,
             INotificationRepository notificationRepository,
+            IUserRepository userRepository,
             IApplicationUnitOfWork applicationUnitOfWork)
         {
             _reviewService = reviewService;
             _notificationRepository = notificationRepository;
+            _userRepository = userRepository;
             _applicationUnitOfWork = applicationUnitOfWork;
         }
 
@@ -38,6 +42,10 @@ namespace Infrastructure.Persistence.Services
 
             try
             {
+                var user = await _userRepository.GetByIdAsync<User>(userId);
+                if (user == null || !NotificationPreferenceHelper.IsInAppEnabled(user, ReviewReminderType))
+                    return Result.Success();
+
                 var pendingResult = await _reviewService.GetMyPendingReviewsAsync(userId, role);
                 if (pendingResult.IsFailure)
                     return Result.Failure(pendingResult.Error);

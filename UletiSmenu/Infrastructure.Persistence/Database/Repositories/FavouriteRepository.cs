@@ -1,3 +1,4 @@
+using Core.DTOs;
 using Core.Models;
 using Core.Models.Entities;
 using Core.Repositories;
@@ -80,8 +81,24 @@ namespace Infrastructure.Persistence.Database.Repositories
             return await (from favourite in _applicationDbContext.Favourites
                           join employee in _applicationDbContext.Users.OfType<Employee>()
                               on favourite.EmployeeId equals employee.Id
-                          where favourite.EmployerId == employerId && employee.Email != null
+                          where favourite.EmployerId == employerId
+                                && employee.Email != null
+                                && employee.NotifyEmailFavouriteJobPost
                           select employee.Email!)
+                .ToListAsync();
+        }
+
+        public async Task<List<JobAlertFollower>> GetJobAlertFollowersByEmployerIdAsync(Guid employerId)
+        {
+            return await (from favourite in _applicationDbContext.Favourites
+                          join employee in _applicationDbContext.Users.OfType<Employee>()
+                              on favourite.EmployeeId equals employee.Id
+                          where favourite.EmployerId == employerId
+                          select new JobAlertFollower(
+                              employee.Id,
+                              employee.Email,
+                              employee.NotifyEmailFavouriteJobPost,
+                              employee.NotifyInAppFavouriteJobPost))
                 .ToListAsync();
         }
 

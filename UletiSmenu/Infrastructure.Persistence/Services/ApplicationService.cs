@@ -11,9 +11,9 @@ namespace Infrastructure.Persistence.Services
 {
     public class ApplicationService : IApplicationService
     {
-        private const string ApplicationAcceptedNotificationType = "ApplicationAccepted";
-        private const string ApplicationDeclinedNotificationType = "ApplicationDeclined";
-        private const string ApplicationReceivedNotificationType = "ApplicationReceived";
+        private const string ApplicationAcceptedNotificationType = NotificationPreferenceHelper.ApplicationAcceptedType;
+        private const string ApplicationDeclinedNotificationType = NotificationPreferenceHelper.ApplicationDeclinedType;
+        private const string ApplicationReceivedNotificationType = NotificationPreferenceHelper.ApplicationReceivedType;
         private readonly IApplicationRepository _applicationRepository;
         private readonly IJobPostRepository _jobPostRepository;
         private readonly IChatRepository _chatRepository;
@@ -71,13 +71,22 @@ namespace Infrastructure.Persistence.Services
                 var application = applicationResult.Value;
                 await _applicationRepository.AddAsync(application);
 
-                var notification = CreateApplicationReceivedNotification(application, employee, jobPost);
-                await _applicationUnitOfWork.Notifications.AddAsync(notification);
+                var employer = await _userRepository.GetByIdAsync<User>(jobPost.EmployerId);
+                if (employer != null && NotificationPreferenceHelper.IsInAppEnabled(employer, $"{ApplicationReceivedNotificationType}:{application.Id}"))
+                {
+                    var notification = CreateApplicationReceivedNotification(application, employee, jobPost);
+                    await _applicationUnitOfWork.Notifications.AddAsync(notification);
 
-                await _applicationUnitOfWork.SaveChangesAsync();
-                await _applicationUnitOfWork.CommitTransactionAsync();
+                    await _applicationUnitOfWork.SaveChangesAsync();
+                    await _applicationUnitOfWork.CommitTransactionAsync();
 
-                await NotifyApplicationReceivedAsync(notification);
+                    await NotifyApplicationReceivedAsync(notification);
+                }
+                else
+                {
+                    await _applicationUnitOfWork.SaveChangesAsync();
+                    await _applicationUnitOfWork.CommitTransactionAsync();
+                }
 
                 return Result.Success();
             }
@@ -257,6 +266,10 @@ namespace Infrastructure.Persistence.Services
                 .GetRecipientIdsForJobPostAsync(jobPost.Id, notificationType);
 
             if (existingRecipientIds.Contains(application.UserId))
+                return;
+
+            var employee = await _userRepository.GetByIdAsync<User>(application.UserId);
+            if (employee == null || !NotificationPreferenceHelper.IsInAppEnabled(employee, notificationType))
                 return;
 
             var message = newStatus == ApplicationStatusEnum.Accepted

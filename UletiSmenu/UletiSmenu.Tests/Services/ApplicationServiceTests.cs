@@ -54,10 +54,13 @@ namespace UletiSmenu.Tests.Services
         {
             // Arrange
             var employeeId = Guid.NewGuid();
+            var employerId = Guid.NewGuid();
             var jobPostId = Guid.NewGuid();
             var employee = CreateEmployee(employeeId);
+            var employer = User.Create(employerId, "employer@test.com", "employer@test.com", null).Value;
             var jobPost = CreateJobPost(
                 jobPostId,
+                employerId,
                 status: JobStatusEnum.Active,
                 startingDate: DateTime.UtcNow.AddHours(3),
                 visibleUntil: DateTime.UtcNow.AddHours(3).AddMinutes(30));
@@ -65,6 +68,10 @@ namespace UletiSmenu.Tests.Services
             _userRepositoryMock
                 .Setup(r => r.GetByIdAsync<Employee>(employeeId))
                 .ReturnsAsync(employee);
+
+            _userRepositoryMock
+                .Setup(r => r.GetByIdAsync<User>(employerId))
+                .ReturnsAsync(employer);
 
             _jobPostRepositoryMock
                 .Setup(r => r.GetJobPostByIdAsync(jobPostId))
@@ -108,6 +115,7 @@ namespace UletiSmenu.Tests.Services
             var employee = CreateEmployee(employeeId);
             var jobPost = CreateJobPost(
                 jobPostId,
+                Guid.NewGuid(),
                 status: JobStatusEnum.Active,
                 startingDate: DateTime.UtcNow.AddHours(2),
                 visibleUntil: DateTime.UtcNow.AddHours(2).AddMinutes(30));
@@ -141,6 +149,7 @@ namespace UletiSmenu.Tests.Services
             var employee = CreateEmployee(employeeId);
             var jobPost = CreateJobPost(
                 jobPostId,
+                Guid.NewGuid(),
                 status: JobStatusEnum.Active,
                 startingDate: DateTime.UtcNow.AddHours(2),
                 visibleUntil: DateTime.UtcNow.AddHours(2).AddMinutes(30));
@@ -185,6 +194,7 @@ namespace UletiSmenu.Tests.Services
             var employee = CreateEmployee(employeeId);
             var jobPost = CreateJobPost(
                 jobPostId,
+                Guid.NewGuid(),
                 status: JobStatusEnum.Active,
                 startingDate: DateTime.UtcNow.AddHours(2),
                 visibleUntil: DateTime.UtcNow.AddHours(2).AddMinutes(30));
@@ -223,6 +233,7 @@ namespace UletiSmenu.Tests.Services
             var employee = CreateEmployee(employeeId);
             var inactiveJobPost = CreateJobPost(
                 jobPostId,
+                Guid.NewGuid(),
                 status: JobStatusEnum.Completed,
                 startingDate: DateTime.UtcNow.AddHours(4),
                 visibleUntil: DateTime.UtcNow.AddHours(4).AddMinutes(30));
@@ -263,6 +274,7 @@ namespace UletiSmenu.Tests.Services
 
         private static JobPost CreateJobPost(
             Guid jobPostId,
+            Guid employerId,
             JobStatusEnum status,
             DateTime startingDate,
             DateTime visibleUntil)
@@ -274,7 +286,7 @@ namespace UletiSmenu.Tests.Services
                 status,
                 startingDate,
                 visibleUntil,
-                Guid.NewGuid(),
+                employerId,
                 Guid.NewGuid(),
                 3000,
                 "Waiter");

@@ -52,5 +52,7 @@ namespace Core.Services
             string cityCode);
         Task<Result> UpdateEmployerAsync(Guid employerId, Employer employer);
         Task<Result> RegisterEmployerAsync(Employer employer, string password);
+        Task<NotificationPreferencesDTO?> GetNotificationPreferencesAsync(Guid userId);
+        Task<Result<NotificationPreferencesDTO>> UpdateNotificationPreferencesAsync(Guid userId, UpdateNotificationPreferencesDTO update);
     }
 }
