@@ -49,10 +49,10 @@ Optional: Application Insights linked (`APPLICATIONINSIGHTS_CONNECTION_STRING`).
 
 | # | Check | Notes |
 |---|--------|-------|
-| D1 | Azure alerts provisioned | Done — `uletismenu-live-http5xx` (Sev2) → action group `ag-uletismenu-live` (2026-07-30). App Insights CLI extension still broken on this machine; create/link Insights in Portal if needed. |
-| D2 | Action group emails `support@uletismenu.com` | Confirm Azure Monitor welcome / test email at `support@` — **pending confirmation** |
-| D3 | External uptime (UptimeRobot or equivalent) | Monitor `/health` every 5 min; `/health/ready` optional with pause caveat |
-| D4 | Log phrases for SMTP | Search App Service / Insights logs for `Failed to send email` and `SMTP network connectivity failed` |
+| D1 | Azure alerts provisioned | Done — `uletismenu-live-http5xx` + action group `ag-uletismenu-live` (2026-07-30) |
+| D2 | Action group emails `support@uletismenu.com` | Done — confirmed 2026-07-30 |
+| D3 | External uptime (UptimeRobot or equivalent) | **Do this:** see [`UPTIME_MONITORING.md`](./UPTIME_MONITORING.md) — monitor `https://api.uletismenu.com/health` every 5 min |
+| D4 | Log phrases for SMTP | Done — App Insights `appi-uletismenu-live` linked; scheduled query `uletismenu-live-smtp-failures` → `ag-uletismenu-live` |
 
 ## E. Known LIVE caveats
 
