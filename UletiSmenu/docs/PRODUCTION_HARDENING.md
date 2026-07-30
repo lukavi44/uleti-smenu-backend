@@ -87,10 +87,12 @@ Confirm Phase 3 unique index and no `NumberOfApplicants` column.
 Implemented in `SecurityHeadersMiddleware` (API). Verify:
 
 ```bash
-curl -I https://api.uletismenu.com/health
+curl -i -X GET https://api.uletismenu.com/health
 ```
 
-Expect: `X-Content-Type-Options`, `X-Frame-Options`, `Strict-Transport-Security` (Production only).
+Expect: `200` with `{"status":"ok"}`, plus `X-Content-Type-Options`, `X-Frame-Options`, `Strict-Transport-Security` (Production).
+
+Note: `curl -I` sends **HEAD**, which `/health` rejects with **405** by design (`MapGet` only). Use GET when checking health or security headers via this URL.
 
 ## 6. LIVE App Service settings audit
 
