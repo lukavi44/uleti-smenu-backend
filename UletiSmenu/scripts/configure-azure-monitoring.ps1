@@ -27,10 +27,30 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Install-AzApplicationInsightsExtension {
+    Write-Host "Installing Azure CLI application-insights extension if needed..." -ForegroundColor Cyan
+    $previousErrorAction = $ErrorActionPreference
+    try {
+        # az writes preview notices to stderr; do not treat them as terminating errors in PowerShell.
+        $ErrorActionPreference = "Continue"
+        $output = az extension add --name application-insights --upgrade 2>&1
+        foreach ($line in $output) {
+            if ($line -match '^WARNING:') {
+                Write-Host $line -ForegroundColor Yellow
+            }
+        }
+        if ($LASTEXITCODE -ne 0) {
+            throw "az extension add --name application-insights --upgrade failed with exit code $LASTEXITCODE."
+        }
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorAction
+    }
+}
+
 if (-not (az account show 2>$null)) { throw "Run: az login" }
 
-Write-Host "Installing Azure CLI application-insights extension if needed..." -ForegroundColor Cyan
-az extension add --name application-insights --upgrade 2>$null | Out-Null
+Install-AzApplicationInsightsExtension
 
 Write-Host "Ensuring Application Insights '$InsightsName'..." -ForegroundColor Cyan
 $existing = az monitor app-insights component show -a $InsightsName -g $ResourceGroup 2>$null

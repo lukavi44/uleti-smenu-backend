@@ -25,14 +25,14 @@ Use a real inbox you control. Inspect headers: **From** `noreply@uletismenu.com`
 
 | # | Flow | How | Pass? |
 |---|------|-----|-------|
-| B1 | Password reset | LIVE `/forgot-password` | ☐ |
-| B2 | Registration confirm | Register new employer or candidate | ☐ |
-| B3 | Welcome employer | Same as B2 (employer) | ☐ |
-| B4 | Welcome candidate | Register candidate | ☐ |
-| B5 | Favourite job alert | Candidate favourites restaurant → employer posts job | ☐ |
-| B6 | Contact form | `/kontakt` → message arrives at `support@` | ☐ |
+| B1 | Password reset | LIVE `/forgot-password` | Done |
+| B2 | Registration confirm | Register new employer or candidate | Done |
+| B3 | Welcome employer | Same as B2 (employer) | Done |
+| B4 | Welcome candidate | Register candidate | Done |
+| B5 | Favourite job alert | Candidate favourites restaurant → employer posts job | Done |
+| B6 | Contact form | `/kontakt` → message arrives at `support@` | Done |
 
-Mark B1–B6 done in [`ROADMAP.md`](./ROADMAP.md) when complete.
+Verified on LIVE **2026-07-30**. B5 note: one bounce to a non-existent `@uletismenu.com` mailbox is expected (invalid recipient), not an SMTP failure.
 
 ## C. Config (no secrets in tickets)
 
@@ -49,8 +49,8 @@ Optional: Application Insights linked (`APPLICATIONINSIGHTS_CONNECTION_STRING`).
 
 | # | Check | Notes |
 |---|--------|-------|
-| D1 | Azure alerts provisioned | `.\configure-azure-monitoring.ps1` |
-| D2 | Action group emails `support@uletismenu.com` | Confirm welcome email from Azure Monitor |
+| D1 | Azure alerts provisioned | `.\configure-azure-monitoring.ps1` — **pending** |
+| D2 | Action group emails `support@uletismenu.com` | Confirm welcome email from Azure Monitor — **pending** |
 | D3 | External uptime (UptimeRobot or equivalent) | Monitor `/health` every 5 min; `/health/ready` optional with pause caveat |
 | D4 | Log phrases for SMTP | Search App Service / Insights logs for `Failed to send email` and `SMTP network connectivity failed` |
 
@@ -64,5 +64,5 @@ Optional: Application Insights linked (`APPLICATIONINSIGHTS_CONNECTION_STRING`).
 
 | Role | Date | Notes |
 |------|------|-------|
-| Engineer | | |
+| Engineer | 2026-07-30 | A1–A4 automated; B1–B6 manual email flows verified |
 | Product | | |

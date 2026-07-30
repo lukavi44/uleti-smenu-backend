@@ -1,6 +1,6 @@
 # UletiSmenu roadmap
 
-**Status:** active · **Last updated:** 2026-07-29 (Phase 1 smoke + monitoring scripts)  
+**Status:** active · **Last updated:** 2026-07-30 (B1–B6 LIVE email smoke verified)  
 **Owner:** product / engineering (keep this file current)
 
 This is the **single source of truth** for planning. Before proposing or implementing work:
@@ -63,10 +63,11 @@ Render TEST uses `ASPNETCORE_ENVIRONMENT=Staging` (ASP.NET Core environment name
 | Email templates + workflows | Done | Confirm, welcome, reset, favourite, contact |
 | Contact API + `/kontakt` frontend | Done | |
 | Azure LIVE SMTP App Settings | Done | Host/user/from present; rotate password if ever printed via `az` |
-| Verify all email flows on LIVE | **In progress** | B1 password reset observed; finish B2–B6 in `PRODUCTION_SMOKE.md` |
-| SMTP monitoring / ops clarity | **In progress** | Script `configure-azure-monitoring.ps1` + log alert guidance |
+| Verify all email flows on LIVE | Done | B1–B6 verified LIVE 2026-07-30 (`PRODUCTION_SMOKE.md`) |
+| SMTP monitoring / ops clarity | **In progress** | Run `configure-azure-monitoring.ps1` (D1–D2 pending) |
 | Documented smoke tests | Done | `docs/PRODUCTION_SMOKE.md`, `scripts/verify-live-smoke.ps1` |
-| Confirm production readiness | Pending | Close when B2–B6 + alerts confirmed |
+| Confirm production readiness | **In progress** | Email flows done; Azure alerts + uptime pending |
+| Notification preferences (email + in-app) | Done on TEST | Ship to LIVE with `develop` → `main` PR |
 
 **Do not** block login on unconfirmed email until SMTP/monitoring are solid (prefer soft banner later if needed).
 
@@ -75,8 +76,8 @@ Render TEST uses `ASPNETCORE_ENVIRONMENT=Staging` (ASP.NET Core environment name
 | Item | Status |
 |------|--------|
 | `/health` + `/health/ready` | `/health` OK LIVE; `/health/ready` Unhealthy when SQL **Paused** (documented) |
-| Azure monitoring | Script ready — run `configure-azure-monitoring.ps1` |
-| Azure alerts | Script creates Http5xx + action group → `support@`; Portal log alert for SMTP |
+| Azure monitoring | **In progress** — run `configure-azure-monitoring.ps1` |
+| Azure alerts | **Pending** — Http5xx + action group → `support@`; Portal log alert for SMTP |
 | Logging review | Serilog console → App Service / Insights once linked |
 | Uptime monitoring | Documented (UptimeRobot on `/health`) |
 | Documented smoke tests | Done (`PRODUCTION_SMOKE.md`) |
@@ -172,16 +173,16 @@ Candidate profile replaces the traditional CV.
 Before public launch, complete:
 
 - [ ] Lawyer-approved legal texts  
-- [ ] SMTP verified (all core flows)  
+- [x] SMTP verified (all core flows) — B1–B6 LIVE 2026-07-30  
 - [ ] Production monitoring  
 - [ ] Azure alerts  
-- [ ] Production smoke tests  
+- [x] Production smoke tests (email + infra A1–A4)  
 - [ ] Account deletion  
 - [ ] Cookie banner (if legally required)  
 - [ ] Azure Blob storage validation  
 - [ ] Production SQL review  
 - [ ] Pilot employers  
-- [ ] Support email operational (`support@uletismenu.com`)  
+- [x] Support email operational (`support@uletismenu.com`) — contact + Zoho LIVE verified  
 - [ ] Bug fixing from pilot  
 - [ ] Marketing launch  
 
