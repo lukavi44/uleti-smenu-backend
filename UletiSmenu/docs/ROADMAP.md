@@ -64,9 +64,9 @@ Render TEST uses `ASPNETCORE_ENVIRONMENT=Staging` (ASP.NET Core environment name
 | Contact API + `/kontakt` frontend | Done | |
 | Azure LIVE SMTP App Settings | Done | Host/user/from present; rotate password if ever printed via `az` |
 | Verify all email flows on LIVE | Done | B1–B6 verified LIVE 2026-07-30 (`PRODUCTION_SMOKE.md`) |
-| SMTP monitoring / ops clarity | **In progress** | Run `configure-azure-monitoring.ps1` (D1–D2 pending) |
+| SMTP monitoring / ops clarity | **In progress** | Http5xx alert live; confirm action-group email (D2); App Insights Portal optional |
 | Documented smoke tests | Done | `docs/PRODUCTION_SMOKE.md`, `scripts/verify-live-smoke.ps1` |
-| Confirm production readiness | **In progress** | Email flows done; Azure alerts + uptime pending |
+| Confirm production readiness | **In progress** | Email flows done; D2 email confirm + uptime pending |
 | Notification preferences (email + in-app) | Done on TEST | Ship to LIVE with `develop` → `main` PR |
 
 **Do not** block login on unconfirmed email until SMTP/monitoring are solid (prefer soft banner later if needed).
@@ -76,8 +76,8 @@ Render TEST uses `ASPNETCORE_ENVIRONMENT=Staging` (ASP.NET Core environment name
 | Item | Status |
 |------|--------|
 | `/health` + `/health/ready` | `/health` OK LIVE; `/health/ready` Unhealthy when SQL **Paused** (documented) |
-| Azure monitoring | **In progress** — run `configure-azure-monitoring.ps1` |
-| Azure alerts | **Pending** — Http5xx + action group → `support@`; Portal log alert for SMTP |
+| Azure monitoring | **In progress** — Http5xx alert created; App Insights via Portal if CLI extension fails |
+| Azure alerts | Done (Http5xx) — confirm `support@` receives action-group mail (D2) |
 | Logging review | Serilog console → App Service / Insights once linked |
 | Uptime monitoring | Documented (UptimeRobot on `/health`) |
 | Documented smoke tests | Done (`PRODUCTION_SMOKE.md`) |
@@ -175,7 +175,7 @@ Before public launch, complete:
 - [ ] Lawyer-approved legal texts  
 - [x] SMTP verified (all core flows) — B1–B6 LIVE 2026-07-30  
 - [ ] Production monitoring  
-- [ ] Azure alerts  
+- [x] Azure alerts — Http5xx metric alert `uletismenu-live-http5xx` (confirm D2 email)  
 - [x] Production smoke tests (email + infra A1–A4)  
 - [ ] Account deletion  
 - [ ] Cookie banner (if legally required)  

@@ -49,8 +49,8 @@ Optional: Application Insights linked (`APPLICATIONINSIGHTS_CONNECTION_STRING`).
 
 | # | Check | Notes |
 |---|--------|-------|
-| D1 | Azure alerts provisioned | `.\configure-azure-monitoring.ps1` — **pending** |
-| D2 | Action group emails `support@uletismenu.com` | Confirm welcome email from Azure Monitor — **pending** |
+| D1 | Azure alerts provisioned | Done — `uletismenu-live-http5xx` (Sev2) → action group `ag-uletismenu-live` (2026-07-30). App Insights CLI extension still broken on this machine; create/link Insights in Portal if needed. |
+| D2 | Action group emails `support@uletismenu.com` | Confirm Azure Monitor welcome / test email at `support@` — **pending confirmation** |
 | D3 | External uptime (UptimeRobot or equivalent) | Monitor `/health` every 5 min; `/health/ready` optional with pause caveat |
 | D4 | Log phrases for SMTP | Search App Service / Insights logs for `Failed to send email` and `SMTP network connectivity failed` |
 
