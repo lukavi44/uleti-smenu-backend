@@ -1,6 +1,11 @@
-# Staging on Azure
+# Legacy Azure “staging” notes (superseded)
 
-Deploy UletiSmenu staging at **https://staging.uletismenu.com** with API at **https://api-staging.uletismenu.com**.
+> **Deprecated as the primary guide.**  
+> LIVE / Production is documented in [`ENVIRONMENTS.md`](./ENVIRONMENTS.md) and [`ROADMAP.md`](./ROADMAP.md).  
+> Configure LIVE with [`../scripts/configure-azure-live.ps1`](../scripts/configure-azure-live.ps1).  
+> Azure resources below still use the historical `staging` **names** but currently serve **LIVE** traffic (`api.uletismenu.com` / App Service `api-staging-uletismenu`).
+
+Deploy notes below originally targeted **https://staging.uletismenu.com** / **https://api-staging.uletismenu.com**.
 
 Payments stay **disabled** (`Stripe:Enabled=false`) until CorvusPay or Stripe is configured.
 

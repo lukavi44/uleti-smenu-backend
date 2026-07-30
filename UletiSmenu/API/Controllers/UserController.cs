@@ -1,6 +1,7 @@
 using API.DTOs;
 using API.Security;
 using AutoMapper;
+using Core.DTOs;
 using Core.Models.Entities;
 using Core.Services;
 using Core.Interfaces;
@@ -539,6 +540,36 @@ namespace API.Controllers
                 return BadRequest(result.Error);
 
             return Ok(new { message = "Location deleted successfully." });
+        }
+
+        [Authorize]
+        [HttpGet("me/notification-preferences")]
+        public async Task<IActionResult> GetMyNotificationPreferences()
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdClaim, out var userId))
+                return Unauthorized("Invalid user claim.");
+
+            var preferences = await _userService.GetNotificationPreferencesAsync(userId);
+            if (preferences == null)
+                return NotFound("User not found.");
+
+            return Ok(preferences);
+        }
+
+        [Authorize]
+        [HttpPatch("me/notification-preferences")]
+        public async Task<IActionResult> UpdateMyNotificationPreferences([FromBody] UpdateNotificationPreferencesDTO request)
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdClaim, out var userId))
+                return Unauthorized("Invalid user claim.");
+
+            var result = await _userService.UpdateNotificationPreferencesAsync(userId, request);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Value);
         }
     }
 }

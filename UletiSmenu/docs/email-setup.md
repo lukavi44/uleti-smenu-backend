@@ -85,7 +85,7 @@ No debug API key required in Development.
 
 ### Render TEST
 
-`render-test.yaml` sets **`ASPNETCORE_ENVIRONMENT=Staging`** explicitly. That is how TEST is identified (not Production).
+`render-test.yaml` sets **`ASPNETCORE_ENVIRONMENT=Staging`** explicitly. In this project that value means **TEST** (ASP.NET Core environment name), not a third “staging” product environment and not LIVE/Production.
 
 In Render → `uletismenu-api-test` → Environment, set:
 
