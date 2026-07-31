@@ -17,6 +17,13 @@ namespace Core.Services
             Guid employerId,
             bool isVerified,
             Guid adminUserId);
+        Task<Result<AdminEmployerDetailDTO>> SetEmployerSuspensionAsync(
+            Guid employerId,
+            bool isSuspended,
+            Guid adminUserId);
+        Task<Result<AdminEmployerDetailDTO>> SetEmployerAdminNotesAsync(
+            Guid employerId,
+            string? notes);
         Task<AdminPagedResponseDTO<AdminCandidateListItemDTO>> GetCandidatesAsync(
             string? search,
             string? city,

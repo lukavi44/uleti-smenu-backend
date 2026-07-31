@@ -26,6 +26,7 @@ namespace Core.Models.Entities
         public bool IsVerifiedEmployer { get; private set; }
         public DateTime? VerifiedAtUtc { get; private set; }
         public Guid? VerifiedByUserId { get; private set; }
+        public string? AdminNotes { get; private set; }
         public Address Address { get; private set; }
         public string? GeographyCountryCode { get; private set; }
         public string? GeographyRegionCode { get; private set; }
@@ -403,6 +404,22 @@ namespace Core.Models.Entities
             IsVerifiedEmployer = false;
             VerifiedAtUtc = null;
             VerifiedByUserId = null;
+            return Result.Success();
+        }
+
+        public Result SetAdminNotes(string? notes)
+        {
+            if (string.IsNullOrWhiteSpace(notes))
+            {
+                AdminNotes = null;
+                return Result.Success();
+            }
+
+            var trimmed = notes.Trim();
+            if (trimmed.Length > 4000)
+                return Result.Failure("Admin notes cannot exceed 4000 characters.");
+
+            AdminNotes = trimmed;
             return Result.Success();
         }
     }
