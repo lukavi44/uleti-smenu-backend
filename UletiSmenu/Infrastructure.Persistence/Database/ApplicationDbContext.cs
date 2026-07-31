@@ -27,6 +27,8 @@ namespace Infrastructure.Persistence.Database
         public DbSet<MatchReview> MatchReviews { get; set; }
         public DbSet<PaymentEvent> PaymentEvents { get; set; }
         public DbSet<WalletTransaction> WalletTransactions { get; set; }
+        public DbSet<ContactMessage> ContactMessages { get; set; }
+        public DbSet<ModerationReport> ModerationReports { get; set; }
         public DbSet<GeographyCountry> GeographyCountries { get; set; }
         public DbSet<GeographyRegion> GeographyRegions { get; set; }
         public DbSet<GeographyCity> GeographyCities { get; set; }
