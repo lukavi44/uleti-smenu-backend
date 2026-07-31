@@ -88,11 +88,11 @@ Implemented in `SecurityHeadersMiddleware` (API). Verify:
 
 ```bash
 curl -i -X GET https://api.uletismenu.com/health
+# or (also 200 after HEAD support ships to LIVE):
+curl -I https://api.uletismenu.com/health
 ```
 
-Expect: `200` with `{"status":"ok"}`, plus `X-Content-Type-Options`, `X-Frame-Options`, `Strict-Transport-Security` (Production).
-
-Note: `curl -I` sends **HEAD**, which `/health` rejects with **405** by design (`MapGet` only). Use GET when checking health or security headers via this URL.
+Expect: `200` (GET includes `{"status":"ok"}`), plus `X-Content-Type-Options`, `X-Frame-Options`, `Strict-Transport-Security` (Production).
 
 ## 6. LIVE App Service settings audit
 
