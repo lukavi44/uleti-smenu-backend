@@ -13,6 +13,7 @@ namespace Core.Models.Entities
         public bool NotifyInAppApplicationAccepted { get; private set; } = true;
         public bool NotifyInAppApplicationDeclined { get; private set; } = true;
         public bool NotifyInAppApplicationReceived { get; private set; } = true;
+        public bool NotifyEmailApplicationReceived { get; private set; } = true;
         public bool NotifyInAppReviewReminder { get; private set; } = true;
 
         protected User(Guid id, string email, string username, string? phoneNumber, string? profilePhoto = null)
@@ -67,6 +68,9 @@ namespace Core.Models.Entities
 
             if (update.InAppApplicationReceived.HasValue)
                 NotifyInAppApplicationReceived = update.InAppApplicationReceived.Value;
+
+            if (update.EmailApplicationReceived.HasValue)
+                NotifyEmailApplicationReceived = update.EmailApplicationReceived.Value;
 
             if (update.InAppReviewReminder.HasValue)
                 NotifyInAppReviewReminder = update.InAppReviewReminder.Value;

@@ -37,6 +37,12 @@ public interface IEmailService
         string jobTitle,
         CancellationToken cancellationToken = default);
 
+    Task<bool> SendApplicationReceivedAsync(
+        string toEmail,
+        string applicantName,
+        string jobTitle,
+        CancellationToken cancellationToken = default);
+
     Task<bool> SendContactFormAsync(
         string name,
         string fromEmail,

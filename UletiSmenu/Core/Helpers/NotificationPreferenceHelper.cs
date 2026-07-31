@@ -34,6 +34,7 @@ namespace Core.Helpers
                 InAppApplicationAccepted = user.NotifyInAppApplicationAccepted,
                 InAppApplicationDeclined = user.NotifyInAppApplicationDeclined,
                 InAppApplicationReceived = user.NotifyInAppApplicationReceived,
+                EmailApplicationReceived = user.NotifyEmailApplicationReceived,
                 InAppReviewReminder = user.NotifyInAppReviewReminder
             };
     }
