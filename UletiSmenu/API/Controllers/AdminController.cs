@@ -186,6 +186,98 @@ namespace API.Controllers
             return Ok(result.Value);
         }
 
+        [HttpGet("contact-messages")]
+        public async Task<IActionResult> GetContactMessages(
+            [FromQuery] string? search = null,
+            [FromQuery] string? status = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            var result = await _adminService.GetContactMessagesAsync(search, status, page, pageSize);
+            return Ok(result);
+        }
+
+        [HttpGet("contact-messages/{messageId:guid}")]
+        public async Task<IActionResult> GetContactMessage(Guid messageId)
+        {
+            var result = await _adminService.GetContactMessageAsync(messageId);
+            if (result.IsFailure)
+                return NotFound(result.Error);
+
+            return Ok(result.Value);
+        }
+
+        [HttpPut("contact-messages/{messageId:guid}/resolve")]
+        public async Task<IActionResult> ResolveContactMessage(
+            Guid messageId,
+            [FromBody] ResolveContactMessageRequest request)
+        {
+            var adminUserId = GetCurrentUserId();
+            if (adminUserId == null)
+                return Unauthorized();
+
+            var result = await _adminService.ResolveContactMessageAsync(
+                messageId,
+                adminUserId.Value,
+                request.Notes);
+
+            if (result.IsFailure)
+            {
+                if (result.Error.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                    return NotFound(result.Error);
+
+                return BadRequest(result.Error);
+            }
+
+            return Ok(result.Value);
+        }
+
+        [HttpGet("reports")]
+        public async Task<IActionResult> GetReports(
+            [FromQuery] string? search = null,
+            [FromQuery] string? status = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            var result = await _adminService.GetReportsAsync(search, status, page, pageSize);
+            return Ok(result);
+        }
+
+        [HttpGet("reports/{reportId:guid}")]
+        public async Task<IActionResult> GetReport(Guid reportId)
+        {
+            var result = await _adminService.GetReportAsync(reportId);
+            if (result.IsFailure)
+                return NotFound(result.Error);
+
+            return Ok(result.Value);
+        }
+
+        [HttpPut("reports/{reportId:guid}/resolve")]
+        public async Task<IActionResult> ResolveReport(
+            Guid reportId,
+            [FromBody] ResolveContactMessageRequest request)
+        {
+            var adminUserId = GetCurrentUserId();
+            if (adminUserId == null)
+                return Unauthorized();
+
+            var result = await _adminService.ResolveReportAsync(
+                reportId,
+                adminUserId.Value,
+                request.Notes);
+
+            if (result.IsFailure)
+            {
+                if (result.Error.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                    return NotFound(result.Error);
+
+                return BadRequest(result.Error);
+            }
+
+            return Ok(result.Value);
+        }
+
         private Guid? GetCurrentUserId()
         {
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -211,5 +303,10 @@ namespace API.Controllers
     public class SetUserLockoutRequest
     {
         public bool IsLockedOut { get; set; }
+    }
+
+    public class ResolveContactMessageRequest
+    {
+        public string? Notes { get; set; }
     }
 }

@@ -21,6 +21,12 @@ public class AdminControllerTests
     [InlineData(nameof(AdminController.SetEmployerSuspension))]
     [InlineData(nameof(AdminController.SetEmployerAdminNotes))]
     [InlineData(nameof(AdminController.SetEmployerVerification))]
+    [InlineData(nameof(AdminController.GetContactMessages))]
+    [InlineData(nameof(AdminController.GetContactMessage))]
+    [InlineData(nameof(AdminController.ResolveContactMessage))]
+    [InlineData(nameof(AdminController.GetReports))]
+    [InlineData(nameof(AdminController.GetReport))]
+    [InlineData(nameof(AdminController.ResolveReport))]
     public void AdminWriteAndModerationEndpointsExist(string methodName)
     {
         var method = typeof(AdminController).GetMethod(methodName);
