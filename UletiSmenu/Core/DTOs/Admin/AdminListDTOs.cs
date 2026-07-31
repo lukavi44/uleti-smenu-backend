@@ -64,4 +64,17 @@ namespace Core.DTOs.Admin
         public string? Description { get; set; }
         public DateTime CreatedAtUtc { get; set; }
     }
+
+    public class AdminUserListItemDTO
+    {
+        public Guid Id { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public List<string> Roles { get; set; } = new();
+        public bool EmailConfirmed { get; set; }
+        public bool IsLockedOut { get; set; }
+        public DateTimeOffset? LockoutEnd { get; set; }
+        public string? PhoneNumber { get; set; }
+        public Guid? EmployerId { get; set; }
+    }
 }
