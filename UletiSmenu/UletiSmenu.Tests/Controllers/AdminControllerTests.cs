@@ -21,6 +21,8 @@ public class AdminControllerTests
     [InlineData(nameof(AdminController.SetEmployerSuspension))]
     [InlineData(nameof(AdminController.SetEmployerAdminNotes))]
     [InlineData(nameof(AdminController.SetEmployerVerification))]
+    [InlineData(nameof(AdminController.GetJobPostDetail))]
+    [InlineData(nameof(AdminController.ArchiveJobPost))]
     public void AdminWriteAndModerationEndpointsExist(string methodName)
     {
         var method = typeof(AdminController).GetMethod(methodName);

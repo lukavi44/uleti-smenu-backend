@@ -39,6 +39,8 @@ namespace Core.Services
             string? status,
             int page,
             int pageSize);
+        Task<Result<AdminJobPostDetailDTO>> GetJobPostDetailAsync(Guid jobPostId);
+        Task<Result<AdminJobPostDetailDTO>> ArchiveJobPostAsync(Guid jobPostId);
         Task<AdminPagedResponseDTO<AdminApplicationListItemDTO>> GetApplicationsAsync(
             string? search,
             string? status,
