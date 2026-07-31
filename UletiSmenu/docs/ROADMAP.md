@@ -121,7 +121,8 @@ Some admin surfaces already exist as a **prototype** (shell, dashboard, list pag
 
 ### Full Phase 2 backlog
 
-- dashboard (exists — refine later)
+- dashboard (exists — refine later; active-post count uses visibility rules)
+- **job post auto-expiry** — background worker marks stale `Active` → `Expired` after shift window (in progress)
 - users, employers, candidates  
 - jobs, applications  
 - moderation, reports, analytics  

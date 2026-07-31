@@ -146,6 +146,25 @@ namespace Core.Models.Entities
             return Result.Success();
         }
 
+        /// <summary>
+        /// Transitions an Active post to Expired once the shift archive window has elapsed
+        /// (1 hour after StartingDate). Idempotent for terminal statuses.
+        /// </summary>
+        public Result ExpireDueToElapsedWindow(DateTime utcNow)
+        {
+            if (Status is JobStatusEnum.Cancelled or JobStatusEnum.Completed or JobStatusEnum.Expired)
+                return Result.Success();
+
+            if (Status != JobStatusEnum.Active)
+                return Result.Failure("Only active job posts can expire due to elapsed window.");
+
+            if (utcNow <= StartingDate.AddHours(1))
+                return Result.Failure("Job post is still within its active window.");
+
+            Status = JobStatusEnum.Expired;
+            return Result.Success();
+        }
+
         public bool IsArchived(DateTime utcNow)
         {
             if (Status is JobStatusEnum.Cancelled or JobStatusEnum.Completed or JobStatusEnum.Expired)

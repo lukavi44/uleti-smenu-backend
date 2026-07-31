@@ -141,6 +141,45 @@ namespace UletiSmenu.Tests.Domain
             Assert.True(isArchived);
         }
 
+        [Fact]
+        public void ExpireDueToElapsedWindow_ShouldSetExpired_WhenPastArchiveWindow()
+        {
+            var startingDate = DateTime.UtcNow.AddHours(2);
+            var jobPost = CreateValidJobPost(JobStatusEnum.Active, startingDate, startingDate.AddMinutes(30));
+            var afterWindow = startingDate.AddHours(1).AddMinutes(1);
+
+            var result = jobPost.ExpireDueToElapsedWindow(afterWindow);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(JobStatusEnum.Expired, jobPost.Status);
+        }
+
+        [Fact]
+        public void ExpireDueToElapsedWindow_ShouldFail_WhenStillWithinWindow()
+        {
+            var startingDate = DateTime.UtcNow.AddHours(2);
+            var jobPost = CreateValidJobPost(JobStatusEnum.Active, startingDate, startingDate.AddMinutes(30));
+
+            var result = jobPost.ExpireDueToElapsedWindow(DateTime.UtcNow);
+
+            Assert.True(result.IsFailure);
+            Assert.Equal(JobStatusEnum.Active, jobPost.Status);
+        }
+
+        [Fact]
+        public void ExpireDueToElapsedWindow_ShouldBeIdempotent_WhenAlreadyExpired()
+        {
+            var startingDate = DateTime.UtcNow.AddHours(2);
+            var jobPost = CreateValidJobPost(JobStatusEnum.Active, startingDate, startingDate.AddMinutes(30));
+            var afterWindow = startingDate.AddHours(1).AddMinutes(1);
+            jobPost.ExpireDueToElapsedWindow(afterWindow);
+
+            var result = jobPost.ExpireDueToElapsedWindow(afterWindow);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(JobStatusEnum.Expired, jobPost.Status);
+        }
+
         private static JobPost CreateValidJobPost(
             JobStatusEnum status,
             DateTime startingDate,

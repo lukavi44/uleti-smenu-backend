@@ -1,6 +1,7 @@
 using Core.Admin;
 using Core.Billing;
 using Core.Interfaces;
+using Core.JobPosts;
 using Core.Models.Entities;
 using Core.Models.Enums;
 using Core.Services;
@@ -21,6 +22,30 @@ public static class ApplicationStartupInitializer
         await EnsureRolesSeededAsync(services, cancellationToken);
         await EnsureAdminUserSeededAsync(services, cancellationToken);
         await EnsureSubscriptionsSeededAsync(services, cancellationToken);
+        await ExpireStaleJobPostsAsync(services, cancellationToken);
+    }
+
+    private static async Task ExpireStaleJobPostsAsync(
+        IServiceProvider services,
+        CancellationToken cancellationToken)
+    {
+        using var scope = services.CreateScope();
+        var settings = scope.ServiceProvider.GetRequiredService<IOptions<JobPostLifecycleSettings>>().Value;
+        if (!settings.Enabled)
+            return;
+
+        var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("JobPostLifecycle");
+        try
+        {
+            var lifecycle = scope.ServiceProvider.GetRequiredService<IJobPostLifecycleService>();
+            var expired = await lifecycle.ExpireStaleActivePostsAsync(cancellationToken);
+            if (expired > 0)
+                logger.LogInformation("Startup expired {Count} stale Active job post(s).", expired);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Startup job-post expiry skipped due to error.");
+        }
     }
 
     private static async Task EnsureDatabaseMigratedAsync(
