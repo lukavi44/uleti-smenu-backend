@@ -2,6 +2,7 @@ using Core.Models.Entities;
 using Core.Models.Enums;
 using Core.Repositories;
 using Core.Services;
+using Core.Interfaces;
 using Infrastructure.Persistence.Services;
 using Microsoft.EntityFrameworkCore;
 using Moq;
@@ -28,6 +29,8 @@ namespace UletiSmenu.Tests.Services
             _unitOfWorkMock = new Mock<IApplicationUnitOfWork>();
             _notificationRepositoryMock = new Mock<INotificationRepository>();
             _realtimeNotifierMock = new Mock<IRealtimeNotifier>();
+            var emailServiceMock = new Mock<IEmailService>();
+            var loggerMock = new Mock<Microsoft.Extensions.Logging.ILogger<ApplicationService>>();
 
             _unitOfWorkMock.Setup(u => u.Notifications).Returns(_notificationRepositoryMock.Object);
             _notificationRepositoryMock
@@ -39,6 +42,13 @@ namespace UletiSmenu.Tests.Services
             _realtimeNotifierMock
                 .Setup(n => n.NotifyNotificationAsync(It.IsAny<Guid>(), It.IsAny<Core.DTOs.UserNotificationDTO>(), It.IsAny<int>()))
                 .Returns(Task.CompletedTask);
+            emailServiceMock
+                .Setup(e => e.SendApplicationReceivedAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
 
             _applicationService = new ApplicationService(
                 _applicationRepositoryMock.Object,
@@ -46,7 +56,9 @@ namespace UletiSmenu.Tests.Services
                 _chatRepositoryMock.Object,
                 _userRepositoryMock.Object,
                 _unitOfWorkMock.Object,
-                _realtimeNotifierMock.Object);
+                _realtimeNotifierMock.Object,
+                emailServiceMock.Object,
+                loggerMock.Object);
         }
 
         [Fact]

@@ -1,11 +1,13 @@
 using Core.DTOs;
 using Core.Helpers;
+using Core.Interfaces;
 using Core.Models.Entities;
 using Core.Models.Enums;
 using Core.Repositories;
 using Core.Services;
 using CSharpFunctionalExtensions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Persistence.Services
 {
@@ -20,6 +22,8 @@ namespace Infrastructure.Persistence.Services
         private readonly IUserRepository _userRepository;
         private readonly IApplicationUnitOfWork _applicationUnitOfWork;
         private readonly IRealtimeNotifier _realtimeNotifier;
+        private readonly IEmailService _emailService;
+        private readonly ILogger<ApplicationService> _logger;
 
         public ApplicationService(
             IApplicationRepository applicationRepository,
@@ -27,7 +31,9 @@ namespace Infrastructure.Persistence.Services
             IChatRepository chatRepository,
             IUserRepository userRepository,
             IApplicationUnitOfWork applicationUnitOfWork,
-            IRealtimeNotifier realtimeNotifier)
+            IRealtimeNotifier realtimeNotifier,
+            IEmailService emailService,
+            ILogger<ApplicationService> logger)
         {
             _applicationRepository = applicationRepository;
             _jobPostRepository = jobPostRepository;
@@ -35,6 +41,8 @@ namespace Infrastructure.Persistence.Services
             _userRepository = userRepository;
             _applicationUnitOfWork = applicationUnitOfWork;
             _realtimeNotifier = realtimeNotifier;
+            _emailService = emailService;
+            _logger = logger;
         }
 
         public async Task<Result> ApplyToJobPostAsync(Guid employeeId, Guid jobPostId)
@@ -87,6 +95,8 @@ namespace Infrastructure.Persistence.Services
                     await _applicationUnitOfWork.SaveChangesAsync();
                     await _applicationUnitOfWork.CommitTransactionAsync();
                 }
+
+                await NotifyEmployerApplicationReceivedEmailAsync(employer, employee, jobPost);
 
                 return Result.Success();
             }
@@ -248,6 +258,35 @@ namespace Infrastructure.Persistence.Services
             };
 
             await _realtimeNotifier.NotifyNotificationAsync(notification.UserId, notificationDto, unreadCount);
+        }
+
+        private async Task NotifyEmployerApplicationReceivedEmailAsync(
+            User? employer,
+            Employee employee,
+            JobPost jobPost)
+        {
+            if (employer == null ||
+                !employer.NotifyEmailApplicationReceived ||
+                string.IsNullOrWhiteSpace(employer.Email))
+            {
+                return;
+            }
+
+            try
+            {
+                var applicantName = $"{employee.FirstName} {employee.LastName}".Trim();
+                await _emailService.SendApplicationReceivedAsync(
+                    employer.Email,
+                    applicantName,
+                    jobPost.Title);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Application saved but employer email notification failed for employer {EmployerId}",
+                    employer.Id);
+            }
         }
 
         private async Task CreateDecisionNotificationIfNeededAsync(

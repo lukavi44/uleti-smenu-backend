@@ -73,6 +73,17 @@ public class EmailService : IEmailService
             EmailTemplates.NewFavouriteJobPost(jobTitle),
             cancellationToken: cancellationToken);
 
+    public Task<bool> SendApplicationReceivedAsync(
+        string toEmail,
+        string applicantName,
+        string jobTitle,
+        CancellationToken cancellationToken = default) =>
+        SendEmailAsync(
+            toEmail,
+            "New application on UletiSmenu",
+            EmailTemplates.ApplicationReceived(applicantName, jobTitle),
+            cancellationToken: cancellationToken);
+
     public Task<bool> SendContactFormAsync(
         string name,
         string fromEmail,

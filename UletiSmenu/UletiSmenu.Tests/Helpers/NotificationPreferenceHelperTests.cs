@@ -39,6 +39,7 @@ namespace UletiSmenu.Tests.Helpers
                 inAppApplicationAccepted: false,
                 inAppApplicationDeclined: true,
                 inAppApplicationReceived: false,
+                emailApplicationReceived: true,
                 inAppReviewReminder: true);
 
             var dto = NotificationPreferenceHelper.ToDto(user);
@@ -48,6 +49,7 @@ namespace UletiSmenu.Tests.Helpers
             Assert.False(dto.InAppApplicationAccepted);
             Assert.True(dto.InAppApplicationDeclined);
             Assert.False(dto.InAppApplicationReceived);
+            Assert.True(dto.EmailApplicationReceived);
             Assert.True(dto.InAppReviewReminder);
         }
 
@@ -60,11 +62,13 @@ namespace UletiSmenu.Tests.Helpers
                 inAppApplicationAccepted: true,
                 inAppApplicationDeclined: true,
                 inAppApplicationReceived: true,
+                emailApplicationReceived: true,
                 inAppReviewReminder: true);
 
             user.ApplyNotificationPreferences(new UpdateNotificationPreferencesDTO
             {
                 EmailFavouriteJobPost = false,
+                EmailApplicationReceived = false,
                 InAppReviewReminder = false
             });
 
@@ -75,7 +79,17 @@ namespace UletiSmenu.Tests.Helpers
             Assert.True(dto.InAppApplicationAccepted);
             Assert.True(dto.InAppApplicationDeclined);
             Assert.True(dto.InAppApplicationReceived);
+            Assert.False(dto.EmailApplicationReceived);
             Assert.False(dto.InAppReviewReminder);
+        }
+
+        [Fact]
+        public void NotifyEmailApplicationReceived_DefaultsToTrue()
+        {
+            var user = User.Create(Guid.NewGuid(), "test@example.com", "test@example.com", null).Value;
+
+            Assert.True(user.NotifyEmailApplicationReceived);
+            Assert.True(NotificationPreferenceHelper.ToDto(user).EmailApplicationReceived);
         }
 
         private static User CreateUserWithPreferences(
@@ -84,6 +98,7 @@ namespace UletiSmenu.Tests.Helpers
             bool inAppApplicationAccepted = true,
             bool inAppApplicationDeclined = true,
             bool inAppApplicationReceived = true,
+            bool emailApplicationReceived = true,
             bool inAppReviewReminder = true)
         {
             var user = User.Create(Guid.NewGuid(), "test@example.com", "test@example.com", null).Value;
@@ -94,6 +109,7 @@ namespace UletiSmenu.Tests.Helpers
                 InAppApplicationAccepted = inAppApplicationAccepted,
                 InAppApplicationDeclined = inAppApplicationDeclined,
                 InAppApplicationReceived = inAppApplicationReceived,
+                EmailApplicationReceived = emailApplicationReceived,
                 InAppReviewReminder = inAppReviewReminder
             });
             return user;
