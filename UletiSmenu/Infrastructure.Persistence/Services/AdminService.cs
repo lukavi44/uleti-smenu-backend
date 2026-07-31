@@ -33,12 +33,16 @@ namespace Infrastructure.Persistence.Services
 
             var totalCandidates = await _context.Users.OfType<Employee>().CountAsync();
             var totalEmployers = await _context.Users.OfType<Employer>().CountAsync();
+            // Match product "active" = currently visible (not past shift / visibility window).
             var activeJobPosts = await _context.JobPosts
-                .CountAsync(post => post.Status == JobStatusEnum.Active);
+                .CountAsync(post =>
+                    post.Status == JobStatusEnum.Active
+                    && post.VisibleUntil >= utcNow
+                    && post.StartingDate.AddHours(1) >= utcNow);
+            var totalApplications = await _context.Applications.CountAsync();
             var acceptedAllTime = await _context.Applications
                 .CountAsync(application => application.Status == ApplicationStatusEnum.Accepted);
-            var completedShiftsAllTime = await _context.JobPosts
-                .CountAsync(post => post.Status == JobStatusEnum.Completed);
+            var totalJobPostsAllTime = await _context.JobPosts.CountAsync();
 
             var walletTopUpsThisMonth = await _context.WalletTransactions
                 .Where(transaction =>
@@ -71,10 +75,11 @@ namespace Infrastructure.Persistence.Services
                 TotalCandidates = totalCandidates,
                 TotalEmployers = totalEmployers,
                 ActiveJobPosts = activeJobPosts,
+                TotalApplications = totalApplications,
                 ReportsCount = 0,
                 WalletTopUpsThisMonth = walletTopUpsThisMonth,
                 AcceptedCandidatesAllTime = acceptedAllTime,
-                CompletedShiftsAllTime = completedShiftsAllTime,
+                TotalJobPostsAllTime = totalJobPostsAllTime,
                 ApplicationsChart = chartPoints,
                 RecentActivities = recentActivities
             };
@@ -543,6 +548,7 @@ namespace Infrastructure.Persistence.Services
                 .CountAsync(post =>
                     post.EmployerId == employerId
                     && post.Status == JobStatusEnum.Active
+                    && post.VisibleUntil >= DateTime.UtcNow
                     && post.StartingDate.AddHours(1) >= DateTime.UtcNow);
             var totalJobPostsCount = await _context.JobPosts
                 .CountAsync(post => post.EmployerId == employerId);
