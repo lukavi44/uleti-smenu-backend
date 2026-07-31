@@ -122,6 +122,38 @@ namespace API.Controllers
             return Ok(result.Value);
         }
 
+        [HttpPut("employers/{employerId:guid}/suspension")]
+        public async Task<IActionResult> SetEmployerSuspension(
+            Guid employerId,
+            [FromBody] SetEmployerSuspensionRequest request)
+        {
+            var adminUserId = GetCurrentUserId();
+            if (adminUserId == null)
+                return Unauthorized();
+
+            var result = await _adminService.SetEmployerSuspensionAsync(
+                employerId,
+                request.IsSuspended,
+                adminUserId.Value);
+
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Value);
+        }
+
+        [HttpPut("employers/{employerId:guid}/notes")]
+        public async Task<IActionResult> SetEmployerAdminNotes(
+            Guid employerId,
+            [FromBody] SetEmployerAdminNotesRequest request)
+        {
+            var result = await _adminService.SetEmployerAdminNotesAsync(employerId, request.Notes);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Value);
+        }
+
         private Guid? GetCurrentUserId()
         {
             var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -132,5 +164,15 @@ namespace API.Controllers
     public class SetEmployerVerificationRequest
     {
         public bool IsVerified { get; set; }
+    }
+
+    public class SetEmployerSuspensionRequest
+    {
+        public bool IsSuspended { get; set; }
+    }
+
+    public class SetEmployerAdminNotesRequest
+    {
+        public string? Notes { get; set; }
     }
 }

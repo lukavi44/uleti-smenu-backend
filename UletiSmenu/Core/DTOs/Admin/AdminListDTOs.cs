@@ -33,6 +33,7 @@ namespace Core.DTOs.Admin
     public class AdminJobPostListItemDTO
     {
         public Guid Id { get; set; }
+        public Guid EmployerId { get; set; }
         public string Title { get; set; } = string.Empty;
         public string Position { get; set; } = string.Empty;
         public string EmployerName { get; set; } = string.Empty;
@@ -40,6 +41,7 @@ namespace Core.DTOs.Admin
         public string Status { get; set; } = string.Empty;
         public int ApplicationsCount { get; set; }
         public DateTime CreatedAtUtc { get; set; }
+        public DateTime StartingDate { get; set; }
     }
 
     public class AdminApplicationListItemDTO
@@ -55,6 +57,7 @@ namespace Core.DTOs.Admin
     public class AdminBillingListItemDTO
     {
         public Guid Id { get; set; }
+        public Guid EmployerId { get; set; }
         public string EmployerName { get; set; } = string.Empty;
         public decimal Amount { get; set; }
         public string Type { get; set; } = string.Empty;

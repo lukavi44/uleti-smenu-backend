@@ -4,6 +4,7 @@ using Core.Models.Enums;
 using Core.Services;
 using CSharpFunctionalExtensions;
 using Infrastructure.Persistence.Database;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Persistence.Services
@@ -13,10 +14,12 @@ namespace Infrastructure.Persistence.Services
         private const string ApplicationAcceptedNotificationType = "ApplicationAccepted";
 
         private readonly ApplicationDbContext _context;
+        private readonly UserManager<User> _userManager;
 
-        public AdminService(ApplicationDbContext context)
+        public AdminService(ApplicationDbContext context, UserManager<User> userManager)
         {
             _context = context;
+            _userManager = userManager;
         }
 
         public async Task<AdminDashboardDTO> GetDashboardAsync(DateTime? fromUtc, DateTime? toUtc)
@@ -190,6 +193,61 @@ namespace Infrastructure.Persistence.Services
             return Result.Success(detail);
         }
 
+        public async Task<Result<AdminEmployerDetailDTO>> SetEmployerSuspensionAsync(
+            Guid employerId,
+            bool isSuspended,
+            Guid adminUserId)
+        {
+            if (employerId == adminUserId)
+                return Result.Failure<AdminEmployerDetailDTO>("You cannot suspend your own account.");
+
+            var employer = await _context.Users.OfType<Employer>()
+                .FirstOrDefaultAsync(item => item.Id == employerId);
+
+            if (employer == null)
+                return Result.Failure<AdminEmployerDetailDTO>("Employer not found.");
+
+            if (isSuspended)
+            {
+                employer.LockoutEnabled = true;
+                employer.LockoutEnd = DateTimeOffset.UtcNow.AddYears(100);
+            }
+            else
+            {
+                employer.LockoutEnd = null;
+            }
+
+            var updateResult = await _userManager.UpdateAsync(employer);
+            if (!updateResult.Succeeded)
+            {
+                return Result.Failure<AdminEmployerDetailDTO>(
+                    string.Join(", ", updateResult.Errors.Select(error => error.Description)));
+            }
+
+            var detail = await MapEmployerDetailAsync(employer);
+            return Result.Success(detail);
+        }
+
+        public async Task<Result<AdminEmployerDetailDTO>> SetEmployerAdminNotesAsync(
+            Guid employerId,
+            string? notes)
+        {
+            var employer = await _context.Users.OfType<Employer>()
+                .FirstOrDefaultAsync(item => item.Id == employerId);
+
+            if (employer == null)
+                return Result.Failure<AdminEmployerDetailDTO>("Employer not found.");
+
+            var notesResult = employer.SetAdminNotes(notes);
+            if (notesResult.IsFailure)
+                return Result.Failure<AdminEmployerDetailDTO>(notesResult.Error);
+
+            await _context.SaveChangesAsync();
+
+            var detail = await MapEmployerDetailAsync(employer);
+            return Result.Success(detail);
+        }
+
         public async Task<AdminPagedResponseDTO<AdminCandidateListItemDTO>> GetCandidatesAsync(
             string? search,
             string? city,
@@ -335,13 +393,15 @@ namespace Infrastructure.Persistence.Services
                 .Select(post => new AdminJobPostListItemDTO
                 {
                     Id = post.Id,
+                    EmployerId = post.EmployerId,
                     Title = post.Title,
                     Position = post.Position,
                     EmployerName = post.Employer.Name,
                     LocationName = post.RestaurantLocation != null ? post.RestaurantLocation.Name : null,
                     Status = post.Status.ToString(),
                     ApplicationsCount = _context.Applications.Count(application => application.JobPostId == post.Id),
-                    CreatedAtUtc = post.CreatedAtUtc
+                    CreatedAtUtc = post.CreatedAtUtc,
+                    StartingDate = post.StartingDate
                 })
                 .ToListAsync();
 
@@ -456,6 +516,7 @@ namespace Infrastructure.Persistence.Services
                     (transaction, employer) => new AdminBillingListItemDTO
                     {
                         Id = transaction.Id,
+                        EmployerId = transaction.EmployerId,
                         EmployerName = employer.Name,
                         Amount = transaction.Amount,
                         Type = transaction.Type.ToString(),
@@ -524,6 +585,55 @@ namespace Infrastructure.Persistence.Services
                     .FirstOrDefaultAsync();
             }
 
+            var jobPosts = await _context.JobPosts
+                .Where(post => post.EmployerId == employerId)
+                .OrderByDescending(post => post.CreatedAtUtc)
+                .Take(50)
+                .Select(post => new AdminJobPostListItemDTO
+                {
+                    Id = post.Id,
+                    EmployerId = post.EmployerId,
+                    Title = post.Title,
+                    Position = post.Position,
+                    EmployerName = employer.Name,
+                    LocationName = post.RestaurantLocation != null ? post.RestaurantLocation.Name : null,
+                    Status = post.Status.ToString(),
+                    ApplicationsCount = _context.Applications.Count(application => application.JobPostId == post.Id),
+                    CreatedAtUtc = post.CreatedAtUtc,
+                    StartingDate = post.StartingDate
+                })
+                .ToListAsync();
+
+            var branches = await _context.RestaurantLocations
+                .Where(location => location.EmployerId == employerId)
+                .OrderBy(location => location.Name)
+                .Select(location => new AdminRestaurantListItemDTO
+                {
+                    Id = location.Id,
+                    EmployerId = location.EmployerId,
+                    EmployerName = employer.Name,
+                    Name = location.Name,
+                    City = location.City,
+                    PhoneNumber = location.PhoneNumber
+                })
+                .ToListAsync();
+
+            var billingTransactions = await _context.WalletTransactions
+                .Where(transaction => transaction.EmployerId == employerId)
+                .OrderByDescending(transaction => transaction.CreatedAtUtc)
+                .Take(50)
+                .Select(transaction => new AdminBillingListItemDTO
+                {
+                    Id = transaction.Id,
+                    EmployerId = transaction.EmployerId,
+                    EmployerName = employer.Name,
+                    Amount = transaction.Amount,
+                    Type = transaction.Type.ToString(),
+                    Description = transaction.Description,
+                    CreatedAtUtc = transaction.CreatedAtUtc
+                })
+                .ToListAsync();
+
             return new AdminEmployerDetailDTO
             {
                 Id = employer.Id,
@@ -553,7 +663,12 @@ namespace Infrastructure.Persistence.Services
                 AcceptedCandidatesAllTime = acceptedCandidatesAllTime,
                 AverageRating = reviewStats?.AverageRating,
                 ReviewCount = reviewStats?.Count ?? 0,
-                CreatedAtUtc = createdAtUtc ?? employer.SubscriptionStart
+                CreatedAtUtc = createdAtUtc ?? employer.SubscriptionStart,
+                AdminNotes = employer.AdminNotes,
+                LockoutEnd = employer.LockoutEnd,
+                JobPosts = jobPosts,
+                Branches = branches,
+                BillingTransactions = billingTransactions
             };
         }
 
