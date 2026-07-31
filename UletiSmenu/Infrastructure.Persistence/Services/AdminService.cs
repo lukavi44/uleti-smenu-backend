@@ -4,6 +4,7 @@ using Core.Models.Enums;
 using Core.Services;
 using CSharpFunctionalExtensions;
 using Infrastructure.Persistence.Database;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Persistence.Services
@@ -11,12 +12,15 @@ namespace Infrastructure.Persistence.Services
     public class AdminService : IAdminService
     {
         private const string ApplicationAcceptedNotificationType = "ApplicationAccepted";
+        private const string AdminRoleName = "Admin";
 
         private readonly ApplicationDbContext _context;
+        private readonly UserManager<User> _userManager;
 
-        public AdminService(ApplicationDbContext context)
+        public AdminService(ApplicationDbContext context, UserManager<User> userManager)
         {
             _context = context;
+            _userManager = userManager;
         }
 
         public async Task<AdminDashboardDTO> GetDashboardAsync(DateTime? fromUtc, DateTime? toUtc)
@@ -190,6 +194,61 @@ namespace Infrastructure.Persistence.Services
             return Result.Success(detail);
         }
 
+        public async Task<Result<AdminEmployerDetailDTO>> SetEmployerSuspensionAsync(
+            Guid employerId,
+            bool isSuspended,
+            Guid adminUserId)
+        {
+            if (employerId == adminUserId)
+                return Result.Failure<AdminEmployerDetailDTO>("You cannot suspend your own account.");
+
+            var employer = await _context.Users.OfType<Employer>()
+                .FirstOrDefaultAsync(item => item.Id == employerId);
+
+            if (employer == null)
+                return Result.Failure<AdminEmployerDetailDTO>("Employer not found.");
+
+            if (isSuspended)
+            {
+                employer.LockoutEnabled = true;
+                employer.LockoutEnd = DateTimeOffset.UtcNow.AddYears(100);
+            }
+            else
+            {
+                employer.LockoutEnd = null;
+            }
+
+            var updateResult = await _userManager.UpdateAsync(employer);
+            if (!updateResult.Succeeded)
+            {
+                return Result.Failure<AdminEmployerDetailDTO>(
+                    string.Join(", ", updateResult.Errors.Select(error => error.Description)));
+            }
+
+            var detail = await MapEmployerDetailAsync(employer);
+            return Result.Success(detail);
+        }
+
+        public async Task<Result<AdminEmployerDetailDTO>> SetEmployerAdminNotesAsync(
+            Guid employerId,
+            string? notes)
+        {
+            var employer = await _context.Users.OfType<Employer>()
+                .FirstOrDefaultAsync(item => item.Id == employerId);
+
+            if (employer == null)
+                return Result.Failure<AdminEmployerDetailDTO>("Employer not found.");
+
+            var notesResult = employer.SetAdminNotes(notes);
+            if (notesResult.IsFailure)
+                return Result.Failure<AdminEmployerDetailDTO>(notesResult.Error);
+
+            await _context.SaveChangesAsync();
+
+            var detail = await MapEmployerDetailAsync(employer);
+            return Result.Success(detail);
+        }
+
         public async Task<AdminPagedResponseDTO<AdminCandidateListItemDTO>> GetCandidatesAsync(
             string? search,
             string? city,
@@ -335,13 +394,15 @@ namespace Infrastructure.Persistence.Services
                 .Select(post => new AdminJobPostListItemDTO
                 {
                     Id = post.Id,
+                    EmployerId = post.EmployerId,
                     Title = post.Title,
                     Position = post.Position,
                     EmployerName = post.Employer.Name,
                     LocationName = post.RestaurantLocation != null ? post.RestaurantLocation.Name : null,
                     Status = post.Status.ToString(),
                     ApplicationsCount = _context.Applications.Count(application => application.JobPostId == post.Id),
-                    CreatedAtUtc = post.CreatedAtUtc
+                    CreatedAtUtc = post.CreatedAtUtc,
+                    StartingDate = post.StartingDate
                 })
                 .ToListAsync();
 
@@ -456,6 +517,7 @@ namespace Infrastructure.Persistence.Services
                     (transaction, employer) => new AdminBillingListItemDTO
                     {
                         Id = transaction.Id,
+                        EmployerId = transaction.EmployerId,
                         EmployerName = employer.Name,
                         Amount = transaction.Amount,
                         Type = transaction.Type.ToString(),
@@ -524,6 +586,55 @@ namespace Infrastructure.Persistence.Services
                     .FirstOrDefaultAsync();
             }
 
+            var jobPosts = await _context.JobPosts
+                .Where(post => post.EmployerId == employerId)
+                .OrderByDescending(post => post.CreatedAtUtc)
+                .Take(50)
+                .Select(post => new AdminJobPostListItemDTO
+                {
+                    Id = post.Id,
+                    EmployerId = post.EmployerId,
+                    Title = post.Title,
+                    Position = post.Position,
+                    EmployerName = employer.Name,
+                    LocationName = post.RestaurantLocation != null ? post.RestaurantLocation.Name : null,
+                    Status = post.Status.ToString(),
+                    ApplicationsCount = _context.Applications.Count(application => application.JobPostId == post.Id),
+                    CreatedAtUtc = post.CreatedAtUtc,
+                    StartingDate = post.StartingDate
+                })
+                .ToListAsync();
+
+            var branches = await _context.RestaurantLocations
+                .Where(location => location.EmployerId == employerId)
+                .OrderBy(location => location.Name)
+                .Select(location => new AdminRestaurantListItemDTO
+                {
+                    Id = location.Id,
+                    EmployerId = location.EmployerId,
+                    EmployerName = employer.Name,
+                    Name = location.Name,
+                    City = location.City,
+                    PhoneNumber = location.PhoneNumber
+                })
+                .ToListAsync();
+
+            var billingTransactions = await _context.WalletTransactions
+                .Where(transaction => transaction.EmployerId == employerId)
+                .OrderByDescending(transaction => transaction.CreatedAtUtc)
+                .Take(50)
+                .Select(transaction => new AdminBillingListItemDTO
+                {
+                    Id = transaction.Id,
+                    EmployerId = transaction.EmployerId,
+                    EmployerName = employer.Name,
+                    Amount = transaction.Amount,
+                    Type = transaction.Type.ToString(),
+                    Description = transaction.Description,
+                    CreatedAtUtc = transaction.CreatedAtUtc
+                })
+                .ToListAsync();
+
             return new AdminEmployerDetailDTO
             {
                 Id = employer.Id,
@@ -553,7 +664,200 @@ namespace Infrastructure.Persistence.Services
                 AcceptedCandidatesAllTime = acceptedCandidatesAllTime,
                 AverageRating = reviewStats?.AverageRating,
                 ReviewCount = reviewStats?.Count ?? 0,
-                CreatedAtUtc = createdAtUtc ?? employer.SubscriptionStart
+                CreatedAtUtc = createdAtUtc ?? employer.SubscriptionStart,
+                AdminNotes = employer.AdminNotes,
+                LockoutEnd = employer.LockoutEnd,
+                JobPosts = jobPosts,
+                Branches = branches,
+                BillingTransactions = billingTransactions
+            };
+        }
+
+        public async Task<AdminPagedResponseDTO<AdminUserListItemDTO>> GetUsersAsync(
+            string? search,
+            string? role,
+            string? status,
+            int page,
+            int pageSize)
+        {
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 100);
+            var utcNow = DateTimeOffset.UtcNow;
+
+            var query = _context.Users.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var term = search.Trim();
+                query = query.Where(user =>
+                    (user.Email != null && user.Email.Contains(term)) ||
+                    (user.UserName != null && user.UserName.Contains(term)) ||
+                    (user.PhoneNumber != null && user.PhoneNumber.Contains(term)) ||
+                    _context.Users.OfType<Employer>().Any(employer =>
+                        employer.Id == user.Id && employer.Name.Contains(term)) ||
+                    _context.Users.OfType<Employee>().Any(employee =>
+                        employee.Id == user.Id &&
+                        (employee.FirstName.Contains(term) || employee.LastName.Contains(term))));
+            }
+
+            if (!string.IsNullOrWhiteSpace(role))
+            {
+                var roleName = role.Trim();
+                var roleId = await _context.Roles
+                    .Where(item => item.Name == roleName)
+                    .Select(item => item.Id)
+                    .FirstOrDefaultAsync();
+
+                if (roleId == Guid.Empty)
+                {
+                    return new AdminPagedResponseDTO<AdminUserListItemDTO>
+                    {
+                        Items = new List<AdminUserListItemDTO>(),
+                        TotalCount = 0,
+                        Page = page,
+                        PageSize = pageSize
+                    };
+                }
+
+                query = query.Where(user =>
+                    _context.UserRoles.Any(userRole =>
+                        userRole.UserId == user.Id && userRole.RoleId == roleId));
+            }
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                if (string.Equals(status, "Locked", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(status, "Suspended", StringComparison.OrdinalIgnoreCase))
+                {
+                    query = query.Where(user =>
+                        user.LockoutEnabled &&
+                        user.LockoutEnd.HasValue &&
+                        user.LockoutEnd > utcNow);
+                }
+                else if (string.Equals(status, "Active", StringComparison.OrdinalIgnoreCase))
+                {
+                    query = query.Where(user =>
+                        !user.LockoutEnabled ||
+                        !user.LockoutEnd.HasValue ||
+                        user.LockoutEnd <= utcNow);
+                }
+            }
+
+            var totalCount = await query.CountAsync();
+            var users = await query
+                .OrderBy(user => user.Email)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            var items = new List<AdminUserListItemDTO>();
+            foreach (var user in users)
+            {
+                items.Add(await MapUserListItemAsync(user));
+            }
+
+            return new AdminPagedResponseDTO<AdminUserListItemDTO>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize
+            };
+        }
+
+        public async Task<Result<AdminUserListItemDTO>> SetUserLockoutAsync(
+            Guid userId,
+            bool isLockedOut,
+            Guid adminUserId)
+        {
+            if (userId == adminUserId)
+                return Result.Failure<AdminUserListItemDTO>("You cannot lock your own account.");
+
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            if (user == null)
+                return Result.Failure<AdminUserListItemDTO>("User not found.");
+
+            if (isLockedOut && await _userManager.IsInRoleAsync(user, AdminRoleName))
+            {
+                var admins = await _userManager.GetUsersInRoleAsync(AdminRoleName);
+                var unlockedAdmins = admins.Count(admin =>
+                    admin.Id != userId &&
+                    (!admin.LockoutEnabled ||
+                     !admin.LockoutEnd.HasValue ||
+                     admin.LockoutEnd <= DateTimeOffset.UtcNow));
+
+                if (unlockedAdmins == 0)
+                    return Result.Failure<AdminUserListItemDTO>("Cannot lock the last active admin.");
+            }
+
+            if (isLockedOut)
+            {
+                user.LockoutEnabled = true;
+                user.LockoutEnd = DateTimeOffset.UtcNow.AddYears(100);
+            }
+            else
+            {
+                user.LockoutEnd = null;
+            }
+
+            var updateResult = await _userManager.UpdateAsync(user);
+            if (!updateResult.Succeeded)
+            {
+                return Result.Failure<AdminUserListItemDTO>(
+                    string.Join(", ", updateResult.Errors.Select(error => error.Description)));
+            }
+
+            return Result.Success(await MapUserListItemAsync(user));
+        }
+
+        private async Task<AdminUserListItemDTO> MapUserListItemAsync(User user)
+        {
+            var roles = (await _userManager.GetRolesAsync(user)).OrderBy(role => role).ToList();
+            var isLockedOut = user.LockoutEnabled &&
+                              user.LockoutEnd.HasValue &&
+                              user.LockoutEnd.Value > DateTimeOffset.UtcNow;
+
+            string displayName = user.Email ?? user.UserName ?? user.Id.ToString();
+            Guid? employerId = null;
+
+            if (user is Employer employer)
+            {
+                displayName = employer.Name;
+                employerId = employer.Id;
+            }
+            else if (user is Employee employee)
+            {
+                displayName = $"{employee.FirstName} {employee.LastName}".Trim();
+            }
+            else
+            {
+                var employerMatch = await _context.Users.OfType<Employer>()
+                    .FirstOrDefaultAsync(item => item.Id == user.Id);
+                if (employerMatch != null)
+                {
+                    displayName = employerMatch.Name;
+                    employerId = employerMatch.Id;
+                }
+                else
+                {
+                    var employeeMatch = await _context.Users.OfType<Employee>()
+                        .FirstOrDefaultAsync(item => item.Id == user.Id);
+                    if (employeeMatch != null)
+                        displayName = $"{employeeMatch.FirstName} {employeeMatch.LastName}".Trim();
+                }
+            }
+
+            return new AdminUserListItemDTO
+            {
+                Id = user.Id,
+                DisplayName = displayName,
+                Email = user.Email ?? string.Empty,
+                Roles = roles,
+                EmailConfirmed = user.EmailConfirmed,
+                IsLockedOut = isLockedOut,
+                LockoutEnd = user.LockoutEnd,
+                PhoneNumber = user.PhoneNumber,
+                EmployerId = employerId
             };
         }
 

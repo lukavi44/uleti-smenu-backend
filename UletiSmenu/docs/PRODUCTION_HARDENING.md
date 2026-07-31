@@ -87,10 +87,12 @@ Confirm Phase 3 unique index and no `NumberOfApplicants` column.
 Implemented in `SecurityHeadersMiddleware` (API). Verify:
 
 ```bash
+curl -i -X GET https://api.uletismenu.com/health
+# or (also 200 after HEAD support ships to LIVE):
 curl -I https://api.uletismenu.com/health
 ```
 
-Expect: `X-Content-Type-Options`, `X-Frame-Options`, `Strict-Transport-Security` (Production only).
+Expect: `200` (GET includes `{"status":"ok"}`), plus `X-Content-Type-Options`, `X-Frame-Options`, `Strict-Transport-Security` (Production).
 
 ## 6. LIVE App Service settings audit
 

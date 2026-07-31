@@ -1,4 +1,5 @@
 using API.Endpoints;
+using API.Health;
 using API.Hubs;
 using API.Middlewares;
 using API.Security;
@@ -413,7 +414,7 @@ identityApi.RequireRateLimiting(RateLimitPolicies.Identity);
 app.MapControllers();
 app.MapUploads(fileSettings);
 app.MapHub<RealtimeHub>("/hubs/realtime");
-app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
+app.MapLivenessHealth()
     .DisableRateLimiting();
 app.MapHealthChecks("/health/ready")
     .DisableRateLimiting();

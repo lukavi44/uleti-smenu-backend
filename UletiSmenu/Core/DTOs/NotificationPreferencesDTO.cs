@@ -7,6 +7,7 @@ namespace Core.DTOs
         public bool InAppApplicationAccepted { get; set; }
         public bool InAppApplicationDeclined { get; set; }
         public bool InAppApplicationReceived { get; set; }
+        public bool EmailApplicationReceived { get; set; }
         public bool InAppReviewReminder { get; set; }
     }
 
@@ -17,6 +18,7 @@ namespace Core.DTOs
         public bool? InAppApplicationAccepted { get; set; }
         public bool? InAppApplicationDeclined { get; set; }
         public bool? InAppApplicationReceived { get; set; }
+        public bool? EmailApplicationReceived { get; set; }
         public bool? InAppReviewReminder { get; set; }
     }
 

@@ -150,6 +150,19 @@ public static class EmailTemplates
             "https://app.uletismenu.com/oglasi-za-posao",
             "View job posts");
 
+    public static string ApplicationReceived(string applicantName, string jobTitle) =>
+        Wrap(
+            "New application received",
+            $"""
+            <p style="margin:0 0 12px;font-size:16px;line-height:1.6;">A candidate applied to your job post</p>
+            <p style="margin:0;font-size:15px;line-height:1.6;color:#334155;">
+              <strong>{WebUtility.HtmlEncode(applicantName)}</strong> applied for
+              <strong>{WebUtility.HtmlEncode(jobTitle)}</strong>.
+            </p>
+            """,
+            "https://app.uletismenu.com/oglasi-za-posao",
+            "Review applications");
+
     public static string ContactNotification(string name, string email, string subject, string message)
     {
         var sb = new StringBuilder();

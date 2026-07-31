@@ -1,6 +1,6 @@
 # UletiSmenu roadmap
 
-**Status:** active · **Last updated:** 2026-07-30 (B1–B6 LIVE email smoke verified)  
+**Status:** active · **Last updated:** 2026-07-30 (Phase 2 Admin started; feature-branch workflow)  
 **Owner:** product / engineering (keep this file current)
 
 This is the **single source of truth** for planning. Before proposing or implementing work:
@@ -29,11 +29,24 @@ Evaluate every proposal against that goal. **Avoid feature creep.**
 
 | Git branch | Deploy target | Public name |
 |------------|---------------|-------------|
-| `develop` | TEST first | TEST |
-| `main` | LIVE after PR | LIVE / Production / PROD |
+| `feature/<name>` | Local first | — |
+| `develop` | TEST | TEST |
+| `main` | LIVE (batched) | LIVE / Production / PROD |
 
-**Workflow:** implement and verify on **`develop` → TEST**, then PR to **`main` → LIVE**.  
-Do not ship brand-new work straight to `main` unless explicitly requested.
+**Workflow:**
+
+```
+feature/<short-name>  →  local verify  →  PR into develop (often)
+develop               →  TEST (Render + Pages)
+main                  →  LIVE (batched releases, not every feature)
+```
+
+Rules:
+- Start work on `feature/*` from latest `develop` (both repos when FE+BE change).
+- Verify locally, then PR into `develop` often.
+- Do **not** open `develop` → `main` after each feature.
+- Batch LIVE releases when a coherent set is verified on TEST.
+- Do not ship brand-new work straight to `main` unless explicitly requested.
 
 **Naming:** Prefer LIVE / PROD / Production and TEST in docs and conversation.  
 Many Azure resource names still contain `staging` — those are **LIVE** (legacy names). Do not rename Azure resources without a planned migration.  
@@ -45,8 +58,8 @@ Render TEST uses `ASPNETCORE_ENVIRONMENT=Staging` (ASP.NET Core environment name
 
 | Phase | Name | Priority | Status |
 |-------|------|----------|--------|
-| 1 | Production stabilization | Highest | **In progress** |
-| 2 | Administration | Highest development | Not started |
+| 1 | Production stabilization | Highest | **Done** |
+| 2 | Administration | Highest development | **In progress** |
 | 3 | SEO & analytics | Next | Not started |
 | 4 | Payments (Stripe) | After SEO | Partial code exists; not production |
 | 5 | Auth improvements (OAuth) | Only after 1–4 | Not started |
@@ -64,10 +77,10 @@ Render TEST uses `ASPNETCORE_ENVIRONMENT=Staging` (ASP.NET Core environment name
 | Contact API + `/kontakt` frontend | Done | |
 | Azure LIVE SMTP App Settings | Done | Host/user/from present; rotate password if ever printed via `az` |
 | Verify all email flows on LIVE | Done | B1–B6 verified LIVE 2026-07-30 (`PRODUCTION_SMOKE.md`) |
-| SMTP monitoring / ops clarity | **In progress** | Http5xx alert live; confirm action-group email (D2); App Insights Portal optional |
+| SMTP monitoring / ops clarity | Done | D1–D4: Http5xx, action group, UptimeRobot `/health`, App Insights SMTP log alert |
 | Documented smoke tests | Done | `docs/PRODUCTION_SMOKE.md`, `scripts/verify-live-smoke.ps1` |
-| Confirm production readiness | **In progress** | Email flows done; D2 email confirm + uptime pending |
-| Notification preferences (email + in-app) | Done on TEST | Ship to LIVE with `develop` → `main` PR |
+| Confirm production readiness | Done | A1–A4, B1–B6, D1–D4 verified LIVE 2026-07-30 |
+| Notification preferences (email + in-app) | Done | LIVE |
 
 **Do not** block login on unconfirmed email until SMTP/monitoring are solid (prefer soft banner later if needed).
 
@@ -76,10 +89,10 @@ Render TEST uses `ASPNETCORE_ENVIRONMENT=Staging` (ASP.NET Core environment name
 | Item | Status |
 |------|--------|
 | `/health` + `/health/ready` | `/health` OK LIVE; `/health/ready` Unhealthy when SQL **Paused** (documented) |
-| Azure monitoring | **In progress** — Http5xx alert created; App Insights via Portal if CLI extension fails |
-| Azure alerts | Done (Http5xx) — confirm `support@` receives action-group mail (D2) |
-| Logging review | Serilog console → App Service / Insights once linked |
-| Uptime monitoring | Documented (UptimeRobot on `/health`) |
+| Azure monitoring | Done — App Insights `appi-uletismenu-live` + Log Analytics |
+| Azure alerts | Done — Http5xx + SMTP log alert → `ag-uletismenu-live` / `support@` |
+| Logging review | Serilog → App Insights once linked |
+| Uptime monitoring | Done — UptimeRobot on `/health` (+ optional app) |
 | Documented smoke tests | Done (`PRODUCTION_SMOKE.md`) |
 
 ### Production deployment
@@ -95,11 +108,20 @@ Render TEST uses `ASPNETCORE_ENVIRONMENT=Staging` (ASP.NET Core environment name
 
 ## Phase 2 — Administration
 
-Highest **development** priority after Phase 1 is stable.
+Highest **development** priority after Phase 1.
 
-Design and implement a complete **Admin Panel** that can scale:
+Some admin surfaces already exist as a **prototype** (shell, dashboard, list pages, employer verify). Phase 2 means **production-grade** admin.
 
-- dashboard  
+### Current sprint (ordered)
+
+| Slice | Status | Notes |
+|-------|--------|--------|
+| A — Employer admin depth | In progress | Detail tabs (jobs, branches, billing, notes) + suspend |
+| B — Users + moderation | Next | User directory + lock/unlock |
+
+### Full Phase 2 backlog
+
+- dashboard (exists — refine later)
 - users, employers, candidates  
 - jobs, applications  
 - moderation, reports, analytics  
@@ -109,7 +131,7 @@ Design and implement a complete **Admin Panel** that can scale:
 - feature flags  
 - system settings  
 
-Some admin surfaces may already exist in prototype form — Phase 2 means **production-grade** admin, not one-off screens.
+Out of scope for slices A–B: contact inbox, reports entity, reviews admin UI, audit product, feature flags, configurable settings.
 
 ---
 
@@ -174,9 +196,9 @@ Before public launch, complete:
 
 - [ ] Lawyer-approved legal texts  
 - [x] SMTP verified (all core flows) — B1–B6 LIVE 2026-07-30  
-- [ ] Production monitoring  
-- [x] Azure alerts — Http5xx metric alert `uletismenu-live-http5xx` (confirm D2 email)  
-- [x] Production smoke tests (email + infra A1–A4)  
+- [x] Production monitoring  
+- [x] Azure alerts — Http5xx + SMTP log alert → `support@`  
+- [x] Production smoke tests (email + infra A1–A4 + D1–D4)  
 - [ ] Account deletion  
 - [ ] Cookie banner (if legally required)  
 - [ ] Azure Blob storage validation  

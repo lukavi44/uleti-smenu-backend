@@ -30,5 +30,10 @@ namespace Core.DTOs.Admin
         public double? AverageRating { get; set; }
         public int ReviewCount { get; set; }
         public DateTime? CreatedAtUtc { get; set; }
+        public string? AdminNotes { get; set; }
+        public DateTimeOffset? LockoutEnd { get; set; }
+        public List<AdminJobPostListItemDTO> JobPosts { get; set; } = new();
+        public List<AdminRestaurantListItemDTO> Branches { get; set; } = new();
+        public List<AdminBillingListItemDTO> BillingTransactions { get; set; } = new();
     }
 }
