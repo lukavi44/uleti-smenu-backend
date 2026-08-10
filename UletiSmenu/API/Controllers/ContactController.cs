@@ -1,6 +1,6 @@
 using API.DTOs;
 using API.Security;
-using Core.Interfaces;
+using Core.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -12,12 +12,12 @@ namespace API.Controllers;
 [AllowAnonymous]
 public sealed class ContactController : ControllerBase
 {
-    private readonly IEmailService _emailService;
+    private readonly IContactService _contactService;
     private readonly ILogger<ContactController> _logger;
 
-    public ContactController(IEmailService emailService, ILogger<ContactController> logger)
+    public ContactController(IContactService contactService, ILogger<ContactController> logger)
     {
-        _emailService = emailService;
+        _contactService = contactService;
         _logger = logger;
     }
 
@@ -28,20 +28,17 @@ public sealed class ContactController : ControllerBase
         if (!ModelState.IsValid)
             return ValidationProblem(ModelState);
 
-        var sent = await _emailService.SendContactFormAsync(
-            request.Name.Trim(),
-            request.Email.Trim(),
-            request.Subject.Trim(),
-            request.Message.Trim(),
+        var result = await _contactService.SubmitAsync(
+            request.Name,
+            request.Email,
+            request.Subject,
+            request.Message,
             cancellationToken);
 
-        if (!sent)
+        if (result.IsFailure)
         {
-            _logger.LogWarning("Contact form email failed for {Email}", request.Email);
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, new
-            {
-                message = "Unable to send your message right now. Please email support@uletismenu.com directly."
-            });
+            _logger.LogWarning("Contact form submit failed: {Error}", result.Error);
+            return BadRequest(new { message = result.Error });
         }
 
         return Ok(new { message = "Message sent. We will get back to you soon." });

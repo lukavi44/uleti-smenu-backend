@@ -1,6 +1,6 @@
 # UletiSmenu roadmap
 
-**Status:** active · **Last updated:** 2026-07-30 (Phase 2 Admin started; feature-branch workflow)  
+**Status:** active · **Last updated:** 2026-08-10 (Phase 2 Slices A–E done on develop)  
 **Owner:** product / engineering (keep this file current)
 
 This is the **single source of truth** for planning. Before proposing or implementing work:
@@ -118,22 +118,24 @@ Some admin surfaces already exist as a **prototype** (shell, dashboard, list pag
 |-------|--------|--------|
 | A — Employer admin depth | Done | Detail tabs + suspend/notes |
 | B — Users + moderation | Done | User directory + lock/unlock |
-| C — Jobs + applications | In progress | Job detail + archive; applications list links |
+| C — Jobs + applications | Done | Job detail + archive; application links |
+| D — Contact messages | Done | Persist `/kontakt` + admin inbox/resolve |
+| E — Reports | Done | User report job post + admin list/resolve |
 
 ### Full Phase 2 backlog
 
 - dashboard (exists — refine later; active-post count uses visibility rules)
 - job post auto-expiry — Done (in-API worker; extract worker later if multi-instance)
 - users, employers, candidates  
-- jobs, applications (Slice C)
-- moderation, reports, analytics  
-- contact messages  
+- jobs, applications (Slice C) — Done
+- contact messages (Slice D) — Done
+- moderation, reports (Slice E) — Done
 - reviews  
 - audit logs  
 - feature flags  
 - system settings  
 
-Out of scope for slices A–C: contact inbox, reports entity, reviews admin UI, audit product, feature flags, configurable settings, admin accept/deny.
+Out of scope for slices A–E first PRs: reviews admin UI, audit product, feature flags, configurable settings, admin accept/deny.
 
 ---
 
