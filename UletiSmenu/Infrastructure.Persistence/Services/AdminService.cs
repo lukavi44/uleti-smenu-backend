@@ -465,7 +465,13 @@ namespace Infrastructure.Persistence.Services
 
             var jobPosts = await _context.JobPosts
                 .Where(post => jobPostIds.Contains(post.Id))
-                .Select(post => new { post.Id, post.Title, EmployerName = post.Employer.Name })
+                .Select(post => new
+                {
+                    post.Id,
+                    post.Title,
+                    post.EmployerId,
+                    EmployerName = post.Employer.Name
+                })
                 .ToDictionaryAsync(post => post.Id);
 
             return new AdminPagedResponseDTO<AdminApplicationListItemDTO>
@@ -477,6 +483,9 @@ namespace Infrastructure.Persistence.Services
                     return new AdminApplicationListItemDTO
                     {
                         Id = application.Id,
+                        JobPostId = application.JobPostId,
+                        UserId = application.UserId,
+                        EmployerId = jobPost?.EmployerId ?? Guid.Empty,
                         CandidateName = employee == null
                             ? "—"
                             : $"{employee.FirstName} {employee.LastName}".Trim(),
@@ -489,6 +498,103 @@ namespace Infrastructure.Persistence.Services
                 TotalCount = totalCount,
                 Page = page,
                 PageSize = pageSize
+            };
+        }
+
+        public async Task<Result<AdminJobPostDetailDTO>> GetJobPostDetailAsync(Guid jobPostId)
+        {
+            var post = await _context.JobPosts
+                .Include(item => item.Employer)
+                .Include(item => item.RestaurantLocation)
+                .FirstOrDefaultAsync(item => item.Id == jobPostId);
+
+            if (post == null)
+                return Result.Failure<AdminJobPostDetailDTO>("Job post not found.");
+
+            return Result.Success(await MapJobPostDetailAsync(post));
+        }
+
+        public async Task<Result<AdminJobPostDetailDTO>> ArchiveJobPostAsync(Guid jobPostId)
+        {
+            var post = await _context.JobPosts
+                .Include(item => item.Employer)
+                .Include(item => item.RestaurantLocation)
+                .FirstOrDefaultAsync(item => item.Id == jobPostId);
+
+            if (post == null)
+                return Result.Failure<AdminJobPostDetailDTO>("Job post not found.");
+
+            if (post.Status is JobStatusEnum.Completed or JobStatusEnum.Expired)
+            {
+                return Result.Failure<AdminJobPostDetailDTO>(
+                    "Completed or expired job posts cannot be archived.");
+            }
+
+            var archiveResult = post.Archive();
+            if (archiveResult.IsFailure)
+                return Result.Failure<AdminJobPostDetailDTO>(archiveResult.Error);
+
+            var pendingApplications = await _context.Applications
+                .Where(application =>
+                    application.JobPostId == jobPostId
+                    && application.Status == ApplicationStatusEnum.Applied)
+                .ToListAsync();
+
+            foreach (var application in pendingApplications)
+                application.ExpireDueToInactiveJobPost();
+
+            await _context.SaveChangesAsync();
+            return Result.Success(await MapJobPostDetailAsync(post));
+        }
+
+        private async Task<AdminJobPostDetailDTO> MapJobPostDetailAsync(JobPost post)
+        {
+            var applications = await _context.Applications
+                .Where(application => application.JobPostId == post.Id)
+                .OrderByDescending(application => application.DateTime)
+                .ToListAsync();
+
+            var userIds = applications.Select(application => application.UserId).Distinct().ToList();
+            var employees = await _context.Users.OfType<Employee>()
+                .Where(employee => userIds.Contains(employee.Id))
+                .ToDictionaryAsync(employee => employee.Id);
+
+            var applicationItems = applications.Select(application =>
+            {
+                employees.TryGetValue(application.UserId, out var employee);
+                return new AdminApplicationListItemDTO
+                {
+                    Id = application.Id,
+                    JobPostId = post.Id,
+                    UserId = application.UserId,
+                    EmployerId = post.EmployerId,
+                    CandidateName = employee == null
+                        ? "—"
+                        : $"{employee.FirstName} {employee.LastName}".Trim(),
+                    JobTitle = post.Title,
+                    EmployerName = post.Employer.Name,
+                    Status = application.Status.ToString(),
+                    AppliedAtUtc = application.DateTime
+                };
+            }).ToList();
+
+            return new AdminJobPostDetailDTO
+            {
+                Id = post.Id,
+                EmployerId = post.EmployerId,
+                Title = post.Title,
+                Description = post.Description,
+                Position = post.Position,
+                EmployerName = post.Employer.Name,
+                LocationName = post.RestaurantLocation?.Name,
+                Status = post.Status.ToString(),
+                Salary = post.Salary,
+                ApplicationsCount = applicationItems.Count,
+                CreatedAtUtc = post.CreatedAtUtc,
+                StartingDate = post.StartingDate,
+                VisibleUntil = post.VisibleUntil,
+                CanArchive = post.Status is JobStatusEnum.Active or JobStatusEnum.Draft,
+                Applications = applicationItems
             };
         }
 

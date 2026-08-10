@@ -81,6 +81,31 @@ namespace API.Controllers
             return Ok(result);
         }
 
+        [HttpGet("job-posts/{jobPostId:guid}")]
+        public async Task<IActionResult> GetJobPostDetail(Guid jobPostId)
+        {
+            var result = await _adminService.GetJobPostDetailAsync(jobPostId);
+            if (result.IsFailure)
+                return NotFound(result.Error);
+
+            return Ok(result.Value);
+        }
+
+        [HttpPut("job-posts/{jobPostId:guid}/archive")]
+        public async Task<IActionResult> ArchiveJobPost(Guid jobPostId)
+        {
+            var result = await _adminService.ArchiveJobPostAsync(jobPostId);
+            if (result.IsFailure)
+            {
+                if (result.Error.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                    return NotFound(result.Error);
+
+                return BadRequest(result.Error);
+            }
+
+            return Ok(result.Value);
+        }
+
         [HttpGet("applications")]
         public async Task<IActionResult> GetApplications(
             [FromQuery] string? search = null,
