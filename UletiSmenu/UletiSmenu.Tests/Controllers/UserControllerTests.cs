@@ -45,6 +45,7 @@ namespace UletiSmenu.Tests.Controllers
         [InlineData(nameof(UserController.ResetPassword), RateLimitPolicies.PasswordRecovery)]
         [InlineData(nameof(UserController.ConfirmEmail), RateLimitPolicies.PasswordRecovery)]
         [InlineData(nameof(UserController.UpdateMyProfilePhoto), RateLimitPolicies.ProfileUpload)]
+        [InlineData(nameof(UserController.DeleteMyAccount), RateLimitPolicies.Contact)]
         public void SensitiveEndpointsHaveExpectedRateLimitPolicy(
             string methodName,
             string expectedPolicy)

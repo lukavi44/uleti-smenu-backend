@@ -74,6 +74,17 @@ namespace Core.Models.Entities
             DateOfBirth = dateOfBirth?.Date;
         }
 
+        public void AnonymizePersonalProfile()
+        {
+            FirstName = "Deleted";
+            LastName = "User";
+            City = null;
+            DateOfBirth = null;
+            CvFileName = null;
+            PhoneNumber = null;
+            ClearProfilePhoto();
+        }
+
         //public void AddFavouriteEmployer(Employer employer)
         //{
         //    if (!FavouriteEmployers.Contains(employer))

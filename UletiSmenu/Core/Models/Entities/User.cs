@@ -1,5 +1,4 @@
 ﻿using Core.DTOs;
-using Core.Models.ValueObjects;
 using CSharpFunctionalExtensions;
 using Microsoft.AspNetCore.Identity;
 
@@ -8,6 +7,7 @@ namespace Core.Models.Entities
     public class User : IdentityUser<Guid>
     {
         public string? ProfilePhoto { get; private set; }
+        public DateTime? DeletedAtUtc { get; private set; }
         public bool NotifyEmailFavouriteJobPost { get; private set; } = true;
         public bool NotifyInAppFavouriteJobPost { get; private set; } = true;
         public bool NotifyInAppApplicationAccepted { get; private set; } = true;
@@ -15,6 +15,8 @@ namespace Core.Models.Entities
         public bool NotifyInAppApplicationReceived { get; private set; } = true;
         public bool NotifyEmailApplicationReceived { get; private set; } = true;
         public bool NotifyInAppReviewReminder { get; private set; } = true;
+
+        public bool IsDeleted => DeletedAtUtc.HasValue;
 
         protected User(Guid id, string email, string username, string? phoneNumber, string? profilePhoto = null)
         {
@@ -50,6 +52,39 @@ namespace Core.Models.Entities
 
             ProfilePhoto = photoUrl;
             return Result.Success();
+        }
+
+        public void ClearProfilePhoto()
+        {
+            ProfilePhoto = string.Empty;
+        }
+
+        /// <summary>
+        /// Irreversible self-service deletion tombstone: clears login identifiers and marks deleted.
+        /// Stripe/billing fields on Employer subclasses are intentionally left alone.
+        /// </summary>
+        public void MarkDeletedTombstone(DateTime utcNow)
+        {
+            if (DeletedAtUtc.HasValue)
+                return;
+
+            var tombstoneEmail = $"deleted-{Id:N}@deleted.local";
+            Email = tombstoneEmail;
+            NormalizedEmail = tombstoneEmail.ToUpperInvariant();
+            UserName = tombstoneEmail;
+            NormalizedUserName = tombstoneEmail.ToUpperInvariant();
+            PhoneNumber = null;
+            PhoneNumberConfirmed = false;
+            EmailConfirmed = false;
+            ProfilePhoto = string.Empty;
+            NotifyEmailFavouriteJobPost = false;
+            NotifyInAppFavouriteJobPost = false;
+            NotifyInAppApplicationAccepted = false;
+            NotifyInAppApplicationDeclined = false;
+            NotifyInAppApplicationReceived = false;
+            NotifyEmailApplicationReceived = false;
+            NotifyInAppReviewReminder = false;
+            DeletedAtUtc = utcNow;
         }
 
         public void ApplyNotificationPreferences(UpdateNotificationPreferencesDTO update)

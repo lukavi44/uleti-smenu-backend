@@ -76,6 +76,9 @@ namespace Infrastructure.Persistence.Services
                 return Result.Failure<EmployerPublicProfileDTO>(employerResult.Error);
 
             var employer = employerResult.Value;
+            if (employer.IsDeleted)
+                return Result.Failure<EmployerPublicProfileDTO>("Employer not found.");
+
             await EnsurePublicSlugAsync(employer);
 
             var locations = await _restaurantLocationRepository.GetByEmployerIdAsync(employerId);
@@ -123,6 +126,9 @@ namespace Infrastructure.Persistence.Services
                 return Result.Failure<EmployerDirectoryPreviewDTO>(employerResult.Error);
 
             var employer = employerResult.Value;
+            if (employer.IsDeleted)
+                return Result.Failure<EmployerDirectoryPreviewDTO>("Employer not found.");
+
             await EnsurePublicSlugAsync(employer);
 
             var locations = await _restaurantLocationRepository.GetByEmployerIdAsync(employerId);

@@ -60,9 +60,42 @@ Optional: Application Insights linked (`APPLICATIONINSIGHTS_CONNECTION_STRING`).
 2. **Render Free SMTP** — irrelevant to LIVE; do not use TEST to prove Zoho delivery.
 3. **Rotate SMTP app password** if it was ever printed by `az webapp config appsettings list` (values are visible to subscription admins).
 
+## F. Azure Blob / durable uploads
+
+App Service local disk is ephemeral. LIVE must use Blob (`FileSettings__Provider=AzureBlob`).
+
+Automated / Portal name check (no secret values printed):
+
+```powershell
+cd UletiSmenu\scripts
+.\verify-live-blob-smoke.ps1 -CheckAppSettings
+```
+
+| # | Check | Expected | Pass? |
+|---|--------|----------|-------|
+| F1 | App Settings | `FileSettings__Provider=AzureBlob`; `FileSettings__BlobConnectionString` + `BlobContainerName` present (redact values in tickets) | |
+| F2 | Upload | Log in on LIVE → upload profile photo → image loads via `/uploads/...` (or Blob-backed URL) | |
+| F3 | Survive restart | Restart LIVE App Service → same photo URL still loads | |
+| F4 | Optional replace/delete | Replace photo works; after account deletion, old blob removed best-effort (check logs if missing) | |
+
+### F outcome template
+
+| Field | Value |
+|-------|-------|
+| Date | _YYYY-MM-DD_ |
+| Engineer | |
+| F1–F4 | Pass / Fail / Skipped |
+| Notes | (storage account name OK; never paste connection strings) |
+
+## G. Production SQL review (pointer)
+
+Run `UletiSmenu/scripts/verify-live-database.sql` when the LIVE DB is awake.  
+Checklist (tier, auto-pause, backup/PITR, firewall, open decisions): [`PRODUCTION_HARDENING.md`](./PRODUCTION_HARDENING.md) §4 / §7.
+
 ## Sign-off
 
 | Role | Date | Notes |
 |------|------|-------|
 | Engineer | 2026-07-30 | A1–A4, B1–B6, D1–D4 monitoring verified |
+| Engineer | | Section F Blob smoke (fill when run on LIVE) |
 | Product | | |

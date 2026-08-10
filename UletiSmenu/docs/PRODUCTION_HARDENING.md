@@ -72,15 +72,42 @@ cd UletiSmenu\scripts
 .\verify-live-smoke.ps1
 ```
 
-## 4. Database verification
+## 4. Database verification + Production SQL review
 
-Run against LIVE database in Azure Data Studio:
+Run against LIVE database in Azure Data Studio (DB must be **awake** — not paused):
 
 ```
 UletiSmenu/scripts/verify-live-database.sql
 ```
 
-Confirm Phase 3 unique index and no `NumberOfApplicants` column.
+Confirm Phase 3 unique index and no `NumberOfApplicants` column. After account-deletion ships, also confirm `AspNetUsers.DeletedAtUtc` exists (migration `AddUserDeletedAtUtc`).
+
+### Production SQL review checklist
+
+| # | Topic | Current posture / action |
+|---|--------|--------------------------|
+| S1 | Tier | Note Azure SQL SKU for LIVE (`UletiSmenuDb_Staging` legacy name). |
+| S2 | Auto-pause / cold start | Serverless pause → `/health/ready` Unhealthy/`503` expected; first request may take 30–60s. See §7. |
+| S3 | Backup / PITR | Confirm Portal backup retention; PITR typically needs a paid/non-free tier. Document restore contact path before pilot. |
+| S4 | Firewall | App Service + allowlisted admin IPs only; no public `0.0.0.0–255.255.255.255` unless intentionally temporary. |
+| S5 | Connection string | Present on App Service; never commit; rotate if ever printed via `az`. |
+| S6 | Migration history | `__EFMigrationsHistory` matches expected after each LIVE deploy. |
+
+### Open decisions before marketing
+
+- Accept SQL auto-pause for **pilot** vs disable pause / upgrade tier before marketing traffic.
+- Confirm backup/PITR meets any counsel retention expectations (see also [`ACCOUNT_DELETION_RETENTION.md`](./ACCOUNT_DELETION_RETENTION.md) — deleted PII may linger in backups).
+
+### SQL review outcome template
+
+| Field | Value |
+|-------|-------|
+| Date | _YYYY-MM-DD_ |
+| Engineer | |
+| Tier / pause policy | |
+| Backup/PITR notes | |
+| `verify-live-database.sql` | Pass / Fail |
+| Decision for pilot | Accept pause / Disable pause / Upgrade |
 
 ## 5. Security headers
 
@@ -109,12 +136,12 @@ Run in Azure Portal → App Service → Configuration:
 
 ## 7. SQL auto-pause
 
-Free/serverless SQL pauses when idle. First request after idle may take 30–60s.
+Free/serverless SQL pauses when idle. First request after idle may take 30–60s. Liveness `/health` should stay OK; readiness `/health/ready` may be Unhealthy while paused.
 
 Options:
 
-- **Pilot phase:** accept cold start; monitor `/health/ready` timeouts.
-- **Before marketing:** upgrade to Basic tier or disable auto-pause.
+- **Pilot phase:** accept cold start; monitor `/health/ready` timeouts; wake DB with a real API call before smoke runs.
+- **Before marketing:** upgrade to Basic (or higher) tier **or** disable auto-pause — explicit product decision (see §4 open decisions).
 
 ## 8. Security smoke test (manual)
 

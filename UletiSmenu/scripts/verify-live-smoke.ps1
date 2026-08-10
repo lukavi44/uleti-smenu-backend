@@ -66,7 +66,8 @@ try {
 
 Write-Host ""
 if ($failed -eq 0) {
-    Write-Host "Automated checks OK. Complete section B email flows manually - see docs/PRODUCTION_SMOKE.md" -ForegroundColor Green
+    Write-Host "Automated checks OK. Complete section B email flows and section F Blob manually - see docs/PRODUCTION_SMOKE.md" -ForegroundColor Green
+    Write-Host "Blob helpers: .\verify-live-blob-smoke.ps1 [-CheckAppSettings]" -ForegroundColor DarkGray
     exit 0
 }
 

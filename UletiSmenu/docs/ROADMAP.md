@@ -1,6 +1,6 @@
 # UletiSmenu roadmap
 
-**Status:** active · **Last updated:** 2026-08-10 (Phase 2 Slices A–E done on develop)  
+**Status:** active · **Last updated:** 2026-08-10 (soft-launch: hybrid account deletion + Blob/SQL ops docs)  
 **Owner:** product / engineering (keep this file current)
 
 This is the **single source of truth** for planning. Before proposing or implementing work:
@@ -203,15 +203,23 @@ Before public launch, complete:
 - [x] Production monitoring  
 - [x] Azure alerts — Http5xx + SMTP log alert → `support@`  
 - [x] Production smoke tests (email + infra A1–A4 + D1–D4)  
-- [ ] Account deletion  
+- [x] Account deletion — hybrid tombstone + hard-delete personal + anonymize shared; see [`ACCOUNT_DELETION_RETENTION.md`](./ACCOUNT_DELETION_RETENTION.md)  
 - [ ] Cookie banner (if legally required)  
-- [ ] Azure Blob storage validation  
-- [ ] Production SQL review  
+- [ ] Azure Blob storage validation — checklist + `verify-live-blob-smoke.ps1` ready; **LIVE F1–F4 outcome pending** (record in `PRODUCTION_SMOKE.md` §F)  
+- [ ] Production SQL review — checklist + auto-pause/backup notes in `PRODUCTION_HARDENING.md` §4/§7; **LIVE `verify-live-database.sql` run + tier/pause decision pending**  
 - [ ] Pilot employers  
 - [x] Support email operational (`support@uletismenu.com`) — contact + Zoho LIVE verified  
 - [ ] Bug fixing from pilot  
 - [ ] Marketing launch  
 
+### Legal retention open questions (account deletion)
+
+Do **not** invent retention policy. Counsel/accountant must decide retention for wallet transactions, payment events, Stripe customer/subscription IDs, PIB/MB, restaurant addresses, chat bodies, and backup/PITR implications. Tracked in [`ACCOUNT_DELETION_RETENTION.md`](./ACCOUNT_DELETION_RETENTION.md).
+
+### Open decisions before marketing (ops)
+
+- SQL tier + auto-pause: accept cold start for pilot vs disable pause / upgrade before marketing.
+- Complete LIVE Blob smoke F1–F4 and SQL review outcome templates.
 ---
 
 ## Environment naming cleanup (policy)

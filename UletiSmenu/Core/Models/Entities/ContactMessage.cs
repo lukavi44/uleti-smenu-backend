@@ -72,5 +72,12 @@ namespace Core.Models.Entities
             ResolvedByAdminId = null;
             return Result.Success();
         }
+
+        public void AnonymizeSenderPii()
+        {
+            Name = "Deleted user";
+            Email = "deleted@deleted.local";
+            Message = "[redacted]";
+        }
     }
 }
