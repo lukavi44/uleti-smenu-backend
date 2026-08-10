@@ -116,15 +116,16 @@ Some admin surfaces already exist as a **prototype** (shell, dashboard, list pag
 
 | Slice | Status | Notes |
 |-------|--------|--------|
-| A — Employer admin depth | In progress | Detail tabs (jobs, branches, billing, notes) + suspend |
-| B — Users + moderation | Next | User directory + lock/unlock |
+| A — Employer admin depth | Done | Detail tabs + suspend/notes |
+| B — Users + moderation | Done | User directory + lock/unlock |
+| C — Jobs + applications | In progress | Job detail + archive; applications list links |
 
 ### Full Phase 2 backlog
 
 - dashboard (exists — refine later; active-post count uses visibility rules)
-- **job post auto-expiry** — background worker marks stale `Active` → `Expired` after shift window (in progress)
+- job post auto-expiry — Done (in-API worker; extract worker later if multi-instance)
 - users, employers, candidates  
-- jobs, applications  
+- jobs, applications (Slice C)
 - moderation, reports, analytics  
 - contact messages  
 - reviews  
@@ -132,7 +133,7 @@ Some admin surfaces already exist as a **prototype** (shell, dashboard, list pag
 - feature flags  
 - system settings  
 
-Out of scope for slices A–B: contact inbox, reports entity, reviews admin UI, audit product, feature flags, configurable settings.
+Out of scope for slices A–C: contact inbox, reports entity, reviews admin UI, audit product, feature flags, configurable settings, admin accept/deny.
 
 ---
 
