@@ -80,34 +80,42 @@ Run against LIVE database in Azure Data Studio (DB must be **awake** — not pau
 UletiSmenu/scripts/verify-live-database.sql
 ```
 
-Confirm Phase 3 unique index and no `NumberOfApplicants` column. After account-deletion ships, also confirm `AspNetUsers.DeletedAtUtc` exists (migration `AddUserDeletedAtUtc`).
+Confirm Phase 3 unique index and no `NumberOfApplicants` column. `AspNetUsers.DeletedAtUtc` shows **WARN/SKIP** on LIVE until the account-deletion migration is deployed (`AddUserDeletedAtUtc` on `develop` → LIVE).
 
 ### Production SQL review checklist
 
 | # | Topic | Current posture / action |
 |---|--------|--------------------------|
-| S1 | Tier | Note Azure SQL SKU for LIVE (`UletiSmenuDb_Staging` legacy name). |
-| S2 | Auto-pause / cold start | Serverless pause → `/health/ready` Unhealthy/`503` expected; first request may take 30–60s. See §7. |
-| S3 | Backup / PITR | Confirm Portal backup retention; PITR typically needs a paid/non-free tier. Document restore contact path before pilot. |
-| S4 | Firewall | App Service + allowlisted admin IPs only; no public `0.0.0.0–255.255.255.255` unless intentionally temporary. |
-| S5 | Connection string | Present on App Service; never commit; rotate if ever printed via `az`. |
-| S6 | Migration history | `__EFMigrationsHistory` matches expected after each LIVE deploy. |
+| S1 | Tier | **GP_S_Gen5_2** (General Purpose **Serverless**), max 2 vCores, ~32 GB cap — LIVE DB `UletiSmenuDb_Staging` on `uletismenu-staging-sql` (2026-08-11). |
+| S2 | Auto-pause / cold start | **autoPauseDelay = 60 min**, minCapacity 0.5 — `/health/ready` may be Unhealthy while paused; first request 30–60s. **Pilot decision: accept pause.** Revisit before marketing. |
+| S3 | Backup / PITR | **STR 7 days**, diff backups every 12h. Point-in-time restore within 7-day window. Long-term retention (LTR) not configured. |
+| S4 | Firewall | `AllowAllWindowsAzureIps` (Azure services) + **`AllowExternalStaging` 0.0.0.0–255.255.255.255** — **restrict to admin IPs before marketing.** |
+| S5 | Connection string | `ConnectionStrings__UletiSmenu` present on App Service (value not in git). |
+| S6 | Migration history | Run `verify-live-database.sql` in Azure Data Studio when DB awake; `DeletedAtUtc` WARN until account-deletion migration on LIVE. |
+
+Automated posture check (no secrets printed):
+
+```powershell
+cd UletiSmenu\scripts
+.\verify-live-sql-review.ps1
+```
 
 ### Open decisions before marketing
 
-- Accept SQL auto-pause for **pilot** vs disable pause / upgrade tier before marketing traffic.
-- Confirm backup/PITR meets any counsel retention expectations (see also [`ACCOUNT_DELETION_RETENTION.md`](./ACCOUNT_DELETION_RETENTION.md) — deleted PII may linger in backups).
+- Accept SQL auto-pause for **pilot** vs disable pause / upgrade tier before marketing traffic. **Pilot: accept pause (2026-08-11).**
+- Tighten firewall — remove internet-wide rule before marketing.
+- Confirm backup/PITR meets counsel retention expectations (see also [`ACCOUNT_DELETION_RETENTION.md`](./ACCOUNT_DELETION_RETENTION.md) — deleted PII may linger in backups).
 
 ### SQL review outcome template
 
 | Field | Value |
 |-------|-------|
-| Date | _YYYY-MM-DD_ |
-| Engineer | |
-| Tier / pause policy | |
-| Backup/PITR notes | |
-| `verify-live-database.sql` | Pass / Fail |
-| Decision for pilot | Accept pause / Disable pause / Upgrade |
+| Date | 2026-08-11 |
+| Engineer | Luka |
+| Tier / pause policy | GP_S_Gen5_2 serverless; auto-pause 60 min — **accept for pilot** |
+| Backup/PITR notes | STR 7 days; diff every 12h; no LTR |
+| `verify-live-database.sql` | Pending manual run in Azure Data Studio (DB awake; `/health/ready` Healthy) |
+| Decision for pilot | **Accept pause**; restrict firewall before marketing |
 
 ## 5. Security headers
 

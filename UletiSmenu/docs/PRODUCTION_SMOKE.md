@@ -73,19 +73,19 @@ cd UletiSmenu\scripts
 
 | # | Check | Expected | Pass? |
 |---|--------|----------|-------|
-| F1 | App Settings | `FileSettings__Provider=AzureBlob`; `FileSettings__BlobConnectionString` + `BlobContainerName` present (redact values in tickets) | |
-| F2 | Upload | Log in on LIVE → upload profile photo → image loads via `/uploads/...` (or Blob-backed URL) | |
-| F3 | Survive restart | Restart LIVE App Service → same photo URL still loads | |
-| F4 | Optional replace/delete | Replace photo works; after account deletion, old blob removed best-effort (check logs if missing) | |
+| F1 | App Settings | `FileSettings__Provider=AzureBlob`; `FileSettings__BlobConnectionString` + `BlobContainerName` present (redact values in tickets) | Pass (2026-08-11, `verify-live-blob-smoke.ps1 -CheckAppSettings`) |
+| F2 | Upload | Log in on LIVE → upload profile photo → image loads via `/uploads/...` (or Blob-backed URL) | Pass (2026-08-11) |
+| F3 | Survive restart | Restart LIVE App Service → same photo URL still loads | Pass (2026-08-11, manual restart `api-staging-uletismenu`) |
+| F4 | Optional replace/delete | Replace photo works; after account deletion, old blob removed best-effort (check logs if missing) | Skipped (pilot) |
 
 ### F outcome template
 
 | Field | Value |
 |-------|-------|
-| Date | _YYYY-MM-DD_ |
-| Engineer | |
-| F1–F4 | Pass / Fail / Skipped |
-| Notes | (storage account name OK; never paste connection strings) |
+| Date | 2026-08-11 |
+| Engineer | Luka |
+| F1–F4 | F1 Pass · F2 Pass · F3 Pass · F4 Skipped |
+| Notes | F1 via scripted App Settings check; F2 profile photo upload on LIVE; F3 photo survived App Service restart |
 
 ## G. Production SQL review (pointer)
 
@@ -97,5 +97,5 @@ Checklist (tier, auto-pause, backup/PITR, firewall, open decisions): [`PRODUCTIO
 | Role | Date | Notes |
 |------|------|-------|
 | Engineer | 2026-07-30 | A1–A4, B1–B6, D1–D4 monitoring verified |
-| Engineer | | Section F Blob smoke (fill when run on LIVE) |
+| Engineer | 2026-08-11 | Section F Blob smoke F1–F3 Pass (F4 skipped) |
 | Product | | |

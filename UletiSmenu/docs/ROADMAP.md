@@ -1,6 +1,6 @@
 # UletiSmenu roadmap
 
-**Status:** active · **Last updated:** 2026-08-10 (soft-launch: hybrid account deletion + Blob/SQL ops docs)  
+**Status:** active · **Last updated:** 2026-08-11 (Blob smoke F1–F3 pass; SQL posture review)  
 **Owner:** product / engineering (keep this file current)
 
 This is the **single source of truth** for planning. Before proposing or implementing work:
@@ -205,8 +205,8 @@ Before public launch, complete:
 - [x] Production smoke tests (email + infra A1–A4 + D1–D4)  
 - [x] Account deletion — hybrid tombstone + hard-delete personal + anonymize shared; see [`ACCOUNT_DELETION_RETENTION.md`](./ACCOUNT_DELETION_RETENTION.md)  
 - [ ] Cookie banner (if legally required)  
-- [ ] Azure Blob storage validation — checklist + `verify-live-blob-smoke.ps1` ready; **LIVE F1–F4 outcome pending** (record in `PRODUCTION_SMOKE.md` §F)  
-- [ ] Production SQL review — checklist + auto-pause/backup notes in `PRODUCTION_HARDENING.md` §4/§7; **LIVE `verify-live-database.sql` run + tier/pause decision pending**  
+- [x] Azure Blob storage validation — F1–F3 Pass LIVE 2026-08-11 (`PRODUCTION_SMOKE.md` §F)  
+- [ ] Production SQL review — posture documented 2026-08-11 (`PRODUCTION_HARDENING.md` §4); **`verify-live-database.sql` manual run pending**; pilot accepts auto-pause  
 - [ ] Pilot employers  
 - [x] Support email operational (`support@uletismenu.com`) — contact + Zoho LIVE verified  
 - [ ] Bug fixing from pilot  
