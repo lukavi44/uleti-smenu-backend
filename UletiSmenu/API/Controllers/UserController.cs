@@ -18,6 +18,7 @@ namespace API.Controllers
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly IAccountDeletionService _accountDeletionService;
         private readonly IEmployerProfileService _employerProfileService;
         private readonly IBillingService _billingService;
         private readonly IMapper _mapper;
@@ -28,6 +29,7 @@ namespace API.Controllers
 
         public UserController(
             IUserService userService,
+            IAccountDeletionService accountDeletionService,
             IEmployerProfileService employerProfileService,
             IBillingService billingService,
             IMapper mapper,
@@ -37,6 +39,7 @@ namespace API.Controllers
             IConfiguration configuration)
         {
             _userService = userService;
+            _accountDeletionService = accountDeletionService;
             _employerProfileService = employerProfileService;
             _billingService = billingService;
             _mapper = mapper;
@@ -147,6 +150,25 @@ namespace API.Controllers
             }
 
             return Ok(result.IsSuccess);
+        }
+
+        [Authorize]
+        [HttpDelete("me")]
+        [EnableRateLimiting(RateLimitPolicies.Contact)]
+        public async Task<IActionResult> DeleteMyAccount([FromBody] DeleteMyAccountRequest request)
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdClaim, out var userId))
+                return Unauthorized();
+
+            if (request == null || string.IsNullOrWhiteSpace(request.Password))
+                return BadRequest(new { message = "Password is required." });
+
+            var result = await _accountDeletionService.DeleteMyAccountAsync(userId, request.Password);
+            if (result.IsFailure)
+                return BadRequest(new { message = result.Error });
+
+            return Ok(new { message = "Account deleted." });
         }
 
 
@@ -571,5 +593,10 @@ namespace API.Controllers
 
             return Ok(result.Value);
         }
+    }
+
+    public class DeleteMyAccountRequest
+    {
+        public string Password { get; set; } = string.Empty;
     }
 }

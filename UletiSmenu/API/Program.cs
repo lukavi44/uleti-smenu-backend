@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Core.Admin;
 using Core.Billing;
 using Core.Interfaces;
+using Core.JobPosts;
 using Core.Models.Entities;
 using Core.Models.Enums;
 using Core.Repositories;
@@ -104,6 +105,9 @@ builder.Services.AddScoped<IEmployeeProfileService, EmployeeProfileService>();
 builder.Services.AddScoped<IEmployerProfileService, EmployerProfileService>();
 builder.Services.AddScoped<IPlatformStatsService, PlatformStatsService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IContactService, ContactService>();
+builder.Services.AddScoped<IReportService, ReportService>();
+builder.Services.AddScoped<IAccountDeletionService, AccountDeletionService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IReviewReminderService, ReviewReminderService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
@@ -116,6 +120,8 @@ builder.Services.AddScoped<IBillingWebhookProcessor, BillingWebhookProcessor>();
 builder.Services.AddScoped<IWalletLedgerService, WalletLedgerService>();
 builder.Services.Configure<BillingSettings>(builder.Configuration.GetSection(BillingSettings.SectionName));
 builder.Services.Configure<AdminSeedSettings>(builder.Configuration.GetSection(AdminSeedSettings.SectionName));
+builder.Services.Configure<JobPostLifecycleSettings>(builder.Configuration.GetSection(JobPostLifecycleSettings.SectionName));
+builder.Services.AddScoped<IJobPostLifecycleService, JobPostLifecycleService>();
 builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection(StripeSettings.SectionName));
 
 var stripeEnabled = builder.Configuration.GetValue<bool>($"{StripeSettings.SectionName}:Enabled");
@@ -256,6 +262,7 @@ builder.Services.AddRateLimiter(options =>
             }));
 });
 builder.Services.AddHostedService<ApplicationStartupHostedService>();
+builder.Services.AddHostedService<JobPostLifecycleHostedService>();
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<ApplicationDbContext>("database");
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());

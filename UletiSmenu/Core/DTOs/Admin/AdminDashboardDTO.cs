@@ -5,10 +5,11 @@ namespace Core.DTOs.Admin
         public int TotalCandidates { get; set; }
         public int TotalEmployers { get; set; }
         public int ActiveJobPosts { get; set; }
+        public int TotalApplications { get; set; }
         public int ReportsCount { get; set; }
         public decimal WalletTopUpsThisMonth { get; set; }
         public int AcceptedCandidatesAllTime { get; set; }
-        public int CompletedShiftsAllTime { get; set; }
+        public int TotalJobPostsAllTime { get; set; }
         public List<AdminDashboardChartPointDTO> ApplicationsChart { get; set; } = new();
         public List<AdminRecentActivityDTO> RecentActivities { get; set; } = new();
     }

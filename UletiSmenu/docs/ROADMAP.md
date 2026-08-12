@@ -1,6 +1,6 @@
 # UletiSmenu roadmap
 
-**Status:** active · **Last updated:** 2026-07-30 (Phase 2 Admin started; feature-branch workflow)  
+**Status:** active · **Last updated:** 2026-08-11 (Blob smoke F1–F3 pass; SQL posture review)  
 **Owner:** product / engineering (keep this file current)
 
 This is the **single source of truth** for planning. Before proposing or implementing work:
@@ -116,22 +116,26 @@ Some admin surfaces already exist as a **prototype** (shell, dashboard, list pag
 
 | Slice | Status | Notes |
 |-------|--------|--------|
-| A — Employer admin depth | In progress | Detail tabs (jobs, branches, billing, notes) + suspend |
-| B — Users + moderation | Next | User directory + lock/unlock |
+| A — Employer admin depth | Done | Detail tabs + suspend/notes |
+| B — Users + moderation | Done | User directory + lock/unlock |
+| C — Jobs + applications | Done | Job detail + archive; application links |
+| D — Contact messages | Done | Persist `/kontakt` + admin inbox/resolve |
+| E — Reports | Done | User report job post + admin list/resolve |
 
 ### Full Phase 2 backlog
 
-- dashboard (exists — refine later)
+- dashboard (exists — refine later; active-post count uses visibility rules)
+- job post auto-expiry — Done (in-API worker; extract worker later if multi-instance)
 - users, employers, candidates  
-- jobs, applications  
-- moderation, reports, analytics  
-- contact messages  
+- jobs, applications (Slice C) — Done
+- contact messages (Slice D) — Done
+- moderation, reports (Slice E) — Done
 - reviews  
 - audit logs  
 - feature flags  
 - system settings  
 
-Out of scope for slices A–B: contact inbox, reports entity, reviews admin UI, audit product, feature flags, configurable settings.
+Out of scope for slices A–E first PRs: reviews admin UI, audit product, feature flags, configurable settings, admin accept/deny.
 
 ---
 
@@ -199,15 +203,23 @@ Before public launch, complete:
 - [x] Production monitoring  
 - [x] Azure alerts — Http5xx + SMTP log alert → `support@`  
 - [x] Production smoke tests (email + infra A1–A4 + D1–D4)  
-- [ ] Account deletion  
+- [x] Account deletion — hybrid tombstone + hard-delete personal + anonymize shared; see [`ACCOUNT_DELETION_RETENTION.md`](./ACCOUNT_DELETION_RETENTION.md)  
 - [ ] Cookie banner (if legally required)  
-- [ ] Azure Blob storage validation  
-- [ ] Production SQL review  
+- [x] Azure Blob storage validation — F1–F3 Pass LIVE 2026-08-11 (`PRODUCTION_SMOKE.md` §F)  
+- [ ] Production SQL review — posture documented 2026-08-11 (`PRODUCTION_HARDENING.md` §4); **`verify-live-database.sql` manual run pending**; pilot accepts auto-pause  
 - [ ] Pilot employers  
 - [x] Support email operational (`support@uletismenu.com`) — contact + Zoho LIVE verified  
 - [ ] Bug fixing from pilot  
 - [ ] Marketing launch  
 
+### Legal retention open questions (account deletion)
+
+Do **not** invent retention policy. Counsel/accountant must decide retention for wallet transactions, payment events, Stripe customer/subscription IDs, PIB/MB, restaurant addresses, chat bodies, and backup/PITR implications. Tracked in [`ACCOUNT_DELETION_RETENTION.md`](./ACCOUNT_DELETION_RETENTION.md).
+
+### Open decisions before marketing (ops)
+
+- SQL tier + auto-pause: accept cold start for pilot vs disable pause / upgrade before marketing.
+- Complete LIVE Blob smoke F1–F4 and SQL review outcome templates.
 ---
 
 ## Environment naming cleanup (policy)

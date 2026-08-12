@@ -47,6 +47,9 @@ namespace Core.DTOs.Admin
     public class AdminApplicationListItemDTO
     {
         public Guid Id { get; set; }
+        public Guid JobPostId { get; set; }
+        public Guid UserId { get; set; }
+        public Guid EmployerId { get; set; }
         public string CandidateName { get; set; } = string.Empty;
         public string JobTitle { get; set; } = string.Empty;
         public string EmployerName { get; set; } = string.Empty;

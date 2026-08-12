@@ -106,7 +106,7 @@ namespace Infrastructure.Persistence.Services
                 return Result.Failure<EmployeePublicProfileDTO>("You do not have access to this employee profile.");
 
             var employee = await _userManager.FindByIdAsync(employeeId.ToString()) as Employee;
-            if (employee == null)
+            if (employee == null || employee.IsDeleted)
                 return Result.Failure<EmployeePublicProfileDTO>("Employee not found.");
 
             var workExperienceCount = await _workExperienceRepository.CountByEmployeeIdAsync(employeeId);

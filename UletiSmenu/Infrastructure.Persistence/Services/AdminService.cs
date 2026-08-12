@@ -33,12 +33,16 @@ namespace Infrastructure.Persistence.Services
 
             var totalCandidates = await _context.Users.OfType<Employee>().CountAsync();
             var totalEmployers = await _context.Users.OfType<Employer>().CountAsync();
+            // Match product "active" = currently visible (not past shift / visibility window).
             var activeJobPosts = await _context.JobPosts
-                .CountAsync(post => post.Status == JobStatusEnum.Active);
+                .CountAsync(post =>
+                    post.Status == JobStatusEnum.Active
+                    && post.VisibleUntil >= utcNow
+                    && post.StartingDate.AddHours(1) >= utcNow);
+            var totalApplications = await _context.Applications.CountAsync();
             var acceptedAllTime = await _context.Applications
                 .CountAsync(application => application.Status == ApplicationStatusEnum.Accepted);
-            var completedShiftsAllTime = await _context.JobPosts
-                .CountAsync(post => post.Status == JobStatusEnum.Completed);
+            var totalJobPostsAllTime = await _context.JobPosts.CountAsync();
 
             var walletTopUpsThisMonth = await _context.WalletTransactions
                 .Where(transaction =>
@@ -71,10 +75,11 @@ namespace Infrastructure.Persistence.Services
                 TotalCandidates = totalCandidates,
                 TotalEmployers = totalEmployers,
                 ActiveJobPosts = activeJobPosts,
-                ReportsCount = 0,
+                TotalApplications = totalApplications,
+                ReportsCount = await _context.ModerationReports.CountAsync(report => report.Status == ReportStatus.Open),
                 WalletTopUpsThisMonth = walletTopUpsThisMonth,
                 AcceptedCandidatesAllTime = acceptedAllTime,
-                CompletedShiftsAllTime = completedShiftsAllTime,
+                TotalJobPostsAllTime = totalJobPostsAllTime,
                 ApplicationsChart = chartPoints,
                 RecentActivities = recentActivities
             };
@@ -460,7 +465,13 @@ namespace Infrastructure.Persistence.Services
 
             var jobPosts = await _context.JobPosts
                 .Where(post => jobPostIds.Contains(post.Id))
-                .Select(post => new { post.Id, post.Title, EmployerName = post.Employer.Name })
+                .Select(post => new
+                {
+                    post.Id,
+                    post.Title,
+                    post.EmployerId,
+                    EmployerName = post.Employer.Name
+                })
                 .ToDictionaryAsync(post => post.Id);
 
             return new AdminPagedResponseDTO<AdminApplicationListItemDTO>
@@ -472,6 +483,9 @@ namespace Infrastructure.Persistence.Services
                     return new AdminApplicationListItemDTO
                     {
                         Id = application.Id,
+                        JobPostId = application.JobPostId,
+                        UserId = application.UserId,
+                        EmployerId = jobPost?.EmployerId ?? Guid.Empty,
                         CandidateName = employee == null
                             ? "—"
                             : $"{employee.FirstName} {employee.LastName}".Trim(),
@@ -484,6 +498,103 @@ namespace Infrastructure.Persistence.Services
                 TotalCount = totalCount,
                 Page = page,
                 PageSize = pageSize
+            };
+        }
+
+        public async Task<Result<AdminJobPostDetailDTO>> GetJobPostDetailAsync(Guid jobPostId)
+        {
+            var post = await _context.JobPosts
+                .Include(item => item.Employer)
+                .Include(item => item.RestaurantLocation)
+                .FirstOrDefaultAsync(item => item.Id == jobPostId);
+
+            if (post == null)
+                return Result.Failure<AdminJobPostDetailDTO>("Job post not found.");
+
+            return Result.Success(await MapJobPostDetailAsync(post));
+        }
+
+        public async Task<Result<AdminJobPostDetailDTO>> ArchiveJobPostAsync(Guid jobPostId)
+        {
+            var post = await _context.JobPosts
+                .Include(item => item.Employer)
+                .Include(item => item.RestaurantLocation)
+                .FirstOrDefaultAsync(item => item.Id == jobPostId);
+
+            if (post == null)
+                return Result.Failure<AdminJobPostDetailDTO>("Job post not found.");
+
+            if (post.Status is JobStatusEnum.Completed or JobStatusEnum.Expired)
+            {
+                return Result.Failure<AdminJobPostDetailDTO>(
+                    "Completed or expired job posts cannot be archived.");
+            }
+
+            var archiveResult = post.Archive();
+            if (archiveResult.IsFailure)
+                return Result.Failure<AdminJobPostDetailDTO>(archiveResult.Error);
+
+            var pendingApplications = await _context.Applications
+                .Where(application =>
+                    application.JobPostId == jobPostId
+                    && application.Status == ApplicationStatusEnum.Applied)
+                .ToListAsync();
+
+            foreach (var application in pendingApplications)
+                application.ExpireDueToInactiveJobPost();
+
+            await _context.SaveChangesAsync();
+            return Result.Success(await MapJobPostDetailAsync(post));
+        }
+
+        private async Task<AdminJobPostDetailDTO> MapJobPostDetailAsync(JobPost post)
+        {
+            var applications = await _context.Applications
+                .Where(application => application.JobPostId == post.Id)
+                .OrderByDescending(application => application.DateTime)
+                .ToListAsync();
+
+            var userIds = applications.Select(application => application.UserId).Distinct().ToList();
+            var employees = await _context.Users.OfType<Employee>()
+                .Where(employee => userIds.Contains(employee.Id))
+                .ToDictionaryAsync(employee => employee.Id);
+
+            var applicationItems = applications.Select(application =>
+            {
+                employees.TryGetValue(application.UserId, out var employee);
+                return new AdminApplicationListItemDTO
+                {
+                    Id = application.Id,
+                    JobPostId = post.Id,
+                    UserId = application.UserId,
+                    EmployerId = post.EmployerId,
+                    CandidateName = employee == null
+                        ? "—"
+                        : $"{employee.FirstName} {employee.LastName}".Trim(),
+                    JobTitle = post.Title,
+                    EmployerName = post.Employer.Name,
+                    Status = application.Status.ToString(),
+                    AppliedAtUtc = application.DateTime
+                };
+            }).ToList();
+
+            return new AdminJobPostDetailDTO
+            {
+                Id = post.Id,
+                EmployerId = post.EmployerId,
+                Title = post.Title,
+                Description = post.Description,
+                Position = post.Position,
+                EmployerName = post.Employer.Name,
+                LocationName = post.RestaurantLocation?.Name,
+                Status = post.Status.ToString(),
+                Salary = post.Salary,
+                ApplicationsCount = applicationItems.Count,
+                CreatedAtUtc = post.CreatedAtUtc,
+                StartingDate = post.StartingDate,
+                VisibleUntil = post.VisibleUntil,
+                CanArchive = post.Status is JobStatusEnum.Active or JobStatusEnum.Draft,
+                Applications = applicationItems
             };
         }
 
@@ -543,6 +654,7 @@ namespace Infrastructure.Persistence.Services
                 .CountAsync(post =>
                     post.EmployerId == employerId
                     && post.Status == JobStatusEnum.Active
+                    && post.VisibleUntil >= DateTime.UtcNow
                     && post.StartingDate.AddHours(1) >= DateTime.UtcNow);
             var totalJobPostsCount = await _context.JobPosts
                 .CountAsync(post => post.EmployerId == employerId);
@@ -809,6 +921,236 @@ namespace Infrastructure.Persistence.Services
 
             return Result.Success(await MapUserListItemAsync(user));
         }
+
+        public async Task<AdminPagedResponseDTO<AdminContactMessageListItemDTO>> GetContactMessagesAsync(
+            string? search,
+            string? status,
+            int page,
+            int pageSize)
+        {
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 100);
+
+            var query = _context.ContactMessages.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(status) &&
+                Enum.TryParse<ContactMessageStatus>(status, true, out var parsedStatus))
+            {
+                query = query.Where(message => message.Status == parsedStatus);
+            }
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var term = search.Trim();
+                query = query.Where(message =>
+                    message.Name.Contains(term) ||
+                    message.Email.Contains(term) ||
+                    message.Subject.Contains(term));
+            }
+
+            var totalCount = await query.CountAsync();
+            var items = await query
+                .OrderByDescending(message => message.CreatedAtUtc)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(message => new AdminContactMessageListItemDTO
+                {
+                    Id = message.Id,
+                    Name = message.Name,
+                    Email = message.Email,
+                    Subject = message.Subject,
+                    Status = message.Status.ToString(),
+                    EmailSent = message.EmailSent,
+                    CreatedAtUtc = message.CreatedAtUtc
+                })
+                .ToListAsync();
+
+            return new AdminPagedResponseDTO<AdminContactMessageListItemDTO>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize
+            };
+        }
+
+        public async Task<Result<AdminContactMessageDetailDTO>> GetContactMessageAsync(Guid messageId)
+        {
+            var message = await _context.ContactMessages.FirstOrDefaultAsync(item => item.Id == messageId);
+            if (message == null)
+                return Result.Failure<AdminContactMessageDetailDTO>("Contact message not found.");
+
+            return Result.Success(MapContactMessageDetail(message));
+        }
+
+        public async Task<Result<AdminContactMessageDetailDTO>> ResolveContactMessageAsync(
+            Guid messageId,
+            Guid adminUserId,
+            string? notes)
+        {
+            var message = await _context.ContactMessages.FirstOrDefaultAsync(item => item.Id == messageId);
+            if (message == null)
+                return Result.Failure<AdminContactMessageDetailDTO>("Contact message not found.");
+
+            var resolveResult = message.MarkResolved(adminUserId, notes, DateTime.UtcNow);
+            if (resolveResult.IsFailure)
+                return Result.Failure<AdminContactMessageDetailDTO>(resolveResult.Error);
+
+            await _context.SaveChangesAsync();
+            return Result.Success(MapContactMessageDetail(message));
+        }
+
+        public async Task<AdminPagedResponseDTO<AdminReportListItemDTO>> GetReportsAsync(
+            string? search,
+            string? status,
+            int page,
+            int pageSize)
+        {
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 100);
+
+            var query = _context.ModerationReports.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(status) &&
+                Enum.TryParse<ReportStatus>(status, true, out var parsedStatus))
+            {
+                query = query.Where(report => report.Status == parsedStatus);
+            }
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var term = search.Trim();
+                query = query.Where(report =>
+                    report.Reason.Contains(term) ||
+                    (report.Details != null && report.Details.Contains(term)) ||
+                    _context.Users.Any(user =>
+                        user.Id == report.ReporterUserId &&
+                        user.Email != null &&
+                        user.Email.Contains(term)));
+            }
+
+            var totalCount = await query.CountAsync();
+            var reports = await query
+                .OrderByDescending(report => report.CreatedAtUtc)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            var items = new List<AdminReportListItemDTO>();
+            foreach (var report in reports)
+                items.Add(await MapReportListItemAsync(report));
+
+            return new AdminPagedResponseDTO<AdminReportListItemDTO>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize
+            };
+        }
+
+        public async Task<Result<AdminReportDetailDTO>> GetReportAsync(Guid reportId)
+        {
+            var report = await _context.ModerationReports.FirstOrDefaultAsync(item => item.Id == reportId);
+            if (report == null)
+                return Result.Failure<AdminReportDetailDTO>("Report not found.");
+
+            return Result.Success(await MapReportDetailAsync(report));
+        }
+
+        public async Task<Result<AdminReportDetailDTO>> ResolveReportAsync(
+            Guid reportId,
+            Guid adminUserId,
+            string? notes)
+        {
+            var report = await _context.ModerationReports.FirstOrDefaultAsync(item => item.Id == reportId);
+            if (report == null)
+                return Result.Failure<AdminReportDetailDTO>("Report not found.");
+
+            var resolveResult = report.MarkResolved(adminUserId, notes, DateTime.UtcNow);
+            if (resolveResult.IsFailure)
+                return Result.Failure<AdminReportDetailDTO>(resolveResult.Error);
+
+            await _context.SaveChangesAsync();
+            return Result.Success(await MapReportDetailAsync(report));
+        }
+
+        private async Task<AdminReportListItemDTO> MapReportListItemAsync(ModerationReport report)
+        {
+            var reporter = await _userManager.FindByIdAsync(report.ReporterUserId.ToString());
+            var targetLabel = await ResolveReportTargetLabelAsync(report.TargetType, report.TargetId);
+
+            return new AdminReportListItemDTO
+            {
+                Id = report.Id,
+                ReporterUserId = report.ReporterUserId,
+                ReporterEmail = reporter?.Email ?? "—",
+                TargetType = report.TargetType.ToString(),
+                TargetId = report.TargetId,
+                TargetLabel = targetLabel,
+                Reason = report.Reason,
+                Status = report.Status.ToString(),
+                CreatedAtUtc = report.CreatedAtUtc
+            };
+        }
+
+        private async Task<AdminReportDetailDTO> MapReportDetailAsync(ModerationReport report)
+        {
+            var listItem = await MapReportListItemAsync(report);
+            return new AdminReportDetailDTO
+            {
+                Id = listItem.Id,
+                ReporterUserId = listItem.ReporterUserId,
+                ReporterEmail = listItem.ReporterEmail,
+                TargetType = listItem.TargetType,
+                TargetId = listItem.TargetId,
+                TargetLabel = listItem.TargetLabel,
+                Reason = listItem.Reason,
+                Status = listItem.Status,
+                CreatedAtUtc = listItem.CreatedAtUtc,
+                Details = report.Details,
+                ResolvedAtUtc = report.ResolvedAtUtc,
+                ResolvedByAdminId = report.ResolvedByAdminId,
+                AdminNotes = report.AdminNotes
+            };
+        }
+
+        private async Task<string> ResolveReportTargetLabelAsync(ReportTargetType targetType, Guid targetId)
+        {
+            if (targetType == ReportTargetType.JobPost)
+            {
+                var post = await _context.JobPosts
+                    .Where(item => item.Id == targetId)
+                    .Select(item => new { item.Title, EmployerName = item.Employer.Name })
+                    .FirstOrDefaultAsync();
+                return post == null ? targetId.ToString() : $"{post.Title} · {post.EmployerName}";
+            }
+
+            if (targetType == ReportTargetType.Employer)
+            {
+                var employer = await _context.Users.OfType<Employer>()
+                    .FirstOrDefaultAsync(item => item.Id == targetId);
+                return employer?.Name ?? targetId.ToString();
+            }
+
+            return targetId.ToString();
+        }
+
+        private static AdminContactMessageDetailDTO MapContactMessageDetail(ContactMessage message) =>
+            new()
+            {
+                Id = message.Id,
+                Name = message.Name,
+                Email = message.Email,
+                Subject = message.Subject,
+                Message = message.Message,
+                Status = message.Status.ToString(),
+                EmailSent = message.EmailSent,
+                CreatedAtUtc = message.CreatedAtUtc,
+                ResolvedAtUtc = message.ResolvedAtUtc,
+                ResolvedByAdminId = message.ResolvedByAdminId,
+                AdminNotes = message.AdminNotes
+            };
 
         private async Task<AdminUserListItemDTO> MapUserListItemAsync(User user)
         {

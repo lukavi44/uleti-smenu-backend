@@ -39,6 +39,8 @@ namespace Core.Services
             string? status,
             int page,
             int pageSize);
+        Task<Result<AdminJobPostDetailDTO>> GetJobPostDetailAsync(Guid jobPostId);
+        Task<Result<AdminJobPostDetailDTO>> ArchiveJobPostAsync(Guid jobPostId);
         Task<AdminPagedResponseDTO<AdminApplicationListItemDTO>> GetApplicationsAsync(
             string? search,
             string? status,
@@ -58,5 +60,25 @@ namespace Core.Services
             Guid userId,
             bool isLockedOut,
             Guid adminUserId);
+        Task<AdminPagedResponseDTO<AdminContactMessageListItemDTO>> GetContactMessagesAsync(
+            string? search,
+            string? status,
+            int page,
+            int pageSize);
+        Task<Result<AdminContactMessageDetailDTO>> GetContactMessageAsync(Guid messageId);
+        Task<Result<AdminContactMessageDetailDTO>> ResolveContactMessageAsync(
+            Guid messageId,
+            Guid adminUserId,
+            string? notes);
+        Task<AdminPagedResponseDTO<AdminReportListItemDTO>> GetReportsAsync(
+            string? search,
+            string? status,
+            int page,
+            int pageSize);
+        Task<Result<AdminReportDetailDTO>> GetReportAsync(Guid reportId);
+        Task<Result<AdminReportDetailDTO>> ResolveReportAsync(
+            Guid reportId,
+            Guid adminUserId,
+            string? notes);
     }
 }

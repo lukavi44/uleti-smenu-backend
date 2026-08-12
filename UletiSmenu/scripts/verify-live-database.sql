@@ -37,10 +37,26 @@ IF @@ROWCOUNT = 0
     PRINT 'OK: no duplicate (UserId, JobPostId) pairs';
 
 PRINT '';
+PRINT '=== Account deletion column ===';
+IF COL_LENGTH('AspNetUsers', 'DeletedAtUtc') IS NULL
+    PRINT 'WARN: AspNetUsers.DeletedAtUtc missing (expected after AddUserDeletedAtUtc migration)'
+ELSE
+    PRINT 'OK: AspNetUsers.DeletedAtUtc present';
+
+PRINT '';
 PRINT '=== Row counts ===';
 SELECT 'Applications' AS [Table], COUNT(*) AS Cnt FROM Applications
 UNION ALL SELECT 'Conversations', COUNT(*) FROM Conversations
 UNION ALL SELECT 'Notifications', COUNT(*) FROM Notifications;
+
+IF COL_LENGTH('AspNetUsers', 'DeletedAtUtc') IS NOT NULL
+BEGIN
+    SELECT 'AspNetUsers (DeletedAtUtc set)' AS [Table], COUNT(*) AS Cnt
+    FROM AspNetUsers
+    WHERE DeletedAtUtc IS NOT NULL;
+END
+ELSE
+    PRINT 'SKIP: tombstone user count (DeletedAtUtc not migrated on LIVE yet — expected until account-deletion deploy)';
 
 PRINT '';
 PRINT '=== Constraint check ===';
