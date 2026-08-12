@@ -42,5 +42,10 @@ namespace Core.Models.Entities
                 SentAtUtc = sentAtUtc
             });
         }
+
+        public void RedactContent()
+        {
+            Content = "[deleted]";
+        }
     }
 }

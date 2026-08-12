@@ -205,5 +205,13 @@ namespace Core.Models.Entities
             GeographyRegionCode = geographyRegionCode.Trim();
             GeographyCityCode = geographyCityCode.Trim();
         }
+
+        /// <summary>
+        /// Soft-clears contact phone for employer account deletion (address retained for legal review).
+        /// </summary>
+        public void ClearPhoneForDeletion()
+        {
+            PhoneNumber = "0000000000";
+        }
     }
 }

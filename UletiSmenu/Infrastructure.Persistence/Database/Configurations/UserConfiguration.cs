@@ -11,13 +11,16 @@ namespace Infrastructure.Persistence.Database.Configurations
             // ProfilePhoto - Optional, Max Length
             builder.Property(u => u.ProfilePhoto)
                 .HasMaxLength(255);
-            
+
+            builder.Property(u => u.DeletedAtUtc);
+
             // Indexes for performance optimization
             builder.HasIndex(u => u.Email).IsUnique();
             builder.HasIndex(u => u.UserName).IsUnique();
             builder.HasIndex(u => u.PhoneNumber)
                 .IsUnique()
                 .HasFilter("[PhoneNumber] IS NOT NULL AND [PhoneNumber] <> ''");
+            builder.HasIndex(u => u.DeletedAtUtc);
 
             // Table name (optional)
             builder.ToTable("AspNetUsers");

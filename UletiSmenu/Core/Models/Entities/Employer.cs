@@ -422,5 +422,21 @@ namespace Core.Models.Entities
             AdminNotes = trimmed;
             return Result.Success();
         }
+
+        /// <summary>
+        /// Clears public-facing employer PII for account deletion.
+        /// Retains PIB/MB, Stripe IDs, and wallet balance for legal/billing review.
+        /// </summary>
+        public void AnonymizePublicProfileForDeletion()
+        {
+            Name = "Deleted employer";
+            PublicSlug = $"deleted-{Id:N}";
+            PhoneNumber = null;
+            ClearProfilePhoto();
+            AdminNotes = null;
+            IsVerifiedEmployer = false;
+            VerifiedAtUtc = null;
+            VerifiedByUserId = null;
+        }
     }
 }

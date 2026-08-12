@@ -60,9 +60,42 @@ Optional: Application Insights linked (`APPLICATIONINSIGHTS_CONNECTION_STRING`).
 2. **Render Free SMTP** — irrelevant to LIVE; do not use TEST to prove Zoho delivery.
 3. **Rotate SMTP app password** if it was ever printed by `az webapp config appsettings list` (values are visible to subscription admins).
 
+## F. Azure Blob / durable uploads
+
+App Service local disk is ephemeral. LIVE must use Blob (`FileSettings__Provider=AzureBlob`).
+
+Automated / Portal name check (no secret values printed):
+
+```powershell
+cd UletiSmenu\scripts
+.\verify-live-blob-smoke.ps1 -CheckAppSettings
+```
+
+| # | Check | Expected | Pass? |
+|---|--------|----------|-------|
+| F1 | App Settings | `FileSettings__Provider=AzureBlob`; `FileSettings__BlobConnectionString` + `BlobContainerName` present (redact values in tickets) | Pass (2026-08-11, `verify-live-blob-smoke.ps1 -CheckAppSettings`) |
+| F2 | Upload | Log in on LIVE → upload profile photo → image loads via `/uploads/...` (or Blob-backed URL) | Pass (2026-08-11) |
+| F3 | Survive restart | Restart LIVE App Service → same photo URL still loads | Pass (2026-08-11, manual restart `api-staging-uletismenu`) |
+| F4 | Optional replace/delete | Replace photo works; after account deletion, old blob removed best-effort (check logs if missing) | Skipped (pilot) |
+
+### F outcome template
+
+| Field | Value |
+|-------|-------|
+| Date | 2026-08-11 |
+| Engineer | Luka |
+| F1–F4 | F1 Pass · F2 Pass · F3 Pass · F4 Skipped |
+| Notes | F1 via scripted App Settings check; F2 profile photo upload on LIVE; F3 photo survived App Service restart |
+
+## G. Production SQL review (pointer)
+
+Run `UletiSmenu/scripts/verify-live-database.sql` when the LIVE DB is awake.  
+Checklist (tier, auto-pause, backup/PITR, firewall, open decisions): [`PRODUCTION_HARDENING.md`](./PRODUCTION_HARDENING.md) §4 / §7.
+
 ## Sign-off
 
 | Role | Date | Notes |
 |------|------|-------|
 | Engineer | 2026-07-30 | A1–A4, B1–B6, D1–D4 monitoring verified |
+| Engineer | 2026-08-11 | Section F Blob smoke F1–F3 Pass (F4 skipped) |
 | Product | | |
