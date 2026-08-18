@@ -52,6 +52,24 @@ namespace API.Controllers
             return Ok(result.Value);
         }
 
+        [Authorize(Roles = "Employer")]
+        [HttpGet("my/pending-dashboard")]
+        public async Task<IActionResult> GetMyPendingDashboardApplicants([FromQuery] int limit = 12)
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdClaim, out var employerId))
+                return Unauthorized("Invalid user claim.");
+
+            var boundedLimit = Math.Clamp(limit, 1, 50);
+            var result = await _applicationService.GetPendingApplicantsForEmployerDashboardAsync(
+                employerId,
+                boundedLimit);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Value);
+        }
+
         [Authorize(Roles = "Employee")]
         [HttpGet("me")]
         public async Task<IActionResult> GetMyApplications()

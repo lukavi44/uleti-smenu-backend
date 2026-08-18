@@ -17,7 +17,11 @@ namespace Core.Repositories
         Task<Application?> GetByIdAsync(Guid applicationId);
         Task<List<Application>> GetPendingApplicationsByJobPostIdAsync(Guid jobPostId);
         Task<List<Application>> GetPendingApplicationsForEmployeeAsync(Guid employeeId);
+        Task<List<Guid>> GetJobPostIdsWithPendingApplicationsForEmployerAsync(Guid employerId);
         Task<List<ApplicationApplicantDTO>> GetApplicantsForJobPostAsync(Guid jobPostId);
+        Task<List<EmployerDashboardPendingApplicantDTO>> GetPendingApplicantsForEmployerDashboardAsync(
+            Guid employerId,
+            int limit = 12);
         Task<List<EmployeeApplicationDTO>> GetEmployeeApplicationsAsync(Guid employeeId);
         Task<bool> EmployerCanViewEmployeeAsync(Guid employerId, Guid employeeId);
         Task<List<(Application Application, JobPost JobPost, Employer Employer, RestaurantLocation? Location)>> GetAcceptedApplicationsWithDetailsAsync(Guid employeeId);

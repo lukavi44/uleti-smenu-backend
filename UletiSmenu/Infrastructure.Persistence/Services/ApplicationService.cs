@@ -141,6 +141,26 @@ namespace Infrastructure.Persistence.Services
             return Result.Success(applicants);
         }
 
+        public async Task<Result<List<EmployerDashboardPendingApplicantDTO>>> GetPendingApplicantsForEmployerDashboardAsync(
+            Guid employerId,
+            int limit = 12)
+        {
+            var employer = await _userRepository.GetByIdAsync<Employer>(employerId);
+            if (employer == null)
+                return Result.Failure<List<EmployerDashboardPendingApplicantDTO>>("Employer not found.");
+
+            await ExpirePendingApplicationsForEmployerIfNeededAsync(employerId);
+
+            var applicants = await _applicationRepository.GetPendingApplicantsForEmployerDashboardAsync(
+                employerId,
+                limit);
+
+            foreach (var applicant in applicants)
+                CandidateContactPrivacy.RedactApplicantContactInfo(applicant);
+
+            return Result.Success(applicants);
+        }
+
         public async Task<Result<List<EmployeeApplicationDTO>>> GetMyApplicationsAsync(Guid employeeId)
         {
             var employee = await _userRepository.GetByIdAsync<Employee>(employeeId);
@@ -323,6 +343,19 @@ namespace Infrastructure.Persistence.Services
                 message);
 
             await _applicationUnitOfWork.Notifications.AddRangeAsync(new[] { notification });
+        }
+
+        private async Task ExpirePendingApplicationsForEmployerIfNeededAsync(Guid employerId)
+        {
+            var jobPostIds = await _applicationRepository.GetJobPostIdsWithPendingApplicationsForEmployerAsync(employerId);
+            foreach (var jobPostId in jobPostIds)
+            {
+                var jobPost = await _jobPostRepository.GetJobPostByIdAsync(jobPostId);
+                if (jobPost == null)
+                    continue;
+
+                await ExpirePendingApplicationsForJobPostIfNeededAsync(jobPost);
+            }
         }
 
         private async Task ExpirePendingApplicationsForJobPostIfNeededAsync(JobPost jobPost)

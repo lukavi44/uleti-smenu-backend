@@ -146,6 +146,18 @@ namespace Infrastructure.Persistence.Database.Repositories
                 .ToListAsync();
         }
 
+        public async Task<List<Guid>> GetJobPostIdsWithPendingApplicationsForEmployerAsync(Guid employerId)
+        {
+            return await (
+                from application in _context.Applications
+                join jobPost in _context.JobPosts on application.JobPostId equals jobPost.Id
+                where jobPost.EmployerId == employerId
+                    && application.Status == ApplicationStatusEnum.Applied
+                select jobPost.Id)
+                .Distinct()
+                .ToListAsync();
+        }
+
         public async Task<List<ApplicationApplicantDTO>> GetApplicantsForJobPostAsync(Guid jobPostId)
         {
             var applicants = await (from application in _context.Applications
@@ -164,6 +176,73 @@ namespace Infrastructure.Persistence.Database.Repositories
                               Status = application.Status.ToString(),
                               AppliedAt = application.DateTime
                           }).ToListAsync();
+
+            if (applicants.Count == 0)
+                return applicants;
+
+            var employeeIds = applicants.Select(applicant => applicant.UserId).ToList();
+            var reviewSummaries = await _context.MatchReviews
+                .Where(review => employeeIds.Contains(review.RevieweeId))
+                .GroupBy(review => review.RevieweeId)
+                .Select(group => new
+                {
+                    EmployeeId = group.Key,
+                    AverageRating = group.Average(review => review.Rating),
+                    ReviewCount = group.Count()
+                })
+                .ToDictionaryAsync(
+                    item => item.EmployeeId,
+                    item => new { item.AverageRating, item.ReviewCount });
+
+            foreach (var applicant in applicants)
+            {
+                if (reviewSummaries.TryGetValue(applicant.UserId, out var summary))
+                {
+                    applicant.AverageRating = Math.Round(summary.AverageRating, 1);
+                    applicant.ReviewCount = summary.ReviewCount;
+                }
+            }
+
+            return applicants;
+        }
+
+        public async Task<List<EmployerDashboardPendingApplicantDTO>> GetPendingApplicantsForEmployerDashboardAsync(
+            Guid employerId,
+            int limit = 12)
+        {
+            var applicants = await (
+                from application in _context.Applications
+                join jobPost in _context.JobPosts on application.JobPostId equals jobPost.Id
+                join user in _context.Users.OfType<Employee>() on application.UserId equals user.Id
+                join location in _context.RestaurantLocations on jobPost.RestaurantLocationId equals location.Id into locationGroup
+                from location in locationGroup.DefaultIfEmpty()
+                where jobPost.EmployerId == employerId
+                    && application.Status == ApplicationStatusEnum.Applied
+                orderby application.DateTime descending
+                select new EmployerDashboardPendingApplicantDTO
+                {
+                    ApplicationId = application.Id,
+                    UserId = user.Id,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    Email = user.Email!,
+                    PhoneNumber = user.PhoneNumber!,
+                    ProfilePhoto = user.ProfilePhoto,
+                    City = user.City,
+                    Status = application.Status.ToString(),
+                    AppliedAt = application.DateTime,
+                    JobPostId = jobPost.Id,
+                    JobPostTitle = jobPost.Title,
+                    JobPostLocation = location == null
+                        ? "-"
+                        : string.IsNullOrWhiteSpace(location.Name)
+                            ? (location.City ?? "-")
+                            : string.IsNullOrWhiteSpace(location.City)
+                                ? location.Name
+                                : $"{location.Name} ({location.City})"
+                })
+                .Take(limit)
+                .ToListAsync();
 
             if (applicants.Count == 0)
                 return applicants;
