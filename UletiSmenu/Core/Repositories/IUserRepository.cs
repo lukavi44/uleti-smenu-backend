@@ -10,6 +10,11 @@ namespace Core.Repositories
         Task<IEnumerable<Employer>> GetEmployerByCity(string city);
         Task<IEnumerable<Employer>> GetAllEmployersAsync();
         Task<List<Employer>> GetEmployersLimitedAsync(int limit);
+        Task<(List<Employer> Items, int TotalCount)> GetEmployerDirectoryPagedAsync(
+            string? city,
+            string? search,
+            int page,
+            int pageSize);
         Task<Result<Employer>> GetEmployerByIdAsync(Guid id);
         Task<Employee?> GetEmployeeWithFavouritesAsync(Guid employeeId);
         Task<T> GetByIdAsync<T>(Guid id) where T : class;

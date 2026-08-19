@@ -19,6 +19,19 @@ namespace Infrastructure.Persistence.Database.Repositories
                 .ToListAsync();
         }
 
+        public async Task<List<RestaurantLocation>> GetByEmployerIdsAsync(IEnumerable<Guid> employerIds)
+        {
+            var ids = employerIds.Distinct().ToList();
+            if (ids.Count == 0)
+                return new List<RestaurantLocation>();
+
+            return await _context.RestaurantLocations
+                .Include(x => x.GeographyCity)
+                .Where(x => ids.Contains(x.EmployerId))
+                .OrderBy(x => x.Id)
+                .ToListAsync();
+        }
+
         public async Task<RestaurantLocation?> GetByIdAsync(Guid locationId)
         {
             return await _context.RestaurantLocations
