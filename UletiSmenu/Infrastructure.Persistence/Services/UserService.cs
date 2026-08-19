@@ -378,12 +378,29 @@ namespace Infrastructure.Persistence.Services
             return Result.Success();
         }
 
-        public async Task<IEnumerable<EmployerFavouriteStatusDTO>> GetAllEmployersWithFavouriteStatusAsync(Guid employeeId, string? city = null)
+        public async Task<IEnumerable<EmployerFavouriteStatusDTO>> GetAllEmployersWithFavouriteStatusAsync(
+            Guid employeeId,
+            string? city = null,
+            int? limit = null)
         {
             var favouritedEmployerIds = await _applicationUnitOfWork.Favourites
                 .GetEmployerIdsFavouritedByEmployeeAsync(employeeId);
 
-            var employers = await GetEmployersAsync(city);
+            IEnumerable<Employer> employers;
+            if (limit.HasValue && string.IsNullOrWhiteSpace(city))
+            {
+                employers = await _userRepository.GetEmployersLimitedAsync(limit.Value);
+                foreach (var employer in employers)
+                {
+                    await EnsurePublicSlugAsync(employer);
+                }
+            }
+            else
+            {
+                employers = await GetEmployersAsync(city);
+                if (limit.HasValue)
+                    employers = employers.Take(limit.Value).ToList();
+            }
 
             return employers.Select(e => new EmployerFavouriteStatusDTO
             {

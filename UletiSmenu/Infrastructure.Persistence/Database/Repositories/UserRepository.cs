@@ -31,6 +31,15 @@ namespace Infrastructure.Persistence.Database.Repositories
                 .ToListAsync();
         }
 
+        public async Task<List<Employer>> GetEmployersLimitedAsync(int limit)
+        {
+            return await _context.Users
+                .OfType<Employer>()
+                .OrderBy(e => e.Name)
+                .Take(limit)
+                .ToListAsync();
+        }
+
         public async Task<IEnumerable<Employer>> GetEmployerByCity(string city)
         {
             return await _context.Users.OfType<Employer>()

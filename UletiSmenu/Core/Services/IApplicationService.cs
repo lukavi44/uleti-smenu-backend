@@ -15,6 +15,7 @@ namespace Core.Services
             Guid employerId,
             int limit = 12);
         Task<Result<List<EmployeeApplicationDTO>>> GetMyApplicationsAsync(Guid employeeId);
+        Task<Result<EmployeeDashboardDTO>> GetMyDashboardAsync(Guid employeeId, int acceptedPreviewLimit = 12);
         Task<Result> UpdateApplicationStatusByEmployerAsync(Guid employerId, Guid applicationId, ApplicationStatusEnum newStatus);
         Task<Result> CancelMyApplicationAsync(Guid employeeId, Guid applicationId);
     }

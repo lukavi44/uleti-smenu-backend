@@ -428,13 +428,16 @@ namespace API.Controllers
 
         [Authorize(Roles = "Employee")]
         [HttpGet("employers/")]
-        public async Task<IActionResult> GetEmployersWithFavouriteStatus([FromQuery] string? city)
+        public async Task<IActionResult> GetEmployersWithFavouriteStatus(
+            [FromQuery] string? city,
+            [FromQuery] int? limit)
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (!Guid.TryParse(userIdClaim, out var userId))
                 return Unauthorized("Invalid user claim.");
 
-            var result = await _userService.GetAllEmployersWithFavouriteStatusAsync(userId, city);
+            int? boundedLimit = limit.HasValue ? Math.Clamp(limit.Value, 1, 50) : null;
+            var result = await _userService.GetAllEmployersWithFavouriteStatusAsync(userId, city, boundedLimit);
             var response = result.Select(x => new EmployerDTO
             {
                 Id = x.EmployerId,

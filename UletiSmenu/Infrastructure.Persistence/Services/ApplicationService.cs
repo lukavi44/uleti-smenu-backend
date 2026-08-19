@@ -173,6 +173,22 @@ namespace Infrastructure.Persistence.Services
             return Result.Success(applications);
         }
 
+        public async Task<Result<EmployeeDashboardDTO>> GetMyDashboardAsync(Guid employeeId, int acceptedPreviewLimit = 12)
+        {
+            var employee = await _userRepository.GetByIdAsync<Employee>(employeeId);
+            if (employee == null)
+                return Result.Failure<EmployeeDashboardDTO>("Employee not found.");
+
+            await ExpirePendingApplicationsForEmployeeIfNeededAsync(employeeId);
+
+            var dashboard = await _applicationRepository.GetEmployeeDashboardAsync(
+                employeeId,
+                acceptedPreviewLimit,
+                DateTime.UtcNow);
+
+            return Result.Success(dashboard);
+        }
+
         public async Task<Result> UpdateApplicationStatusByEmployerAsync(Guid employerId, Guid applicationId, ApplicationStatusEnum newStatus)
         {
             var application = await _applicationRepository.GetByIdAsync(applicationId);

@@ -105,6 +105,31 @@ namespace UletiSmenu.Tests.Services
         }
 
         [Fact]
+        public async Task GetAllEmployersWithFavouriteStatusAsync_WhenLimitProvided_ShouldQueryLimitedEmployers()
+        {
+            var employeeId = Guid.NewGuid();
+            var employer = TestDataFactory.CreateFakeRegisterEmployer();
+            employer.SetPublicSlug("test-employer-ltd");
+
+            var favouritesMock = new Mock<IFavouriteRepository>();
+            favouritesMock
+                .Setup(repository => repository.GetEmployerIdsFavouritedByEmployeeAsync(employeeId))
+                .ReturnsAsync(new List<Guid> { employer.Id });
+            _unitOfWorkMock.Setup(unitOfWork => unitOfWork.Favourites).Returns(favouritesMock.Object);
+            _userRepositoryMock
+                .Setup(repository => repository.GetEmployersLimitedAsync(12))
+                .ReturnsAsync(new List<Employer> { employer });
+
+            var result = (await _userService.GetAllEmployersWithFavouriteStatusAsync(employeeId, limit: 12)).ToList();
+
+            Assert.Single(result);
+            Assert.Equal(employer.Id, result[0].EmployerId);
+            Assert.True(result[0].IsFavourite);
+            _userRepositoryMock.Verify(repository => repository.GetEmployersLimitedAsync(12), Times.Once);
+            _userRepositoryMock.Verify(repository => repository.GetAllEmployersAsync(), Times.Never);
+        }
+
+        [Fact]
         public async Task CreateEmployerLocationAsync_ShouldSucceed_WhenPibAndMbDifferFromEmployerAccount()
         {
             // Arrange

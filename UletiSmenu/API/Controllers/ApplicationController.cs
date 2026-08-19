@@ -71,6 +71,22 @@ namespace API.Controllers
         }
 
         [Authorize(Roles = "Employee")]
+        [HttpGet("me/dashboard")]
+        public async Task<IActionResult> GetMyDashboard([FromQuery] int limit = 12)
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdClaim, out var employeeId))
+                return Unauthorized("Invalid user claim.");
+
+            var boundedLimit = Math.Clamp(limit, 1, 50);
+            var result = await _applicationService.GetMyDashboardAsync(employeeId, boundedLimit);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return Ok(result.Value);
+        }
+
+        [Authorize(Roles = "Employee")]
         [HttpGet("me")]
         public async Task<IActionResult> GetMyApplications()
         {
