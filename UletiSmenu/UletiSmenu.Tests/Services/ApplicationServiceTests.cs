@@ -330,12 +330,13 @@ namespace UletiSmenu.Tests.Services
             var employerId = Guid.NewGuid();
             var jobPostId = Guid.NewGuid();
             var employer = TestDataFactory.CreateFakeRegisterEmployer();
+            var startingDate = DateTime.UtcNow.AddHours(4);
             var inactiveJobPost = CreateJobPost(
                 jobPostId,
                 employerId,
                 status: JobStatusEnum.Completed,
-                startingDate: DateTime.UtcNow.AddHours(-2),
-                visibleUntil: DateTime.UtcNow.AddHours(-1));
+                startingDate: startingDate,
+                visibleUntil: startingDate.AddMinutes(30));
             var pendingApplication = Application.Create(
                 Guid.NewGuid(),
                 Guid.NewGuid(),
