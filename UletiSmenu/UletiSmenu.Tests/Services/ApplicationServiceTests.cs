@@ -1,3 +1,4 @@
+using Core.DTOs;
 using Core.Models.Entities;
 using Core.Models.Enums;
 using Core.Repositories;
@@ -6,6 +7,7 @@ using Core.Interfaces;
 using Infrastructure.Persistence.Services;
 using Microsoft.EntityFrameworkCore;
 using Moq;
+using UletiSmenu.Tests.TestHelpers;
 
 namespace UletiSmenu.Tests.Services
 {
@@ -282,6 +284,89 @@ namespace UletiSmenu.Tests.Services
 
             Assert.True(result.IsSuccess, result.IsFailure ? result.Error : string.Empty);
             return result.Value;
+        }
+
+        [Fact]
+        public async Task GetPendingApplicantsForEmployerDashboardAsync_ShouldReturnApplicantsFromRepository()
+        {
+            var employerId = Guid.NewGuid();
+            var employer = TestDataFactory.CreateFakeRegisterEmployer();
+            var pendingApplicants = new List<EmployerDashboardPendingApplicantDTO>
+            {
+                new()
+                {
+                    ApplicationId = Guid.NewGuid(),
+                    UserId = Guid.NewGuid(),
+                    FirstName = "Ana",
+                    LastName = "Markovic",
+                    Status = ApplicationStatusEnum.Applied.ToString(),
+                    JobPostId = Guid.NewGuid(),
+                    JobPostTitle = "Waiter",
+                    JobPostLocation = "Restoran (Beograd)",
+                }
+            };
+
+            _userRepositoryMock
+                .Setup(r => r.GetByIdAsync<Employer>(employerId))
+                .ReturnsAsync(employer);
+            _applicationRepositoryMock
+                .Setup(r => r.GetJobPostIdsWithPendingApplicationsForEmployerAsync(employerId))
+                .ReturnsAsync(new List<Guid>());
+            _applicationRepositoryMock
+                .Setup(r => r.GetPendingApplicantsForEmployerDashboardAsync(employerId, 12))
+                .ReturnsAsync(pendingApplicants);
+
+            var result = await _applicationService.GetPendingApplicantsForEmployerDashboardAsync(employerId);
+
+            Assert.True(result.IsSuccess);
+            Assert.Single(result.Value);
+            Assert.Equal(string.Empty, result.Value[0].Email);
+            Assert.Equal(string.Empty, result.Value[0].PhoneNumber);
+        }
+
+        [Fact]
+        public async Task GetPendingApplicantsForEmployerDashboardAsync_ShouldExpirePendingApplicationsOnInactiveJobPosts()
+        {
+            var employerId = Guid.NewGuid();
+            var jobPostId = Guid.NewGuid();
+            var employer = TestDataFactory.CreateFakeRegisterEmployer();
+            var inactiveJobPost = CreateJobPost(
+                jobPostId,
+                employerId,
+                status: JobStatusEnum.Completed,
+                startingDate: DateTime.UtcNow.AddHours(-2),
+                visibleUntil: DateTime.UtcNow.AddHours(-1));
+            var pendingApplication = Application.Create(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                jobPostId,
+                ApplicationStatusEnum.Applied,
+                DateTime.UtcNow.AddDays(-1)).Value;
+
+            _userRepositoryMock
+                .Setup(r => r.GetByIdAsync<Employer>(employerId))
+                .ReturnsAsync(employer);
+            _applicationRepositoryMock
+                .Setup(r => r.GetJobPostIdsWithPendingApplicationsForEmployerAsync(employerId))
+                .ReturnsAsync(new List<Guid> { jobPostId });
+            _jobPostRepositoryMock
+                .Setup(r => r.GetJobPostByIdAsync(jobPostId))
+                .ReturnsAsync(inactiveJobPost);
+            _applicationRepositoryMock
+                .Setup(r => r.GetPendingApplicationsByJobPostIdAsync(jobPostId))
+                .ReturnsAsync(new List<Application> { pendingApplication });
+            _applicationRepositoryMock
+                .Setup(r => r.GetPendingApplicantsForEmployerDashboardAsync(employerId, 12))
+                .ReturnsAsync(new List<EmployerDashboardPendingApplicantDTO>());
+            _unitOfWorkMock
+                .Setup(u => u.SaveChangesAsync())
+                .Returns(Task.CompletedTask);
+
+            var result = await _applicationService.GetPendingApplicantsForEmployerDashboardAsync(employerId);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(ApplicationStatusEnum.Expired, pendingApplication.Status);
+            _unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.Once);
         }
 
         private static JobPost CreateJobPost(
