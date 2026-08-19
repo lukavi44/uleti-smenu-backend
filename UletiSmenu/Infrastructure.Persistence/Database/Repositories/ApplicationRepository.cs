@@ -298,6 +298,74 @@ namespace Infrastructure.Persistence.Database.Repositories
                           }).ToListAsync();
         }
 
+        public async Task<EmployeeDashboardDTO> GetEmployeeDashboardAsync(
+            Guid employeeId,
+            int acceptedPreviewLimit,
+            DateTime utcNow)
+        {
+            var applicationCount = await _context.Applications
+                .CountAsync(application => application.UserId == employeeId);
+
+            var acceptedShiftCount = await (
+                from application in _context.Applications
+                join jobPost in _context.JobPosts on application.JobPostId equals jobPost.Id
+                where application.UserId == employeeId
+                      && application.Status == ApplicationStatusEnum.Accepted
+                select application.Id).CountAsync();
+
+            var totalEarnings = await (
+                from application in _context.Applications
+                join jobPost in _context.JobPosts on application.JobPostId equals jobPost.Id
+                where application.UserId == employeeId
+                      && application.Status == ApplicationStatusEnum.Accepted
+                      && jobPost.StartingDate < utcNow
+                select (int?)jobPost.Salary).SumAsync() ?? 0;
+
+            var nextShift = await AcceptedEmployeeApplicationProjection(employeeId)
+                .Where(application => application.StartingDate >= utcNow)
+                .OrderBy(application => application.StartingDate)
+                .FirstOrDefaultAsync();
+
+            var acceptedShifts = await AcceptedEmployeeApplicationProjection(employeeId)
+                .OrderByDescending(application => application.StartingDate)
+                .Take(acceptedPreviewLimit)
+                .ToListAsync();
+
+            return new EmployeeDashboardDTO
+            {
+                ApplicationCount = applicationCount,
+                AcceptedShiftCount = acceptedShiftCount,
+                TotalEarnings = totalEarnings,
+                NextShift = nextShift,
+                AcceptedShifts = acceptedShifts
+            };
+        }
+
+        private IQueryable<EmployeeApplicationDTO> AcceptedEmployeeApplicationProjection(Guid employeeId)
+        {
+            return from application in _context.Applications
+                   join jobPost in _context.JobPosts on application.JobPostId equals jobPost.Id
+                   join employer in _context.Users.OfType<Employer>() on jobPost.EmployerId equals employer.Id
+                   join location in _context.RestaurantLocations on jobPost.RestaurantLocationId equals location.Id into locationGroup
+                   from location in locationGroup.DefaultIfEmpty()
+                   where application.UserId == employeeId
+                         && application.Status == ApplicationStatusEnum.Accepted
+                   select new EmployeeApplicationDTO
+                   {
+                       ApplicationId = application.Id,
+                       JobPostId = jobPost.Id,
+                       JobPostTitle = jobPost.Title,
+                       Position = jobPost.Position,
+                       EmployerName = employer.Name,
+                       RestaurantLocationName = location != null ? location.Name : null,
+                       RestaurantLocationCity = location != null ? location.City : null,
+                       StartingDate = jobPost.StartingDate,
+                       Salary = jobPost.Salary,
+                       Status = application.Status.ToString(),
+                       AppliedAt = application.DateTime
+                   };
+        }
+
         public async Task<bool> EmployerCanViewEmployeeAsync(Guid employerId, Guid employeeId)
         {
             return await (

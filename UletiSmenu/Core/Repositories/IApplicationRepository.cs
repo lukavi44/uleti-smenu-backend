@@ -23,6 +23,10 @@ namespace Core.Repositories
             Guid employerId,
             int limit = 12);
         Task<List<EmployeeApplicationDTO>> GetEmployeeApplicationsAsync(Guid employeeId);
+        Task<EmployeeDashboardDTO> GetEmployeeDashboardAsync(
+            Guid employeeId,
+            int acceptedPreviewLimit,
+            DateTime utcNow);
         Task<bool> EmployerCanViewEmployeeAsync(Guid employerId, Guid employeeId);
         Task<List<(Application Application, JobPost JobPost, Employer Employer, RestaurantLocation? Location)>> GetAcceptedApplicationsWithDetailsAsync(Guid employeeId);
         Task<int> CountArchivedPlatformShiftsForEmployeeAsync(Guid employeeId, DateTime utcNow);

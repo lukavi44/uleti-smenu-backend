@@ -370,6 +370,108 @@ namespace UletiSmenu.Tests.Services
             _unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.Once);
         }
 
+        [Fact]
+        public async Task GetMyDashboardAsync_ShouldReturnDashboardFromRepository()
+        {
+            var employeeId = Guid.NewGuid();
+            var employee = CreateEmployee(employeeId);
+            var dashboard = new EmployeeDashboardDTO
+            {
+                ApplicationCount = 4,
+                AcceptedShiftCount = 2,
+                TotalEarnings = 8000,
+                NextShift = new EmployeeApplicationDTO
+                {
+                    ApplicationId = Guid.NewGuid(),
+                    JobPostTitle = "Waiter",
+                    Status = ApplicationStatusEnum.Accepted.ToString(),
+                },
+                AcceptedShifts = new List<EmployeeApplicationDTO>
+                {
+                    new() { ApplicationId = Guid.NewGuid(), JobPostTitle = "Waiter" }
+                }
+            };
+
+            _userRepositoryMock
+                .Setup(r => r.GetByIdAsync<Employee>(employeeId))
+                .ReturnsAsync(employee);
+            _applicationRepositoryMock
+                .Setup(r => r.GetPendingApplicationsForEmployeeAsync(employeeId))
+                .ReturnsAsync(new List<Application>());
+            _applicationRepositoryMock
+                .Setup(r => r.GetEmployeeDashboardAsync(employeeId, 12, It.IsAny<DateTime>()))
+                .ReturnsAsync(dashboard);
+
+            var result = await _applicationService.GetMyDashboardAsync(employeeId);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(4, result.Value.ApplicationCount);
+            Assert.Equal(2, result.Value.AcceptedShiftCount);
+            Assert.Equal(8000, result.Value.TotalEarnings);
+            Assert.NotNull(result.Value.NextShift);
+            Assert.Single(result.Value.AcceptedShifts);
+        }
+
+        [Fact]
+        public async Task GetMyDashboardAsync_ShouldFail_WhenEmployeeNotFound()
+        {
+            var employeeId = Guid.NewGuid();
+            _userRepositoryMock
+                .Setup(r => r.GetByIdAsync<Employee>(employeeId))
+                .ReturnsAsync((Employee?)null);
+
+            var result = await _applicationService.GetMyDashboardAsync(employeeId);
+
+            Assert.True(result.IsFailure);
+            Assert.Equal("Employee not found.", result.Error);
+            _applicationRepositoryMock.Verify(
+                r => r.GetEmployeeDashboardAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<DateTime>()),
+                Times.Never);
+        }
+
+        [Fact]
+        public async Task GetMyDashboardAsync_ShouldExpirePendingApplicationsOnInactiveJobPosts()
+        {
+            var employeeId = Guid.NewGuid();
+            var jobPostId = Guid.NewGuid();
+            var employee = CreateEmployee(employeeId);
+            var startingDate = DateTime.UtcNow.AddHours(4);
+            var inactiveJobPost = CreateJobPost(
+                jobPostId,
+                Guid.NewGuid(),
+                status: JobStatusEnum.Completed,
+                startingDate: startingDate,
+                visibleUntil: startingDate.AddMinutes(30));
+            var pendingApplication = Application.Create(
+                Guid.NewGuid(),
+                employeeId,
+                jobPostId,
+                ApplicationStatusEnum.Applied,
+                DateTime.UtcNow.AddDays(-1)).Value;
+
+            _userRepositoryMock
+                .Setup(r => r.GetByIdAsync<Employee>(employeeId))
+                .ReturnsAsync(employee);
+            _applicationRepositoryMock
+                .Setup(r => r.GetPendingApplicationsForEmployeeAsync(employeeId))
+                .ReturnsAsync(new List<Application> { pendingApplication });
+            _jobPostRepositoryMock
+                .Setup(r => r.GetJobPostByIdAsync(jobPostId))
+                .ReturnsAsync(inactiveJobPost);
+            _applicationRepositoryMock
+                .Setup(r => r.GetEmployeeDashboardAsync(employeeId, 12, It.IsAny<DateTime>()))
+                .ReturnsAsync(new EmployeeDashboardDTO());
+            _unitOfWorkMock
+                .Setup(u => u.SaveChangesAsync())
+                .Returns(Task.CompletedTask);
+
+            var result = await _applicationService.GetMyDashboardAsync(employeeId);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(ApplicationStatusEnum.Expired, pendingApplication.Status);
+            _unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.Once);
+        }
+
         private static JobPost CreateJobPost(
             Guid jobPostId,
             Guid employerId,
