@@ -40,6 +40,44 @@ namespace Infrastructure.Persistence.Database.Repositories
                 .ToListAsync();
         }
 
+        public async Task<(List<Employer> Items, int TotalCount)> GetEmployerDirectoryPagedAsync(
+            string? city,
+            string? search,
+            int page,
+            int pageSize)
+        {
+            var query = _context.Users
+                .OfType<Employer>()
+                .Where(employer => employer.DeletedAtUtc == null);
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var normalizedSearch = search.Trim().ToLower();
+                query = query.Where(employer => employer.Name.ToLower().Contains(normalizedSearch));
+            }
+
+            if (!string.IsNullOrWhiteSpace(city))
+            {
+                var normalizedCity = city.Trim().ToLower();
+                query = query.Where(employer =>
+                    _context.RestaurantLocations.Any(location =>
+                        location.EmployerId == employer.Id
+                        && location.City.ToLower() == normalizedCity)
+                    || employer.Address.City.Name.ToLower() == normalizedCity);
+            }
+
+            var totalCount = await query.CountAsync();
+            var items = await query
+                .Include(employer => employer.Address)
+                .Include(employer => employer.GeographyCity)
+                .OrderBy(employer => employer.Name)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (items, totalCount);
+        }
+
         public async Task<IEnumerable<Employer>> GetEmployerByCity(string city)
         {
             return await _context.Users.OfType<Employer>()
