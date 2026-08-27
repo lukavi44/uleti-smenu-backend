@@ -73,47 +73,74 @@ namespace Infrastructure.Persistence.Services
             if (applicationResult.IsFailure)
                 return Result.Failure(applicationResult.Error);
 
-            await _applicationUnitOfWork.BeginTransactionAsync();
+            Notification? receivedNotification = null;
+            User? employer = null;
+            Result result;
             try
             {
-                var application = applicationResult.Value;
-                await _applicationRepository.AddAsync(application);
-
-                var employer = await _userRepository.GetByIdAsync<User>(jobPost.EmployerId);
-                if (employer != null && NotificationPreferenceHelper.IsInAppEnabled(employer, $"{ApplicationReceivedNotificationType}:{application.Id}"))
+                result = await _applicationUnitOfWork.ExecuteStrategyAsync(async () =>
                 {
-                    var notification = CreateApplicationReceivedNotification(application, employee, jobPost);
-                    await _applicationUnitOfWork.Notifications.AddAsync(notification);
+                    await _applicationUnitOfWork.BeginTransactionAsync();
+                    try
+                    {
+                        var application = applicationResult.Value;
+                        await _applicationRepository.AddAsync(application);
 
-                    await _applicationUnitOfWork.SaveChangesAsync();
-                    await _applicationUnitOfWork.CommitTransactionAsync();
+                        employer = await _userRepository.GetByIdAsync<User>(jobPost.EmployerId);
+                        Notification? pendingNotification = null;
+                        if (employer != null && NotificationPreferenceHelper.IsInAppEnabled(employer, $"{ApplicationReceivedNotificationType}:{application.Id}"))
+                        {
+                            pendingNotification = CreateApplicationReceivedNotification(application, employee, jobPost);
+                            await _applicationUnitOfWork.Notifications.AddAsync(pendingNotification);
+                        }
 
-                    await NotifyApplicationReceivedAsync(notification);
-                }
-                else
-                {
-                    await _applicationUnitOfWork.SaveChangesAsync();
-                    await _applicationUnitOfWork.CommitTransactionAsync();
-                }
+                        await _applicationUnitOfWork.SaveChangesAsync();
+                        await _applicationUnitOfWork.CommitTransactionAsync();
+                        receivedNotification = pendingNotification;
+                        return Result.Success();
+                    }
+                    catch (DbUpdateException)
+                    {
+                        await _applicationUnitOfWork.RollbackTransactionAsync();
 
-                await NotifyEmployerApplicationReceivedEmailAsync(employer, employee, jobPost);
+                        if (await _applicationRepository.HasEmployeeAppliedAsync(employeeId, jobPostId))
+                            return Result.Success();
 
-                return Result.Success();
-            }
-            catch (DbUpdateException)
-            {
-                await _applicationUnitOfWork.RollbackTransactionAsync();
-
-                if (await _applicationRepository.HasEmployeeAppliedAsync(employeeId, jobPostId))
-                    return Result.Success();
-
-                return Result.Failure("Failed to apply for job post.");
+                        throw;
+                    }
+                    catch (Exception)
+                    {
+                        await _applicationUnitOfWork.RollbackTransactionAsync();
+                        throw;
+                    }
+                });
             }
             catch (Exception)
             {
-                await _applicationUnitOfWork.RollbackTransactionAsync();
                 return Result.Failure("Failed to apply for job post.");
             }
+
+            if (result.IsFailure)
+                return result;
+
+            if (receivedNotification != null)
+            {
+                try
+                {
+                    await NotifyApplicationReceivedAsync(receivedNotification);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "Application saved but realtime notification failed for employer {EmployerId}",
+                        employer?.Id);
+                }
+            }
+
+            await NotifyEmployerApplicationReceivedEmailAsync(employer, employee, jobPost);
+
+            return Result.Success();
         }
 
         public async Task<Result<List<ApplicationApplicantDTO>>> GetApplicantsForEmployerJobPostAsync(

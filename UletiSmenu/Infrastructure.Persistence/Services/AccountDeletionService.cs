@@ -59,57 +59,96 @@ namespace Infrastructure.Persistence.Services
             var originalEmail = user.Email;
             var profilePhoto = user.ProfilePhoto;
 
-            IDbContextTransaction? transaction = null;
-            if (_context.Database.IsRelational())
-                transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
-
+            Result deletionResult;
             try
             {
-                if (user is Employee employee)
-                    await DeleteEmployeePersonalDataAsync(employee, cancellationToken);
-                else if (user is Employer employer)
-                    await DeleteEmployerPersonalDataAsync(employer, cancellationToken);
-                else
-                    await DeleteSharedPersonalDataAsync(userId, cancellationToken);
+                var strategy = _context.Database.CreateExecutionStrategy();
+                var isRetry = false;
+                deletionResult = await strategy.ExecuteAsync(
+                    cancellationToken,
+                    async (_, _, ct) =>
+                    {
+                        if (isRetry)
+                        {
+                            if (_context.Database.CurrentTransaction != null)
+                                await _context.Database.RollbackTransactionAsync(ct);
 
-                await AnonymizeContactMessagesAsync(originalEmail, cancellationToken);
-                await RedactChatMessagesAsync(userId, cancellationToken);
+                            _context.ChangeTracker.Clear();
+                        }
 
-                var utcNow = DateTime.UtcNow;
-                if (user is Employee emp)
-                    emp.AnonymizePersonalProfile();
-                else if (user is Employer empl)
-                    empl.AnonymizePublicProfileForDeletion();
+                        isRetry = true;
 
-                user.MarkDeletedTombstone(utcNow);
+                        var currentUser = await _userManager.FindByIdAsync(userId.ToString());
+                        if (currentUser == null)
+                            return Result.Failure("User not found.");
 
-                await RevokeIdentityAccessAsync(user);
+                        if (currentUser.IsDeleted)
+                            return Result.Success();
 
-                var updateResult = await _userManager.UpdateAsync(user);
-                if (!updateResult.Succeeded)
-                {
-                    var error = string.Join("; ", updateResult.Errors.Select(e => e.Description));
-                    if (transaction != null)
-                        await transaction.RollbackAsync(cancellationToken);
-                    return Result.Failure(string.IsNullOrWhiteSpace(error) ? "Could not finalize account deletion." : error);
-                }
+                        IDbContextTransaction? transaction = null;
+                        if (_context.Database.IsRelational())
+                            transaction = await _context.Database.BeginTransactionAsync(ct);
 
-                await _context.SaveChangesAsync(cancellationToken);
-                if (transaction != null)
-                    await transaction.CommitAsync(cancellationToken);
+                        try
+                        {
+                            if (currentUser is Employee employee)
+                                await DeleteEmployeePersonalDataAsync(employee, ct);
+                            else if (currentUser is Employer employer)
+                                await DeleteEmployerPersonalDataAsync(employer, ct);
+                            else
+                                await DeleteSharedPersonalDataAsync(userId, ct);
+
+                            await AnonymizeContactMessagesAsync(originalEmail, ct);
+                            await RedactChatMessagesAsync(userId, ct);
+
+                            var utcNow = DateTime.UtcNow;
+                            if (currentUser is Employee emp)
+                                emp.AnonymizePersonalProfile();
+                            else if (currentUser is Employer empl)
+                                empl.AnonymizePublicProfileForDeletion();
+
+                            currentUser.MarkDeletedTombstone(utcNow);
+
+                            await RevokeIdentityAccessAsync(currentUser);
+
+                            var updateResult = await _userManager.UpdateAsync(currentUser);
+                            if (!updateResult.Succeeded)
+                            {
+                                var error = string.Join("; ", updateResult.Errors.Select(e => e.Description));
+                                if (transaction != null)
+                                    await transaction.RollbackAsync(ct);
+                                return Result.Failure(string.IsNullOrWhiteSpace(error) ? "Could not finalize account deletion." : error);
+                            }
+
+                            await _context.SaveChangesAsync(ct);
+                            if (transaction != null)
+                                await transaction.CommitAsync(ct);
+
+                            return Result.Success();
+                        }
+                        catch (Exception)
+                        {
+                            if (transaction != null)
+                                await transaction.RollbackAsync(ct);
+                            throw;
+                        }
+                        finally
+                        {
+                            if (transaction != null)
+                                await transaction.DisposeAsync();
+                        }
+                    },
+                    verifySucceeded: null,
+                    cancellationToken);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Account deletion failed for user {UserId}", userId);
-                if (transaction != null)
-                    await transaction.RollbackAsync(cancellationToken);
                 return Result.Failure("Account deletion failed. Please try again.");
             }
-            finally
-            {
-                if (transaction != null)
-                    await transaction.DisposeAsync();
-            }
+
+            if (deletionResult.IsFailure)
+                return deletionResult;
 
             try
             {

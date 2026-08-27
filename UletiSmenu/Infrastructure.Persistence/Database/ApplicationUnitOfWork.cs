@@ -28,4 +28,26 @@ public class ApplicationUnitOfWork : IApplicationUnitOfWork
 
     public async Task SaveChangesAsync() =>
         await _context.SaveChangesAsync();
+
+    public Task<TResult> ExecuteStrategyAsync<TResult>(Func<Task<TResult>> operation)
+    {
+        var strategy = _context.Database.CreateExecutionStrategy();
+        var isRetry = false;
+        return strategy.ExecuteAsync(
+            operation,
+            async (_, op, _) =>
+            {
+                if (isRetry)
+                {
+                    if (_context.Database.CurrentTransaction != null)
+                        await _context.Database.RollbackTransactionAsync();
+
+                    _context.ChangeTracker.Clear();
+                }
+
+                isRetry = true;
+                return await op();
+            },
+            verifySucceeded: null);
+    }
 }

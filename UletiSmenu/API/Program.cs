@@ -281,7 +281,8 @@ builder.Services.AddSwaggerGen(options =>
 
 builder.Services.AddDbContext<ApplicationDbContext>(
     options => options.UseSqlServer(
-        connectionString: builder.Configuration["ConnectionStrings:UletiSmenu"]
+        connectionString: builder.Configuration["ConnectionStrings:UletiSmenu"],
+        sqlServerOptionsAction: SqlServerTransientRetry.Configure
     )
 );
 

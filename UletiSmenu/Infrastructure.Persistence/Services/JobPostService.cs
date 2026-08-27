@@ -67,36 +67,42 @@ namespace Infrastructure.Persistence.Services
             if (location.EmployerId != jobPost.EmployerId)
                 return Result.Failure("Selected location does not belong to this brand account.");
 
-            await _applicationUnitOfWork.BeginTransactionAsync();
-
+            Result result;
             try
             {
-                await _jobPostRepository.AddAsync(jobPost);
-
-                if (isActivePost)
+                result = await _applicationUnitOfWork.ExecuteStrategyAsync(async () =>
                 {
-                    var creditResult = await _billingService.OnJobPostCreatedAsync(jobPost.EmployerId, jobPost.Id);
-                    if (creditResult.IsFailure)
+                    await _applicationUnitOfWork.BeginTransactionAsync();
+
+                    try
+                    {
+                        await _jobPostRepository.AddAsync(jobPost);
+
+                        if (isActivePost)
+                        {
+                            var creditResult = await _billingService.OnJobPostCreatedAsync(jobPost.EmployerId, jobPost.Id);
+                            if (creditResult.IsFailure)
+                            {
+                                await _applicationUnitOfWork.RollbackTransactionAsync();
+                                return Result.Failure(creditResult.Error);
+                            }
+
+                            await CreateInAppNotificationsAsync(jobPost);
+                        }
+
+                        await _applicationUnitOfWork.SaveChangesAsync();
+                        await _applicationUnitOfWork.CommitTransactionAsync();
+                        return Result.Success("Job post created successfully.");
+                    }
+                    catch (Exception)
                     {
                         await _applicationUnitOfWork.RollbackTransactionAsync();
-                        return Result.Failure(creditResult.Error);
+                        throw;
                     }
-
-                    await CreateInAppNotificationsAsync(jobPost);
-                }
-
-                await _applicationUnitOfWork.SaveChangesAsync();
-                await _applicationUnitOfWork.CommitTransactionAsync();
-
-                if (isActivePost)
-                    await NotifyFollowersAsync(jobPost);
-
-                return Result.Success("Job post created successfully.");
-
+                });
             }
             catch (Exception ex)
             {
-                await _applicationUnitOfWork.RollbackTransactionAsync();
                 _logger.LogError(
                     ex,
                     "Job post creation failed. JobPostId: {JobPostId}, EmployerId: {EmployerId}",
@@ -104,6 +110,11 @@ namespace Infrastructure.Persistence.Services
                     jobPost.EmployerId);
                 return Result.Failure("Job post creation failed.");
             }
+
+            if (result.IsSuccess && isActivePost)
+                await NotifyFollowersAsync(jobPost);
+
+            return result;
         }
 
         public async Task<IEnumerable<JobPost>> GetVisibleJobPostsAsync(string? sortBy = null, string? sortDirection = null)
