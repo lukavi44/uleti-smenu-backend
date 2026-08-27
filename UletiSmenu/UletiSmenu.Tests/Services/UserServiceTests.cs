@@ -66,6 +66,8 @@ namespace UletiSmenu.Tests.Services
                         "802824",
                         "Novi Sad")));
 
+            _unitOfWorkMock.SetupPassthroughExecutionStrategy();
+
             _userService = new UserService(
                 _userRepositoryMock.Object,
                 _restaurantLocationRepositoryMock.Object,
@@ -102,6 +104,31 @@ namespace UletiSmenu.Tests.Services
             Assert.Contains(result, x => x.Email == "testemployer@example.com");
 
             _userRepositoryMock.Verify(repo => repo.GetAllEmployersAsync(), Times.Once);
+        }
+
+        [Fact]
+        public async Task GetAllEmployersWithFavouriteStatusAsync_WhenLimitProvided_ShouldQueryLimitedEmployers()
+        {
+            var employeeId = Guid.NewGuid();
+            var employer = TestDataFactory.CreateFakeRegisterEmployer();
+            employer.SetPublicSlug("test-employer-ltd");
+
+            var favouritesMock = new Mock<IFavouriteRepository>();
+            favouritesMock
+                .Setup(repository => repository.GetEmployerIdsFavouritedByEmployeeAsync(employeeId))
+                .ReturnsAsync(new List<Guid> { employer.Id });
+            _unitOfWorkMock.Setup(unitOfWork => unitOfWork.Favourites).Returns(favouritesMock.Object);
+            _userRepositoryMock
+                .Setup(repository => repository.GetEmployersLimitedAsync(12))
+                .ReturnsAsync(new List<Employer> { employer });
+
+            var result = (await _userService.GetAllEmployersWithFavouriteStatusAsync(employeeId, limit: 12)).ToList();
+
+            Assert.Single(result);
+            Assert.Equal(employer.Id, result[0].EmployerId);
+            Assert.True(result[0].IsFavourite);
+            _userRepositoryMock.Verify(repository => repository.GetEmployersLimitedAsync(12), Times.Once);
+            _userRepositoryMock.Verify(repository => repository.GetAllEmployersAsync(), Times.Never);
         }
 
         [Fact]
@@ -204,6 +231,50 @@ namespace UletiSmenu.Tests.Services
             _restaurantLocationRepositoryMock.Verify(
                 repo => repo.AddAsync(It.IsAny<RestaurantLocation>()),
                 Times.Never);
+        }
+
+        [Fact]
+        public async Task RegisterEmployerAsync_WhenTransactionIsRetried_DoesNotDoubleRegistrationCredits()
+        {
+            var employer = TestDataFactory.CreateFakeRegisterEmployer();
+            var createCalls = 0;
+
+            _unitOfWorkMock.SetupRetryingExecutionStrategy();
+            _unitOfWorkMock.Setup(unitOfWork => unitOfWork.BeginTransactionAsync()).Returns(Task.CompletedTask);
+            _unitOfWorkMock.Setup(unitOfWork => unitOfWork.SaveChangesAsync()).Returns(Task.CompletedTask);
+            _unitOfWorkMock.Setup(unitOfWork => unitOfWork.CommitTransactionAsync()).Returns(Task.CompletedTask);
+            _unitOfWorkMock.Setup(unitOfWork => unitOfWork.RollbackTransactionAsync()).Returns(Task.CompletedTask);
+            _userRepositoryMock
+                .Setup(repository => repository.FindAsync(It.IsAny<System.Linq.Expressions.Expression<Func<User, bool>>>()))
+                .ReturnsAsync(Array.Empty<User>());
+            _userRepositoryMock
+                .Setup(repository => repository.PublicSlugExistsAsync(It.IsAny<string>(), employer.Id))
+                .ReturnsAsync(false);
+            _billingServiceMock
+                .Setup(service => service.GrantRegistrationBonus(It.IsAny<Employer>()))
+                .Callback<Employer>(candidate => candidate.GrantRegistrationBonus(5))
+                .Returns(CSharpFunctionalExtensions.Result.Success());
+            _userManagerMock
+                .Setup(manager => manager.CreateAsync(employer, "Password1!"))
+                .Returns(() =>
+                {
+                    createCalls++;
+                    if (createCalls == 1)
+                        throw new InvalidOperationException("simulated transient failure");
+                    return Task.FromResult(IdentityResult.Success);
+                });
+            _userManagerMock
+                .Setup(manager => manager.AddToRoleAsync(employer, "Employer"))
+                .ReturnsAsync(IdentityResult.Success);
+
+            var result = await _userService.RegisterEmployerAsync(employer, "Password1!");
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(5, employer.PostCredits);
+            Assert.Equal(2, createCalls);
+            _billingServiceMock.Verify(service => service.GrantRegistrationBonus(employer), Times.Exactly(2));
+            _unitOfWorkMock.Verify(unitOfWork => unitOfWork.RollbackTransactionAsync(), Times.Once);
+            _unitOfWorkMock.Verify(unitOfWork => unitOfWork.CommitTransactionAsync(), Times.Once);
         }
     }
 }

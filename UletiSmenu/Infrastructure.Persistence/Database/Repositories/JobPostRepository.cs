@@ -41,6 +41,28 @@ namespace Infrastructure.Persistence.Database.Repositories
                     && jp.StartingDate.AddHours(1) >= utcNow);
         }
 
+        public async Task<Dictionary<Guid, int>> GetDirectoryActiveJobCountsByEmployerIdsAsync(
+            IEnumerable<Guid> employerIds,
+            DateTime utcNow)
+        {
+            var ids = employerIds.Distinct().ToList();
+            if (ids.Count == 0)
+                return new Dictionary<Guid, int>();
+
+            var grouped = await _context.JobPosts
+                .Where(jp =>
+                    ids.Contains(jp.EmployerId)
+                    && jp.Status != JobStatusEnum.Cancelled
+                    && jp.Status != JobStatusEnum.Completed
+                    && jp.Status != JobStatusEnum.Expired
+                    && jp.StartingDate.AddHours(1) >= utcNow)
+                .GroupBy(jp => jp.EmployerId)
+                .Select(group => new { EmployerId = group.Key, Count = group.Count() })
+                .ToListAsync();
+
+            return grouped.ToDictionary(item => item.EmployerId, item => item.Count);
+        }
+
         public async Task<int> CountActiveByRestaurantLocationIdAsync(Guid restaurantLocationId)
         {
             var utcNow = DateTime.UtcNow;

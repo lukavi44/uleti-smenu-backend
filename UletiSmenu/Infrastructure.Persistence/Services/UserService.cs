@@ -52,88 +52,120 @@ namespace Infrastructure.Persistence.Services
 
         public async Task<Result> RegisterEmployerAsync(Employer employer, string password)
         {
-            await _applicationUnitOfWork.BeginTransactionAsync();
-
+            Result result;
             try
             {
-                var existingUser = await _userRepository.FindAsync(e => e.Email == employer.Email);
-                if (existingUser.Any())
+                result = await _applicationUnitOfWork.ExecuteStrategyAsync(async () =>
                 {
-                    _logger.LogWarning(
-                        "Employer registration rejected because the email is already registered. UserId: {UserId}",
-                        employer.Id);
-                    return Result.Failure("Email already exists");
-                }
+                    await _applicationUnitOfWork.BeginTransactionAsync();
 
-                var bonusResult = _billingService.GrantRegistrationBonus(employer);
-                if (bonusResult.IsFailure)
-                    return Result.Failure(bonusResult.Error);
+                    try
+                    {
+                        var existingUser = await _userRepository.FindAsync(e => e.Email == employer.Email);
+                        if (existingUser.Any())
+                        {
+                            _logger.LogWarning(
+                                "Employer registration rejected because the email is already registered. UserId: {UserId}",
+                                employer.Id);
+                            return Result.Failure("Email already exists");
+                        }
 
-                var slugResult = await AssignUniquePublicSlugAsync(employer);
-                if (slugResult.IsFailure)
-                    return Result.Failure(slugResult.Error);
+                        var bonusResult = _billingService.GrantRegistrationBonus(employer);
+                        if (bonusResult.IsFailure)
+                            return Result.Failure(bonusResult.Error);
 
-                var identityResult = await _userManager.CreateAsync(employer, password);
-                if (!identityResult.Succeeded)
-                    return Result.Failure(string.Join(", ", identityResult.Errors.Select(e => e.Description)));
+                        var slugResult = await AssignUniquePublicSlugAsync(employer);
+                        if (slugResult.IsFailure)
+                            return Result.Failure(slugResult.Error);
 
-                var roleResult = await _userManager.AddToRoleAsync(employer, UserRolesEnum.Employer.ToString());
-                if (!roleResult.Succeeded)
-                    return Result.Failure("User created but failed to assign role: " + string.Join(", ", roleResult.Errors.Select(e => e.Description)));
+                        var identityResult = await _userManager.CreateAsync(employer, password);
+                        if (!identityResult.Succeeded)
+                            return Result.Failure(string.Join(", ", identityResult.Errors.Select(e => e.Description)));
 
-                await _applicationUnitOfWork.SaveChangesAsync();
-                await _applicationUnitOfWork.CommitTransactionAsync();
+                        var roleResult = await _userManager.AddToRoleAsync(employer, UserRolesEnum.Employer.ToString());
+                        if (!roleResult.Succeeded)
+                            return Result.Failure("User created but failed to assign role: " + string.Join(", ", roleResult.Errors.Select(e => e.Description)));
 
-                QueueConfirmationEmail(employer.Id, employer.Email!);
-                QueueWelcomeEmail(employer.Email!, isEmployer: true, displayName: employer.Name);
+                        await _applicationUnitOfWork.SaveChangesAsync();
+                        await _applicationUnitOfWork.CommitTransactionAsync();
 
-                return Result.Success("User registered successfully! Please check your email for confirmation.");
+                        return Result.Success("User registered successfully! Please check your email for confirmation.");
+                    }
+                    catch (Exception)
+                    {
+                        await _applicationUnitOfWork.RollbackTransactionAsync();
+                        throw;
+                    }
+                });
             }
             catch (Exception ex)
             {
-                await _applicationUnitOfWork.RollbackTransactionAsync();
                 _logger.LogError(ex, "Employer registration failed. UserId: {UserId}", employer.Id);
                 return Result.Failure("Employer registration failed.");
             }
+
+            if (result.IsSuccess)
+            {
+                QueueConfirmationEmail(employer.Id, employer.Email!);
+                QueueWelcomeEmail(employer.Email!, isEmployer: true, displayName: employer.Name);
+            }
+
+            return result;
         }
 
         public async Task<Result> RegisterEmployeeAsync(Employee employee, string password)
         {
-            await _applicationUnitOfWork.BeginTransactionAsync();
-
+            Result result;
             try
             {
-                var existingUser = await _userRepository.FindAsync(e => e.Email == employee.Email);
-                if (existingUser.Any())
+                result = await _applicationUnitOfWork.ExecuteStrategyAsync(async () =>
                 {
-                    _logger.LogWarning(
-                        "Employee registration rejected because the email is already registered. UserId: {UserId}",
-                        employee.Id);
-                    return Result.Failure("Email already exists");
-                }
+                    await _applicationUnitOfWork.BeginTransactionAsync();
 
-                var identityResult = await _userManager.CreateAsync(employee, password);
-                if (!identityResult.Succeeded)
-                    return Result.Failure(string.Join(", ", identityResult.Errors.Select(e => e.Description)));
+                    try
+                    {
+                        var existingUser = await _userRepository.FindAsync(e => e.Email == employee.Email);
+                        if (existingUser.Any())
+                        {
+                            _logger.LogWarning(
+                                "Employee registration rejected because the email is already registered. UserId: {UserId}",
+                                employee.Id);
+                            return Result.Failure("Email already exists");
+                        }
 
-                var roleResult = await _userManager.AddToRoleAsync(employee, UserRolesEnum.Employee.ToString());
-                if (!roleResult.Succeeded)
-                    return Result.Failure("User created but failed to assign role: " + string.Join(", ", roleResult.Errors.Select(e => e.Description)));
+                        var identityResult = await _userManager.CreateAsync(employee, password);
+                        if (!identityResult.Succeeded)
+                            return Result.Failure(string.Join(", ", identityResult.Errors.Select(e => e.Description)));
 
-                await _applicationUnitOfWork.SaveChangesAsync();
-                await _applicationUnitOfWork.CommitTransactionAsync();
+                        var roleResult = await _userManager.AddToRoleAsync(employee, UserRolesEnum.Employee.ToString());
+                        if (!roleResult.Succeeded)
+                            return Result.Failure("User created but failed to assign role: " + string.Join(", ", roleResult.Errors.Select(e => e.Description)));
 
-                QueueConfirmationEmail(employee.Id, employee.Email!);
-                QueueWelcomeEmail(employee.Email!, isEmployer: false, displayName: employee.FirstName);
+                        await _applicationUnitOfWork.SaveChangesAsync();
+                        await _applicationUnitOfWork.CommitTransactionAsync();
 
-                return Result.Success("User registered successfully! Please check your email for confirmation.");
+                        return Result.Success("User registered successfully! Please check your email for confirmation.");
+                    }
+                    catch (Exception)
+                    {
+                        await _applicationUnitOfWork.RollbackTransactionAsync();
+                        throw;
+                    }
+                });
             }
             catch (Exception ex)
             {
-                await _applicationUnitOfWork.RollbackTransactionAsync();
                 _logger.LogError(ex, "Employee registration failed. UserId: {UserId}", employee.Id);
                 return Result.Failure("Employee registration failed.");
             }
+
+            if (result.IsSuccess)
+            {
+                QueueConfirmationEmail(employee.Id, employee.Email!);
+                QueueWelcomeEmail(employee.Email!, isEmployer: false, displayName: employee.FirstName);
+            }
+
+            return result;
         }
 
         public Task<User> CreateUserAsync(User user)
@@ -378,12 +410,29 @@ namespace Infrastructure.Persistence.Services
             return Result.Success();
         }
 
-        public async Task<IEnumerable<EmployerFavouriteStatusDTO>> GetAllEmployersWithFavouriteStatusAsync(Guid employeeId, string? city = null)
+        public async Task<IEnumerable<EmployerFavouriteStatusDTO>> GetAllEmployersWithFavouriteStatusAsync(
+            Guid employeeId,
+            string? city = null,
+            int? limit = null)
         {
             var favouritedEmployerIds = await _applicationUnitOfWork.Favourites
                 .GetEmployerIdsFavouritedByEmployeeAsync(employeeId);
 
-            var employers = await GetEmployersAsync(city);
+            IEnumerable<Employer> employers;
+            if (limit.HasValue && string.IsNullOrWhiteSpace(city))
+            {
+                employers = await _userRepository.GetEmployersLimitedAsync(limit.Value);
+                foreach (var employer in employers)
+                {
+                    await EnsurePublicSlugAsync(employer);
+                }
+            }
+            else
+            {
+                employers = await GetEmployersAsync(city);
+                if (limit.HasValue)
+                    employers = employers.Take(limit.Value).ToList();
+            }
 
             return employers.Select(e => new EmployerFavouriteStatusDTO
             {

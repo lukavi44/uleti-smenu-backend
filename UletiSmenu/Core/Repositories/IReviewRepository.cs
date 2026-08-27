@@ -27,6 +27,7 @@ namespace Core.Repositories
             string sort);
         Task<ReviewSummaryDTO> GetEmployeeReviewSummaryAsync(Guid employeeId);
         Task<ReviewSummaryDTO> GetEmployerReviewSummaryAsync(Guid employerId);
+        Task<Dictionary<Guid, ReviewSummaryDTO>> GetEmployerReviewSummariesAsync(IEnumerable<Guid> employerIds);
         Task<Dictionary<Guid, ReviewSummaryDTO>> GetEmployeeReviewSummariesAsync(IEnumerable<Guid> employeeIds);
         Task<List<PendingReviewDTO>> GetPendingReviewsForEmployeeAsync(Guid employeeId, DateTime utcNow);
         Task<List<PendingReviewDTO>> GetPendingReviewsForEmployerAsync(Guid employerId, DateTime utcNow);

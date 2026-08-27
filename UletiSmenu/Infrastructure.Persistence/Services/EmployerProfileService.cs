@@ -217,27 +217,27 @@ namespace Infrastructure.Persistence.Services
             var safePage = page < 1 ? 1 : page;
             var safePageSize = pageSize < 1 ? 9 : Math.Min(pageSize, 50);
 
-            var employers = (await _userRepository.GetAllEmployersAsync()).ToList();
-            employers = (await FilterEmployersByCityAsync(employers, city)).ToList();
+            var (pagedEmployers, totalCount) = await _userRepository.GetEmployerDirectoryPagedAsync(
+                city,
+                search,
+                safePage,
+                safePageSize);
 
-            if (!string.IsNullOrWhiteSpace(search))
+            foreach (var employer in pagedEmployers)
             {
-                var normalizedSearch = search.Trim();
-                employers = employers
-                    .Where(employer =>
-                        employer.Name.Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
+                await EnsurePublicSlugAsync(employer);
             }
 
-            employers = employers
-                .OrderBy(employer => employer.Name, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            var totalCount = employers.Count;
-            var pagedEmployers = employers
-                .Skip((safePage - 1) * safePageSize)
-                .Take(safePageSize)
-                .ToList();
+            var employerIds = pagedEmployers.Select(employer => employer.Id).ToList();
+            var locationsByEmployerId = (await _restaurantLocationRepository.GetByEmployerIdsAsync(employerIds))
+                .GroupBy(location => location.EmployerId)
+                .ToDictionary(
+                    group => group.Key,
+                    group => (IReadOnlyList<RestaurantLocation>)group.ToList());
+            var reviewSummaries = await _reviewRepository.GetEmployerReviewSummariesAsync(employerIds);
+            var activeJobCounts = await _jobPostRepository.GetDirectoryActiveJobCountsByEmployerIdsAsync(
+                employerIds,
+                DateTime.UtcNow);
 
             var favouriteEmployerIds = employeeId.HasValue
                 ? (await _applicationUnitOfWork.Favourites
@@ -245,28 +245,26 @@ namespace Infrastructure.Persistence.Services
                     .ToHashSet()
                 : new HashSet<Guid>();
 
-            var items = new List<EmployerDirectoryListItemDTO>();
-            foreach (var employer in pagedEmployers)
+            var items = pagedEmployers.Select(employer =>
             {
-                var previewResult = await BuildEmployerDirectoryPreviewAsync(employer.Id);
-                if (previewResult.IsFailure)
-                {
-                    continue;
-                }
+                locationsByEmployerId.TryGetValue(employer.Id, out var locations);
+                reviewSummaries.TryGetValue(employer.Id, out var reviewSummary);
+                activeJobCounts.TryGetValue(employer.Id, out var activeJobPostsCount);
 
-                var preview = previewResult.Value;
-                items.Add(new EmployerDirectoryListItemDTO
+                return new EmployerDirectoryListItemDTO
                 {
-                    EmployerId = preview.EmployerId,
-                    Name = preview.Name,
-                    ProfilePhoto = preview.ProfilePhoto,
-                    PublicSlug = preview.PublicSlug,
-                    City = preview.City,
-                    ReviewSummary = preview.ReviewSummary,
-                    ActiveJobPostsCount = preview.ActiveJobPostsCount,
-                    IsFavourite = favouriteEmployerIds.Contains(preview.EmployerId)
-                });
-            }
+                    EmployerId = employer.Id,
+                    Name = employer.Name,
+                    ProfilePhoto = employer.ProfilePhoto,
+                    PublicSlug = employer.PublicSlug,
+                    City = EmployerDisplayCityResolver.Resolve(
+                        employer,
+                        locations ?? Array.Empty<RestaurantLocation>()),
+                    ReviewSummary = reviewSummary ?? new ReviewSummaryDTO(),
+                    ActiveJobPostsCount = activeJobPostsCount,
+                    IsFavourite = favouriteEmployerIds.Contains(employer.Id)
+                };
+            }).ToList();
 
             return new PagedResultDTO<EmployerDirectoryListItemDTO>
             {
@@ -275,23 +273,6 @@ namespace Infrastructure.Persistence.Services
                 Page = safePage,
                 PageSize = safePageSize
             };
-        }
-
-        private async Task<IEnumerable<Employer>> FilterEmployersByCityAsync(IEnumerable<Employer> employers, string? city)
-        {
-            if (string.IsNullOrWhiteSpace(city))
-            {
-                return employers;
-            }
-
-            var normalizedCity = city.Trim();
-            var employerIdsWithBranch = (await _restaurantLocationRepository
-                .GetEmployerIdsByCityAsync(normalizedCity))
-                .ToHashSet();
-
-            return employers.Where(employer =>
-                employerIdsWithBranch.Contains(employer.Id) ||
-                string.Equals(employer.Address?.City?.Name, normalizedCity, StringComparison.OrdinalIgnoreCase));
         }
 
         public async Task<Result<EmployerRestaurantReviewSummaryDTO>> GetMyRestaurantReviewsSummaryBySlugAsync(

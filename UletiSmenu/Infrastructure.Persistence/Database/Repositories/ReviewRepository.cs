@@ -348,29 +348,34 @@ namespace Infrastructure.Persistence.Database.Repositories
 
         public async Task<ReviewSummaryDTO> GetEmployerReviewSummaryAsync(Guid employerId)
         {
-            return await GetReviewSummaryForRevieweeAsync(employerId);
+            var summaries = await GetEmployerReviewSummariesAsync(new[] { employerId });
+            return summaries.GetValueOrDefault(employerId, new ReviewSummaryDTO());
         }
 
-        private async Task<ReviewSummaryDTO> GetReviewSummaryForRevieweeAsync(Guid revieweeId)
+        public async Task<Dictionary<Guid, ReviewSummaryDTO>> GetEmployerReviewSummariesAsync(IEnumerable<Guid> employerIds)
         {
+            var ids = employerIds.Distinct().ToList();
+            if (ids.Count == 0)
+                return new Dictionary<Guid, ReviewSummaryDTO>();
+
             var grouped = await _context.MatchReviews
-                .Where(review => review.RevieweeId == revieweeId)
+                .Where(review => ids.Contains(review.RevieweeId))
                 .GroupBy(review => review.RevieweeId)
                 .Select(group => new
                 {
+                    EmployerId = group.Key,
                     AverageRating = group.Average(review => review.Rating),
                     ReviewCount = group.Count()
                 })
-                .FirstOrDefaultAsync();
+                .ToListAsync();
 
-            if (grouped == null)
-                return new ReviewSummaryDTO();
-
-            return new ReviewSummaryDTO
-            {
-                AverageRating = Math.Round(grouped.AverageRating, 1),
-                ReviewCount = grouped.ReviewCount
-            };
+            return grouped.ToDictionary(
+                item => item.EmployerId,
+                item => new ReviewSummaryDTO
+                {
+                    AverageRating = Math.Round(item.AverageRating, 1),
+                    ReviewCount = item.ReviewCount
+                });
         }
 
         public async Task<Dictionary<Guid, ReviewSummaryDTO>> GetEmployeeReviewSummariesAsync(IEnumerable<Guid> employeeIds)

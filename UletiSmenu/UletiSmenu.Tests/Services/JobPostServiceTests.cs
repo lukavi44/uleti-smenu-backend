@@ -6,6 +6,7 @@ using Core.Services;
 using Infrastructure.Persistence.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
+using UletiSmenu.Tests.TestHelpers;
 
 namespace UletiSmenu.Tests.Services
 {
@@ -140,6 +141,7 @@ namespace UletiSmenu.Tests.Services
                 .Setup(x => x.GetByIdAsync(locationId))
                 .ReturnsAsync(location);
 
+            unitOfWorkMock.SetupPassthroughExecutionStrategy();
             unitOfWorkMock.Setup(x => x.BeginTransactionAsync()).Returns(Task.CompletedTask);
             unitOfWorkMock.Setup(x => x.SaveChangesAsync()).Returns(Task.CompletedTask);
             unitOfWorkMock.Setup(x => x.CommitTransactionAsync()).Returns(Task.CompletedTask);
