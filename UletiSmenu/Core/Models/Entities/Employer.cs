@@ -231,7 +231,10 @@ namespace Core.Models.Entities
 
         public void GrantRegistrationBonus(int credits)
         {
-            if (credits > 0)
+            if (credits <= 0)
+                return;
+
+            if (PostCredits <= 0)
                 PostCredits += credits;
 
             if (!SubscriptionId.HasValue)

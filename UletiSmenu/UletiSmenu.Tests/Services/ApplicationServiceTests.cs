@@ -34,6 +34,7 @@ namespace UletiSmenu.Tests.Services
             var emailServiceMock = new Mock<IEmailService>();
             var loggerMock = new Mock<Microsoft.Extensions.Logging.ILogger<ApplicationService>>();
 
+            _unitOfWorkMock.SetupPassthroughExecutionStrategy();
             _unitOfWorkMock.Setup(u => u.Notifications).Returns(_notificationRepositoryMock.Object);
             _notificationRepositoryMock
                 .Setup(r => r.AddAsync(It.IsAny<Notification>()))

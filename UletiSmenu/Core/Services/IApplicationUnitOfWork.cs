@@ -10,5 +10,6 @@ namespace Core.Services
         public Task BeginTransactionAsync();
         public Task RollbackTransactionAsync();
         public Task SaveChangesAsync();
+        public Task<TResult> ExecuteStrategyAsync<TResult>(Func<Task<TResult>> operation);
     }
 }
